@@ -44,12 +44,19 @@ import {
 import {
   supabase
 } from "./supabase";
+import {
+  APPROVED_DOCTOR_EMAILS,
+  isApprovedDoctorEmail,
+  isPhoneIdentifier,
+  normalizeClinicIdentifier
+} from "./auth";
 import "./styles.css";
 
 const RAZORPAY_KEY_ID = import.meta.env.VITE_RAZORPAY_KEY_ID || "";
 const RAZORPAY_API_BASE = import.meta.env.VITE_RAZORPAY_API_BASE || "/api";
 const isRazorpayConfigured = Boolean(RAZORPAY_KEY_ID.trim());
 const razorpayScriptUrl = "https://checkout.razorpay.com/v1/checkout.js";
+const isDevMode = import.meta.env.DEV;
 
 const clinics = [
   {
@@ -440,9 +447,7 @@ function App() {
   const [googleProfile, setGoogleProfile] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
   const [authMessage, setAuthMessage] = useState("");
-  const allowedDoctorEmails = [
-  "drashwanikansal@gmail.com"
-];
+  const allowedDoctorEmails = APPROVED_DOCTOR_EMAILS;
   const [theme, setTheme] = useState("light");
   const [activeTab, setActiveTab] = useState("home");
   const [doctorTab, setDoctorTab] = useState("today");
@@ -497,6 +502,9 @@ function App() {
     }))
   );
 
+  const isMissingSupabaseTableError = (error) =>
+    ["PGRST205", "42P01"].includes(error?.code) || /schema cache|does not exist/i.test(error?.message || "");
+
   const updatePatientRecord = (patientId, patch) => {
     setPatientRecords((records) =>
       records.map((patient) => {
@@ -513,7 +521,7 @@ function App() {
     );
   };
 
-  const syncPatientReadingsToDoctor = (readings) => {
+  const syncPatientReadingsToDoctor = async (readings) => {
     updatePatientRecord("ramesh", {
       latest: readings.fasting ? `Fasting ${ensureUnit(readings.fasting, "mg/dL")}` : "Readings updated",
       vitals: {
@@ -527,6 +535,31 @@ function App() {
       notes: readings.note || "Patient updated readings from app.",
       lastVisit: readings.updatedAt || "Just now"
     });
+
+    if (!currentUser?.id) {
+      return "Readings saved on this device. Sign in to sync them with Supabase.";
+    }
+
+    const { error } = await supabase.from("patient_readings").insert({
+      patient_id: currentUser.id,
+      fasting: readings.fasting || null,
+      post_meal: readings.postMeal || null,
+      bp: readings.bp || null,
+      weight: readings.weight || null,
+      hba1c: readings.hba1c || null,
+      report_name: readings.reportName || null,
+      symptoms: readings.symptoms || null,
+      note: readings.note || null
+    });
+
+    if (error) {
+      if (isMissingSupabaseTableError(error)) {
+        return "Readings saved locally. Apply the clinic app Supabase migration to enable cloud sync.";
+      }
+      return `Readings saved locally, but cloud sync failed: ${error.message}`;
+    }
+
+    return "Readings saved for doctor review and synced to Supabase.";
   };
 
   const startConsultationPayment = async () => {
@@ -646,7 +679,7 @@ function App() {
 
   const logAuthAction = async (user, role, action) => {
     if (!user?.id) return;
-    await supabase.from("clinic_login_audit").insert({
+    const { error } = await supabase.from("clinic_login_audit").insert({
       user_id: user.id,
       email: user.email || null,
       phone: user.phone || null,
@@ -654,15 +687,19 @@ function App() {
       role,
       action
     });
+    if (error && !isMissingSupabaseTableError(error)) {
+      console.warn("Clinic login audit failed:", error.message);
+    }
   };
 
   const upsertClinicProfile = async (user, requestedRole = authRole, extra = {}) => {
     if (!user?.id) return null;
     const metadata = user.user_metadata || {};
     const email = user.email || extra.email || null;
-    const role = requestedRole === "doctor" ? "doctor" : "patient";
+    const appRole = user.app_metadata?.role;
+    const role = appRole === "doctor" || requestedRole === "doctor" ? "doctor" : "patient";
 
-    if (role === "doctor" && email && !allowedDoctorEmails.includes(email)) {
+    if (role === "doctor" && email && !isApprovedDoctorEmail(email)) {
       await supabase.auth.signOut();
       setAuthMessage("This account is not approved for doctor access.");
       return null;
@@ -684,6 +721,10 @@ function App() {
       .upsert(profile, { onConflict: "id" });
 
     if (error) {
+      if (isMissingSupabaseTableError(error)) {
+        setAuthMessage("Signed in. Supabase app tables are not applied yet, so profile sync is local for now.");
+        return profile;
+      }
       setAuthMessage(error.message);
       return null;
     }
@@ -708,9 +749,11 @@ function App() {
 
     if (dbProfile.role === "doctor") {
       setCurrentUser({
+        id: dbProfile.id,
         role: "doctor",
         name: "Dr. Ashwani Kansal",
         email: dbProfile.email,
+        phone: dbProfile.phone,
         avatar: dbProfile.avatar_url,
         provider: dbProfile.provider
       });
@@ -720,9 +763,11 @@ function App() {
     }
 
     setCurrentUser({
+      id: dbProfile.id,
       role: "patient",
       name: dbProfile.full_name || "Clinic User",
       email: dbProfile.email,
+      phone: dbProfile.phone,
       avatar: dbProfile.avatar_url,
       provider: dbProfile.provider
     });
@@ -741,9 +786,15 @@ function App() {
 
     const { data: subscription } = supabase.auth.onAuthStateChange((event, session) => {
       if (!mounted || !session?.user || event === "SIGNED_OUT") return;
+      if (window.localStorage.getItem("clinicAuthDirectFlow") === "1") {
+        window.localStorage.removeItem("clinicAuthDirectFlow");
+        return;
+      }
       const requestedRole = window.localStorage.getItem("clinicAuthRole") || "patient";
+      const needsMedicalProfile = window.localStorage.getItem("clinicAuthNeedsMedicalProfile") === "1";
       window.localStorage.removeItem("clinicAuthRole");
-      applySupabaseUser(session.user, requestedRole, { skipMedicalProfile: event !== "SIGNED_IN" });
+      window.localStorage.removeItem("clinicAuthNeedsMedicalProfile");
+      applySupabaseUser(session.user, requestedRole, { skipMedicalProfile: !needsMedicalProfile });
     });
 
     return () => {
@@ -755,6 +806,7 @@ function App() {
   const handleGoogleSignIn = async () => {
     try {
       window.localStorage.setItem("clinicAuthRole", authRole);
+      window.localStorage.setItem("clinicAuthNeedsMedicalProfile", authRole === "patient" ? "1" : "0");
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
@@ -766,24 +818,28 @@ function App() {
     } catch (error) {
       console.error("Google Sign-In error:", error);
       window.localStorage.removeItem("clinicAuthRole");
+      window.localStorage.removeItem("clinicAuthNeedsMedicalProfile");
       alert(`Google Sign-In failed: ${error.code || error.message}`);
     }
   };
 
   const handleEmailAuth = async ({ mode, role, email, phone, password, fullName, identifierType = "email" }) => {
     setAuthMessage("");
-    const normalizedPhone = normalizePhone(phone);
-    const usePhone = mode === "signin" && identifierType === "phone";
+    const normalizedIdentifier = normalizeClinicIdentifier(email || phone);
+    const normalizedPhone = normalizePhone(phone || normalizedIdentifier);
+    const usePhone = mode === "signin" && (identifierType === "phone" || isPhoneIdentifier(normalizedIdentifier));
+    const normalizedEmail = usePhone ? "" : normalizedIdentifier;
 
-    if (!password || (!email && !normalizedPhone)) {
+    if (!password || (!normalizedEmail && !normalizedPhone)) {
       setAuthMessage("Please enter email or phone, and password.");
       return;
     }
 
     try {
+      window.localStorage.setItem("clinicAuthDirectFlow", "1");
       const authCall = mode === "signup"
         ? supabase.auth.signUp({
-            email,
+            email: normalizeClinicIdentifier(email),
             password,
             options: {
               data: {
@@ -794,7 +850,7 @@ function App() {
             }
           })
         : supabase.auth.signInWithPassword(
-            usePhone ? { phone: normalizedPhone, password } : { email, password }
+            usePhone ? { phone: normalizedPhone, password } : { email: normalizedEmail, password }
           );
 
       const { data, error } = await authCall;
@@ -810,7 +866,9 @@ function App() {
         provider: "email",
         skipMedicalProfile: mode !== "signup"
       });
+      window.localStorage.removeItem("clinicAuthDirectFlow");
     } catch (error) {
+      window.localStorage.removeItem("clinicAuthDirectFlow");
       setAuthMessage(friendlyAuthError(error));
     }
   };
@@ -841,6 +899,7 @@ function App() {
     return;
     }
 
+    window.localStorage.setItem("clinicAuthDirectFlow", "1");
     const { data, error } = await supabase.auth.verifyOtp({
       phone: normalizedPhone,
       token,
@@ -848,6 +907,7 @@ function App() {
     });
 
     if (error) {
+      window.localStorage.removeItem("clinicAuthDirectFlow");
       setAuthMessage(friendlyAuthError(error));
       return;
     }
@@ -857,6 +917,7 @@ function App() {
     provider: "phone",
     skipMedicalProfile: false
   });
+  window.localStorage.removeItem("clinicAuthDirectFlow");
 };
 
 
@@ -962,6 +1023,7 @@ function App() {
               setScreen("doctor");
               setDoctorTab("today");
             }}
+            showPreviewAccess={isDevMode}
           />
         )}
         {screen === "patientMedicalInfo" && (
@@ -1042,7 +1104,8 @@ function AuthScreen({
   onPatientSignin,
   onPatientProfile,
   onGoogleSignIn,
-  onDoctorDone
+  onDoctorDone,
+  showPreviewAccess
 }) {
   return (
     <section className="screen auth-screen">
@@ -1074,6 +1137,7 @@ function AuthScreen({
             onPatientSignin={onPatientSignin}
             onPatientProfile={onPatientProfile}
             onGoogleSignIn={onGoogleSignIn}
+            showPreviewAccess={showPreviewAccess}
           />
         ) : (
           <DoctorAuthForm
@@ -1083,6 +1147,7 @@ function AuthScreen({
             onVerifyPhoneOtp={onVerifyPhoneOtp}
             onDoctorDone={onDoctorDone}
             onGoogleSignIn={onGoogleSignIn}
+            showPreviewAccess={showPreviewAccess}
           />
         )}
       </div>
@@ -1104,7 +1169,8 @@ function PatientAuthForm({
   onVerifyPhoneOtp,
   onPatientSignin,
   onPatientProfile,
-  onGoogleSignIn
+  onGoogleSignIn,
+  showPreviewAccess
 }) {
   const isSignup = authMode === "signup";
   const [form, setForm] = useState({
@@ -1122,8 +1188,8 @@ function PatientAuthForm({
     ...form
   });
   const submitSignin = () => {
-    const loginValue = form.email.trim();
-    const isPhoneLogin = !loginValue.includes("@");
+    const loginValue = normalizeClinicIdentifier(form.email);
+    const isPhoneLogin = isPhoneIdentifier(loginValue);
 
     onEmailAuth({
       mode: "signin",
@@ -1200,7 +1266,7 @@ function PatientAuthForm({
           <button className="text-button" onClick={() => setAuthMode("signup")}>
             New patient? Create account
           </button>
-          <button className="text-button" onClick={onPatientSignin}>Preview patient app</button>
+          {showPreviewAccess && <button className="text-button" onClick={onPatientSignin}>Preview patient app</button>}
         </>
       )}
       {authMessage && <div className="auth-message">{authMessage}</div>}
@@ -1214,7 +1280,8 @@ function DoctorAuthForm({
   onSendPhoneOtp,
   onVerifyPhoneOtp,
   onDoctorDone,
-  onGoogleSignIn
+  onGoogleSignIn,
+  showPreviewAccess
 }) {
   const [form, setForm] = useState({
     email: "",
@@ -1224,8 +1291,8 @@ function DoctorAuthForm({
   const [recoveryOpen, setRecoveryOpen] = useState(false);
   const updateForm = (key, value) => setForm((data) => ({ ...data, [key]: value }));
   const submitDoctorSignin = () => {
-    const loginValue = form.email.trim();
-    const isPhoneLogin = !loginValue.includes("@");
+    const loginValue = normalizeClinicIdentifier(form.email);
+    const isPhoneLogin = isPhoneIdentifier(loginValue);
 
     onEmailAuth({
       mode: "signin",
@@ -1274,7 +1341,7 @@ function DoctorAuthForm({
         <Check size={18} /> Sign in
       </button>
       <button className="text-button" onClick={openRecovery}>Forgot password? Send code</button>
-      <button className="text-button" onClick={onDoctorDone}>Preview doctor app</button>
+      {showPreviewAccess && <button className="text-button" onClick={onDoctorDone}>Preview doctor app</button>}
       {authMessage && <div className="auth-message">{authMessage}</div>}
     </div>
   );
@@ -1591,8 +1658,9 @@ function LiveAvailabilityViewer({ availability, activeClinic, consultationFee, c
 function HealthUpdates({ readings, setReadings, onSubmitReadings }) {
   const [draft, setDraft] = useState(readings);
   const [status, setStatus] = useState("");
+  const [saving, setSaving] = useState(false);
   const updateDraft = (key, value) => setDraft((current) => ({ ...current, [key]: value }));
-  const submitReadings = () => {
+  const submitReadings = async () => {
     const next = {
       ...draft,
       updatedAt: new Date().toLocaleString("en-IN", {
@@ -1602,10 +1670,13 @@ function HealthUpdates({ readings, setReadings, onSubmitReadings }) {
         minute: "2-digit"
       })
     };
+    setSaving(true);
+    setStatus("Saving readings...");
     setReadings(next);
-    onSubmitReadings(next);
+    const result = await onSubmitReadings(next);
     setDraft(next);
-    setStatus("Readings saved for doctor review.");
+    setStatus(result || "Readings saved for doctor review.");
+    setSaving(false);
   };
 
   return (
@@ -1645,8 +1716,8 @@ function HealthUpdates({ readings, setReadings, onSubmitReadings }) {
         <label>Symptoms<input value={draft.symptoms} onChange={(event) => updateDraft("symptoms", event.target.value)} placeholder="Weakness, dizziness, burning feet..." /></label>
         <label>Note for doctor<input value={draft.note} onChange={(event) => updateDraft("note", event.target.value)} placeholder="Medicine timing, diet change, missed dose..." /></label>
 
-        <button className="primary-button" onClick={submitReadings}>
-          <Check size={18} /> Submit readings
+        <button className="primary-button" onClick={submitReadings} disabled={saving}>
+          <Check size={18} /> {saving ? "Saving..." : "Submit readings"}
         </button>
       </div>
 
