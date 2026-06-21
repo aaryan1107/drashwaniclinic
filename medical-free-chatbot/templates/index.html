@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dr. Ashwani Kansal — Clinic Assistant</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+
+  <div class="shell">
+
+    <!-- Header -->
+    <header class="header">
+      <div class="header-icon">
+        <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+        </svg>
+      </div>
+      <div class="header-text">
+        <strong>Dr. Ashwani's Clinic Assistant</strong>
+        <span>Diabetes · Obesity · Thyroid · Lifestyle</span>
+      </div>
+      <div class="header-status" id="ollamaStatus" title="Checking Ollama...">
+        <span class="dot"></span>
+      </div>
+    </header>
+
+    <!-- Messages -->
+    <div class="messages" id="messages">
+      <div class="bubble bot">
+        <div class="bubble-text">
+          Hello! I am Dr. Ashwani's Clinic Assistant. 👋<br><br>
+          I can help you with:<br>
+          • General health education<br>
+          • Diabetes, thyroid, BP, weight, fatty liver<br>
+          • Appointment guidance<br>
+          • Side effect reporting<br><br>
+          <em>I am a clinic assistant, not a doctor. For personal medical advice, always consult Dr. Ashwani Kansal.</em>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="quick-wrap" id="quickActions">
+      <button class="quick-btn" onclick="quickSend('What is diabetes?')">What is diabetes?</button>
+      <button class="quick-btn" onclick="quickSend('What is diabetes reversal?')">Diabetes reversal</button>
+      <button class="quick-btn" onclick="quickSend('What is insulin resistance?')">Insulin resistance</button>
+      <button class="quick-btn" onclick="quickSend('What is CGM?')">What is CGM?</button>
+      <button class="quick-btn" onclick="quickSend('What are Mounjaro side effects?')">Mounjaro side effects</button>
+      <button class="quick-btn" onclick="quickSend('What is fatty liver?')">Fatty liver</button>
+      <button class="quick-btn" onclick="quickSend('How to book an appointment?')">Book appointment</button>
+      <button class="quick-btn" onclick="quickSend('Diet tips for diabetes')">Diabetes diet tips</button>
+    </div>
+
+    <!-- Safety Bar -->
+    <div class="safety-bar">
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+      </svg>
+      Never prescribes or changes medicines. Emergency symptoms → seek emergency care immediately.
+    </div>
+
+    <!-- Input -->
+    <div class="input-row">
+      <textarea
+        id="userInput"
+        class="input-box"
+        placeholder="Ask a health question or describe your symptoms…"
+        rows="1"
+        onkeydown="handleKey(event)"
+        oninput="autoResize(this)"
+      ></textarea>
+      <button class="send-btn" id="sendBtn" onclick="sendMessage()" aria-label="Send">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+          <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+        </svg>
+      </button>
+    </div>
+
+  </div>
+
+  <script>
+    const messagesEl = document.getElementById("messages");
+    const inputEl = document.getElementById("userInput");
+    const sendBtn = document.getElementById("sendBtn");
+    let conversationHistory = [];
+    let isWaiting = false;
+
+    // ── Check Ollama status on load ──────────────────────────────────────────
+    async function checkOllama() {
+      try {
+        const res = await fetch("/health");
+        const data = await res.json();
+        const dot = document.querySelector(".dot");
+        if (data.ollama === "running") {
+          dot.classList.add("online");
+          dot.title = "Gemma is running via Ollama";
+        } else {
+          dot.classList.add("offline");
+          dot.title = "Ollama not running — start with: ollama serve";
+        }
+      } catch {
+        document.querySelector(".dot").classList.add("offline");
+      }
+    }
+    checkOllama();
+
+    // ── Auto-resize textarea ─────────────────────────────────────────────────
+    function autoResize(el) {
+      el.style.height = "auto";
+      el.style.height = Math.min(el.scrollHeight, 120) + "px";
+    }
+
+    // ── Keyboard handler ─────────────────────────────────────────────────────
+    function handleKey(e) {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    }
+
+    // ── Quick action buttons ─────────────────────────────────────────────────
+    function quickSend(text) {
+      inputEl.value = text;
+      sendMessage();
+    }
+
+    // ── Scroll to bottom ─────────────────────────────────────────────────────
+    function scrollBottom() {
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    // ── Add message bubble ───────────────────────────────────────────────────
+    function addBubble(text, from, isAlert) {
+      const div = document.createElement("div");
+      div.className = `bubble ${from}${isAlert ? " alert-bubble" : ""}`;
+      const inner = document.createElement("div");
+      inner.className = "bubble-text";
+
+      // Convert markdown-style bold and line breaks
+      const formatted = text
+        .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+        .replace(/\*(.*?)\*/g, "<em>$1</em>")
+        .replace(/\n/g, "<br>");
+      inner.innerHTML = formatted;
+      div.appendChild(inner);
+      messagesEl.appendChild(div);
+      scrollBottom();
+      return div;
+    }
+
+    // ── Typing indicator ─────────────────────────────────────────────────────
+    function addTyping() {
+      const div = document.createElement("div");
+      div.className = "bubble bot typing-bubble";
+      div.id = "typingIndicator";
+      div.innerHTML = `<div class="bubble-text"><span class="dot-pulse"></span><span class="dot-pulse"></span><span class="dot-pulse"></span></div>`;
+      messagesEl.appendChild(div);
+      scrollBottom();
+    }
+
+    function removeTyping() {
+      const t = document.getElementById("typingIndicator");
+      if (t) t.remove();
+    }
+
+    // ── Main send function ───────────────────────────────────────────────────
+    async function sendMessage() {
+      const text = inputEl.value.trim();
+      if (!text || isWaiting) return;
+
+      // Add user bubble
+      addBubble(text, "user", false);
+      conversationHistory.push({ role: "user", content: text });
+      inputEl.value = "";
+      inputEl.style.height = "auto";
+
+      // Hide quick actions after first message
+      document.getElementById("quickActions").style.display = "none";
+
+      // Show typing
+      isWaiting = true;
+      sendBtn.disabled = true;
+      addTyping();
+
+      try {
+        const res = await fetch("/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            message: text,
+            history: conversationHistory
+          })
+        });
+
+        const data = await res.json();
+        removeTyping();
+
+        const isEmergency = data.alert && data.alert.type === "EMERGENCY";
+        addBubble(data.response, "bot", isEmergency);
+
+        // Log risk alert to console for dev awareness
+        if (data.alert) {
+          console.warn("⚠️ Risk alert:", data.alert);
+        }
+
+        conversationHistory.push({ role: "assistant", content: data.response });
+
+      } catch (err) {
+        removeTyping();
+        addBubble("Something went wrong. Please check that Ollama is running and try again.", "bot", false);
+      }
+
+      isWaiting = false;
+      sendBtn.disabled = false;
+      inputEl.focus();
+    }
+  </script>
+
+</body>
+</html>
