@@ -1,0 +1,16 @@
+{
+  "name": "Dr. Ashwani Kansal Metabolic Care",
+  "short_name": "Metabolic Care",
+  "description": "Diabetes, Obesity, Thyroid & Lifestyle Disease Management",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5f8fc",
+  "theme_color": "#3478f6",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

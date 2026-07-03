@@ -20,9 +20,14 @@ Deno.serve(async (request) => {
     const signature = String(body.razorpay_signature || "");
     const keyId = String(Deno.env.get("RAZORPAY_KEY_ID") || "").trim();
     const keySecret = String(Deno.env.get("RAZORPAY_KEY_SECRET") || "").trim();
+    const authUser = await getAuthenticatedUser(request);
 
     if (!orderId || !paymentId || !signature) {
       return json({ error: "Missing Razorpay verification data." }, 400);
+    }
+
+    if (!authUser) {
+      return json({ error: "Please sign in before verifying consultation payment." }, 401);
     }
 
     if (!keyId || !keySecret) {
@@ -49,6 +54,10 @@ Deno.serve(async (request) => {
       return json({ error: "Payment order mismatch." }, 400);
     }
 
+    if (payment.amount !== 70000) {
+      return json({ error: "Payment amount mismatch. Online consultation fee is fixed at Rs 700." }, 400);
+    }
+
     if (!["captured", "authorized"].includes(payment.status)) {
       return json({ error: `Payment is not completed. Current status: ${payment.status}` }, 400);
     }
@@ -60,7 +69,12 @@ Deno.serve(async (request) => {
       currency: payment.currency,
       payment_method: payment.method || "",
       payment_status: payment.status === "captured" ? "PAID_CONFIRMED" : "AUTHORIZED",
-      patient: body.patient || {},
+      patient: {
+        ...(body.patient || {}),
+        user_id: authUser.id,
+        email: authUser.email || body.patient?.email || "",
+        contact: authUser.phone || body.patient?.contact || ""
+      },
       clinic: body.clinic || {},
       verified_at: new Date().toISOString()
     });
@@ -74,6 +88,23 @@ Deno.serve(async (request) => {
     return json({ error: error?.message || "Server error while verifying consultation payment." }, 500);
   }
 });
+
+async function getAuthenticatedUser(request: Request) {
+  const supabaseUrl = Deno.env.get("PROJECT_URL");
+  const serviceKey = Deno.env.get("SERVICE_ROLE_KEY");
+  const authorization = request.headers.get("Authorization") || "";
+  if (!supabaseUrl || !serviceKey || !authorization.startsWith("Bearer ")) return null;
+
+  const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
+    headers: {
+      "apikey": serviceKey,
+      "Authorization": authorization
+    }
+  });
+
+  if (!response.ok) return null;
+  return response.json();
+}
 
 async function hmacSha256(message: string, secret: string) {
   const key = await crypto.subtle.importKey(
@@ -99,8 +130,8 @@ function timingSafeEqual(left: string, right: string) {
 }
 
 async function storeVerifiedPayment(row: Record<string, unknown>) {
-  const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const supabaseUrl = Deno.env.get("PROJECT_URL");
+  const serviceKey = Deno.env.get("SERVICE_ROLE_KEY");
   if (!supabaseUrl || !serviceKey) return;
 
   await fetch(`${supabaseUrl}/rest/v1/consultation_payments?razorpay_order_id=eq.${encodeURIComponent(String(row.razorpay_order_id))}`, {

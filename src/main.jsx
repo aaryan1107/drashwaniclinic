@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
 import {
   Activity,
@@ -26,7 +26,6 @@ import {
   Moon,
   NotebookPen,
   Palette,
-  PhoneCall,
   Pill,
   Plus,
   Search,
@@ -54,9 +53,12 @@ import "./styles.css";
 
 const RAZORPAY_KEY_ID = import.meta.env.VITE_RAZORPAY_KEY_ID || "";
 const RAZORPAY_API_BASE = import.meta.env.VITE_RAZORPAY_API_BASE || "/api";
+const RAZORPAY_PAYMENT_LINK = (import.meta.env.VITE_RAZORPAY_PAYMENT_LINK || "https://razorpay.me/@drashwanisfamilyclinicdiagnos").trim();
+const ONLINE_CONSULTATION_FEE = "700";
+const DOCTOR_WHATSAPP_NUMBER = "+91 7303399370";
 const isRazorpayConfigured = Boolean(RAZORPAY_KEY_ID.trim());
+const hasRazorpayPaymentLink = Boolean(RAZORPAY_PAYMENT_LINK);
 const razorpayScriptUrl = "https://checkout.razorpay.com/v1/checkout.js";
-const isDevMode = import.meta.env.DEV;
 
 const clinics = [
   {
@@ -65,7 +67,7 @@ const clinics = [
     short: "Greater Noida",
     address: "Plot No 32, Block A, Omega-I, Greater Noida, Uttar Pradesh 201315",
     timing: "8:00 AM - 3:00 PM",
-    phone: "+91 95407 40074",
+    phone: "+91 7303399370",
     mapsUrl: "https://maps.app.goo.gl/FE6AMFbNSwBL3XSz7"
   },
   {
@@ -74,7 +76,7 @@ const clinics = [
     short: "Ace City Square",
     address: "1st Floor, Shop Number 1011, Ace City Square Market, Ace City Road, Jalalpur, Greater Noida, Uttar Pradesh 203207, India",
     timing: "6:00 PM - 9:00 PM",
-    phone: "+91 95407 40074",
+    phone: "+91 7303399370",
     mapsUrl: "https://maps.app.goo.gl/Z7gD6ivXDRBB75Ad8"
   },
   {
@@ -83,117 +85,13 @@ const clinics = [
     short: "La Residentia",
     address: "Tower 7, 1003, La Residentia, Tech Zone IV, Noida Extension, 201306",
     timing: "9:30 PM - 10:30 PM",
-    phone: "+91 95407 40074",
+    phone: "+91 7303399370",
     mapsUrl: "https://maps.app.goo.gl/2VzGHmYQQ1JmpK4x7"
   }
 ];
 
-const patients = [
-  {
-    id: "ramesh",
-    name: "Ramesh Gupta",
-    age: 52,
-    gender: "Male",
-    mobile: "+91 98100 11001",
-    whatsapp: "+91 98100 11001",
-    abha: "ABUC7423",
-    source: "Google + medical intake",
-    conditions: ["Diabetes", "High BP", "Dyslipidemia", "Fatty liver"],
-    latest: "Fasting 248 mg/dL",
-    risk: "High",
-    vitals: {
-      fasting: "248 mg/dL",
-      postMeal: "312 mg/dL",
-      bp: "152/94",
-      weight: "86.4 kg",
-      hba1c: "8.7%",
-      thyroid: "TSH 3.8"
-    },
-    history: [
-      "Diabetes mellitus type 2 since 2018",
-      "Dyslipidemia",
-      "Fatty liver grade 1",
-      "No known drug allergy recorded"
-    ],
-    labs: [
-      "HbA1c 8.7% - uploaded 02 Jun 2026",
-      "LDL 148 mg/dL",
-      "SGPT mildly elevated"
-    ],
-    symptoms: ["Fatigue", "Frequent urination", "Occasional burning feet"],
-    medicines: [
-      "TAB EMPANORM TRIO - after breakfast - 1 month",
-      "ATORFIT 10 - after dinner - 1 month",
-      "Regular blood sugar monitoring once every 3 days"
-    ],
-    notes: "Needs strict follow-up. Discuss diet adherence and report review before any dose change.",
-    followUp: "08 Jun 2026",
-    lastVisit: "02 Jun 2026"
-  },
-  {
-    id: "meena",
-    name: "Meena Sharma",
-    age: 47,
-    gender: "Female",
-    mobile: "+91 98100 11002",
-    whatsapp: "+91 98100 11002",
-    abha: "ABUC5110",
-    source: "Patient sign up",
-    conditions: ["Obesity", "Insulin resistance", "Weight management"],
-    latest: "Weight 84.2 kg",
-    risk: "Medium",
-    vitals: { fasting: "112 mg/dL", postMeal: "154 mg/dL", bp: "126/82", weight: "84.2 kg", hba1c: "6.1%", thyroid: "TSH 2.4" },
-    history: ["Weight gain since 2022", "Insulin resistance", "Family history of diabetes"],
-    labs: ["Fasting insulin high", "Vitamin D low"],
-    symptoms: ["High appetite", "Low exercise adherence"],
-    medicines: ["Diet plan", "Walking 40 minutes", "Review injection therapy suitability"],
-    notes: "Good candidate for structured weight program.",
-    followUp: "12 Jun 2026",
-    lastVisit: "19 May 2026"
-  },
-  {
-    id: "sunita",
-    name: "Sunita Arora",
-    age: 39,
-    gender: "Female",
-    mobile: "+91 98100 11003",
-    whatsapp: "+91 98100 11003",
-    abha: "ABUC9081",
-    source: "Clinic import",
-    conditions: ["Thyroid", "Fatigue"],
-    latest: "Report due",
-    risk: "Low",
-    vitals: { fasting: "98 mg/dL", postMeal: "128 mg/dL", bp: "118/76", weight: "68.0 kg", hba1c: "5.5%", thyroid: "TSH pending" },
-    history: ["Hypothyroidism under treatment"],
-    labs: ["Thyroid report pending"],
-    symptoms: ["Fatigue", "Hair fall"],
-    medicines: ["Continue current thyroid medicine until review"],
-    notes: "Ask patient to upload latest thyroid profile.",
-    followUp: "15 Jun 2026",
-    lastVisit: "02 Jun 2026"
-  },
-  {
-    id: "iqbal",
-    name: "Iqbal Khan",
-    age: 44,
-    gender: "Male",
-    mobile: "+91 98100 11004",
-    whatsapp: "+91 98100 11004",
-    abha: "ABUC3328",
-    source: "Patient sign up",
-    conditions: ["Mounjaro", "Obesity", "Diabetes"],
-    latest: "Dose review due",
-    risk: "Medium",
-    vitals: { fasting: "156 mg/dL", postMeal: "210 mg/dL", bp: "132/86", weight: "92.1 kg", hba1c: "7.2%", thyroid: "TSH 2.7" },
-    history: ["Injection therapy started 14 May 2026", "Starting weight 98.8 kg"],
-    labs: ["HbA1c 7.2%", "LFT normal"],
-    symptoms: ["Mild nausea", "Appetite reduced"],
-    medicines: ["Do not change injection dose without doctor approval"],
-    notes: "Dose review due. Check side effects before next dose.",
-    followUp: "10 Jun 2026",
-    lastVisit: "31 May 2026"
-  }
-];
+// Patient records load from Supabase (patient_records). Empty by default for production.
+const patients = [];
 
 const whatsappTemplates = [
   ["Follow-up due", "Your follow-up with Dr. Ashwani Kansal is pending. Please book your diabetes/health follow-up."],
@@ -215,6 +113,109 @@ const educationThemeOptions = [
   { id: "tone-2", label: "Care lavender", hint: "Thyroid, follow-up" },
   { id: "tone-3", label: "Alert rose", hint: "Injection, side effects" }
 ];
+
+const defaultVitals = {
+  fasting: "",
+  postMeal: "",
+  bp: "",
+  weight: "",
+  hba1c: "",
+  thyroid: ""
+};
+
+const isDoctorUser = (user) => user?.role === "doctor";
+
+const availabilityRowToState = (row) => ({
+  status: row.status || "On Duty",
+  clinicId: row.clinic_id || "clinic-2",
+  online: row.online ?? true,
+  message: row.message || "Running 20 minutes late. Please check before visiting.",
+  updatedBy: row.updated_by || "Dr. Ashwani",
+  updatedAt: row.updated_at
+    ? new Date(row.updated_at).toLocaleString("en-IN", {
+        day: "2-digit",
+        month: "short",
+        hour: "numeric",
+        minute: "2-digit"
+      })
+    : "Clinic default"
+});
+
+const availabilityStateToRow = (availability) => ({
+  id: "live",
+  status: availability.status,
+  clinic_id: availability.clinicId,
+  online: availability.online,
+  message: availability.message,
+  consultation_fee: Number(ONLINE_CONSULTATION_FEE),
+  updated_by: availability.updatedBy || "Dr. Ashwani"
+});
+
+const postRowToEducationPost = (row) => ({
+  id: row.id,
+  title: row.title,
+  body: row.body,
+  tone: row.tone,
+  tag: row.tag,
+  author: row.author,
+  updatedAt: row.updated_at
+    ? new Date(row.updated_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
+    : "Clinic post"
+});
+
+const educationPostToRow = (post) => ({
+  title: post.title,
+  body: post.body,
+  tone: post.tone || "tone-0",
+  tag: post.tag || "Doctor-approved",
+  author: post.author || "Dr. Ashwani Kansal",
+  published: true
+});
+
+const recordRowToPatient = (row) => ({
+  id: row.id,
+  name: row.name,
+  age: row.age || 0,
+  gender: row.gender || "Patient",
+  mobile: row.mobile || "",
+  whatsapp: row.whatsapp || row.mobile || DOCTOR_WHATSAPP_NUMBER,
+  abha: row.abha || "Not linked",
+  source: row.source || "Supabase patient record",
+  conditions: row.conditions || [],
+  latest: row.latest || "Updated in app",
+  risk: row.risk || "Low",
+  vitals: { ...defaultVitals, ...(row.vitals || {}) },
+  history: row.history || [],
+  labs: row.labs || [],
+  symptoms: row.symptoms || [],
+  medicines: row.medicines || [],
+  notes: row.notes || "",
+  followUp: row.follow_up || "Not scheduled",
+  lastVisit: row.last_visit || "Not recorded"
+});
+
+const patientToRecordRow = (patient, ownerId = null) => ({
+  id: String(patient.id),
+  ...(ownerId ? { owner_id: ownerId } : {}),
+  name: patient.name || "Clinic Patient",
+  age: Number(patient.age) || null,
+  gender: patient.gender || null,
+  mobile: patient.mobile || null,
+  whatsapp: patient.whatsapp || patient.mobile || null,
+  abha: patient.abha || null,
+  source: patient.source || "Patient app",
+  conditions: patient.conditions || [],
+  latest: patient.latest || null,
+  risk: patient.risk || "Low",
+  vitals: patient.vitals || {},
+  history: patient.history || [],
+  labs: patient.labs || [],
+  symptoms: patient.symptoms || [],
+  medicines: patient.medicines || [],
+  notes: patient.notes || null,
+  follow_up: patient.followUp || null,
+  last_visit: patient.lastVisit || null
+});
 
 const EMERGENCY_KEYWORDS = [
   "chest pain", "heart attack", "unconscious", "stroke", "can't breathe", "cannot breathe",
@@ -355,7 +356,7 @@ const findNextBookableDate = (clinic) => {
 const googleCalendarUrl = (appointment, activeClinic) => {
   const { start, end } = getAppointmentDateTime(appointment, activeClinic);
   const isOnline = appointment.mode === "Online consultation";
-  const whatsappContact = `WhatsApp clinic: ${activeClinic.phone}`;
+  const whatsappContact = `WhatsApp Dr. Ashwani: ${DOCTOR_WHATSAPP_NUMBER}`;
   const title = `Dr. Ashwani Kansal - ${appointment.reason}`;
   const details = [
     `Consultation mode: ${appointment.mode}`,
@@ -394,15 +395,24 @@ const loadRazorpayCheckout = () => new Promise((resolve, reject) => {
   document.body.appendChild(script);
 });
 
+const getSupabaseAccessToken = async () => {
+  const { data } = await supabase.auth.getSession();
+  return data.session?.access_token || "";
+};
+
 const normalizeRupees = (value) => {
   const number = Number(String(value).replace(/[^\d.]/g, ""));
   return Number.isFinite(number) ? number : 0;
 };
 
 const createConsultationOrder = async ({ amountRupees, patient, clinic }) => {
+  const accessToken = await getSupabaseAccessToken();
   const response = await fetch(`${RAZORPAY_API_BASE}/create-consultation-order`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {})
+    },
     body: JSON.stringify({
       amount: Math.round(amountRupees * 100),
       currency: "INR",
@@ -419,9 +429,13 @@ const createConsultationOrder = async ({ amountRupees, patient, clinic }) => {
 };
 
 const verifyConsultationPayment = async ({ order, response, patient, clinic }) => {
+  const accessToken = await getSupabaseAccessToken();
   const verifyResponse = await fetch(`${RAZORPAY_API_BASE}/verify-consultation-payment`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {})
+    },
     body: JSON.stringify({
       order_id: order.order_id,
       razorpay_order_id: response.razorpay_order_id,
@@ -439,11 +453,9 @@ const verifyConsultationPayment = async ({ order, response, patient, clinic }) =
 };
 
 function App() {
-  const [screen, setScreen] = useState("auth");
+  const [screen, setScreen] = useState("intro");
   const [authMode, setAuthMode] = useState("signin");
   const [authRole, setAuthRole] = useState("patient");
-  const [patientSignedUp, setPatientSignedUp] = useState(false);
-  const [doctorSignedUp, setDoctorSignedUp] = useState(false);
   const [googleProfile, setGoogleProfile] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
   const [authMessage, setAuthMessage] = useState("");
@@ -452,14 +464,14 @@ function App() {
   const [activeTab, setActiveTab] = useState("home");
   const [doctorTab, setDoctorTab] = useState("today");
   const [patientRecords, setPatientRecords] = useState(patients);
-  const [selectedPatientId, setSelectedPatientId] = useState(patients[0].id);
+  const [selectedPatientId, setSelectedPatientId] = useState(patients[0]?.id ?? null);
   const [availability, setAvailability] = useState({
-    status: "On Duty",
+    status: "Off Duty",
     clinicId: "clinic-2",
-    online: true,
-    message: "Running 20 minutes late. Please check before visiting.",
-    updatedBy: "Dr. Ashwani",
-    updatedAt: "Today 6:10 PM"
+    online: false,
+    message: "",
+    updatedBy: "",
+    updatedAt: ""
   });
   const [appointment, setAppointment] = useState({
     mode: "Clinic visit",
@@ -468,23 +480,26 @@ function App() {
     reason: "Diabetes follow-up",
     status: "Pending doctor approval"
   });
-  const [consultationFee, setConsultationFee] = useState({
-    amount: "",
-    label: "To be decided",
-    updatedAt: "Fee not set"
+  const [consultationFee] = useState({
+    amount: ONLINE_CONSULTATION_FEE,
+    label: `Rs ${ONLINE_CONSULTATION_FEE}`,
+    updatedAt: "Clinic default"
   });
   const [consultPayment, setConsultPayment] = useState({
     status: "not_started",
-    message: "Consultation payment will appear once the doctor sets a fee.",
+    message: hasRazorpayPaymentLink
+      ? `Online consultation fee is Rs ${ONLINE_CONSULTATION_FEE}. Pay securely first; WhatsApp consultation unlocks only after payment is verified.`
+      : "Consultation payment will appear once the doctor sets a fee.",
     paymentId: "",
-    paidAt: ""
+    paidAt: "",
+    paymentUrl: RAZORPAY_PAYMENT_LINK
   });
   const [patientReadings, setPatientReadings] = useState({
-    fasting: "142",
-    postMeal: "186",
-    bp: "128/82",
-    weight: "84.2",
-    hba1c: "7.4",
+    fasting: "",
+    postMeal: "",
+    bp: "",
+    weight: "",
+    hba1c: "",
     reportName: "",
     symptoms: "",
     note: "",
@@ -505,24 +520,141 @@ function App() {
   const isMissingSupabaseTableError = (error) =>
     ["PGRST205", "42P01"].includes(error?.code) || /schema cache|does not exist/i.test(error?.message || "");
 
+  const loadClinicBackendData = async () => {
+    const [availabilityResult, educationResult] = await Promise.all([
+      supabase.from("clinic_availability").select("*").eq("id", "live").maybeSingle(),
+      supabase.from("education_posts").select("*").eq("published", true).order("updated_at", { ascending: false })
+    ]);
+
+    if (availabilityResult.data) {
+      setAvailability(availabilityRowToState(availabilityResult.data));
+    } else if (availabilityResult.error && !isMissingSupabaseTableError(availabilityResult.error)) {
+      console.warn("Live availability load failed:", availabilityResult.error.message);
+    }
+
+    if (educationResult.data?.length) {
+      setEducationPosts(educationResult.data.map(postRowToEducationPost));
+    } else if (educationResult.error && !isMissingSupabaseTableError(educationResult.error)) {
+      console.warn("Education posts load failed:", educationResult.error.message);
+    }
+  };
+
+  const loadPatientRecords = async (user = currentUser) => {
+    if (!user?.id) return;
+
+    const query = supabase
+      .from("patient_records")
+      .select("*")
+      .order("updated_at", { ascending: false });
+
+    const { data, error } = isDoctorUser(user)
+      ? await query
+      : await query.eq("owner_id", user.id);
+
+    if (error) {
+      if (!isMissingSupabaseTableError(error)) {
+        console.warn("Patient records load failed:", error.message);
+      }
+      return;
+    }
+
+    if (data?.length) {
+      const records = data.map(recordRowToPatient);
+      setPatientRecords((current) => {
+        const seededById = new Map(current.map((patient) => [patient.id, patient]));
+        records.forEach((patient) => seededById.set(patient.id, patient));
+        return Array.from(seededById.values());
+      });
+      if (!isDoctorUser(user)) {
+        setSelectedPatientId(records[0].id);
+        setPatientReadings((current) => ({
+          ...current,
+          fasting: stripUnit(records[0].vitals.fasting || current.fasting, "mg/dL"),
+          postMeal: stripUnit(records[0].vitals.postMeal || current.postMeal, "mg/dL"),
+          bp: records[0].vitals.bp || current.bp,
+          weight: stripUnit(records[0].vitals.weight || current.weight, "kg"),
+          hba1c: stripUnit(records[0].vitals.hba1c || current.hba1c, "%"),
+          symptoms: records[0].symptoms.join(", "),
+          note: records[0].notes || current.note,
+          updatedAt: records[0].lastVisit || current.updatedAt
+        }));
+      }
+    }
+  };
+
+  const persistPatientRecord = async (patient, ownerId = patient.ownerId || null) => {
+    const { error } = await supabase
+      .from("patient_records")
+      .upsert(patientToRecordRow(patient, ownerId), { onConflict: "id" });
+
+    if (error && !isMissingSupabaseTableError(error)) {
+      console.warn("Patient record sync failed:", error.message);
+    }
+  };
+
   const updatePatientRecord = (patientId, patch) => {
-    setPatientRecords((records) =>
-      records.map((patient) => {
+    let nextPatient = null;
+    setPatientRecords((records) => {
+      let found = false;
+      const nextRecords = records.map((patient) => {
         if (patient.id !== patientId) return patient;
+        found = true;
         const cleanPatch = Object.fromEntries(
           Object.entries(patch).filter(([, value]) => value !== undefined)
         );
-        return {
+        nextPatient = {
           ...patient,
           ...cleanPatch,
           vitals: patch.vitals ? { ...patient.vitals, ...patch.vitals } : patient.vitals
         };
-      })
-    );
+        return nextPatient;
+      });
+
+      if (!found) {
+        nextPatient = {
+          id: patientId,
+          name: patch.name || "Clinic Patient",
+          age: patch.age || 0,
+          gender: patch.gender || "Patient",
+          mobile: patch.mobile || "",
+          whatsapp: patch.whatsapp || patch.mobile || "",
+          abha: patch.abha || "Not linked",
+          source: patch.source || "Patient app",
+          conditions: patch.conditions || [],
+          latest: patch.latest || "Readings updated",
+          risk: patch.risk || "Low",
+          vitals: { ...defaultVitals, ...(patch.vitals || {}) },
+          history: patch.history || [],
+          labs: patch.labs || [],
+          symptoms: patch.symptoms || [],
+          medicines: patch.medicines || [],
+          notes: patch.notes || "",
+          followUp: patch.followUp || "Not scheduled",
+          lastVisit: patch.lastVisit || "Just now"
+        };
+        return [nextPatient, ...nextRecords];
+      }
+
+      return nextRecords;
+    });
+    if (nextPatient && isDoctorUser(currentUser)) {
+      persistPatientRecord(nextPatient);
+    }
   };
 
   const syncPatientReadingsToDoctor = async (readings) => {
-    updatePatientRecord("ramesh", {
+    const patientId = currentUser?.id || selectedPatientId || "ramesh";
+    const patientName = currentUser?.name || "Clinic Patient";
+    const localPatch = {
+      id: patientId,
+      name: patientName,
+      age: 0,
+      gender: "Patient",
+      mobile: currentUser?.phone || "",
+      whatsapp: currentUser?.phone || "",
+      abha: "Not linked",
+      source: currentUser?.provider || "Patient app",
+      conditions: readings.symptoms ? [readings.symptoms] : ["Patient update"],
       latest: readings.fasting ? `Fasting ${ensureUnit(readings.fasting, "mg/dL")}` : "Readings updated",
       vitals: {
         fasting: ensureUnit(readings.fasting, "mg/dL"),
@@ -534,7 +666,9 @@ function App() {
       symptoms: readings.symptoms ? [readings.symptoms] : undefined,
       notes: readings.note || "Patient updated readings from app.",
       lastVisit: readings.updatedAt || "Just now"
-    });
+    };
+
+    updatePatientRecord(patientId, localPatch);
 
     if (!currentUser?.id) {
       return "Readings saved on this device. Sign in to sync them with Supabase.";
@@ -559,38 +693,88 @@ function App() {
       return `Readings saved locally, but cloud sync failed: ${error.message}`;
     }
 
+    await persistPatientRecord({
+      id: patientId,
+      name: patientName,
+      age: 0,
+      gender: "Patient",
+      mobile: currentUser.phone || "",
+      whatsapp: currentUser.phone || "",
+      abha: "Not linked",
+      source: currentUser.provider || "Patient app",
+      conditions: localPatch.conditions,
+      latest: localPatch.latest,
+      risk: "Low",
+      vitals: localPatch.vitals,
+      history: [],
+      labs: readings.reportName ? [`Uploaded report: ${readings.reportName}`] : [],
+      symptoms: localPatch.symptoms || [],
+      medicines: [],
+      notes: localPatch.notes,
+      followUp: "Not scheduled",
+      lastVisit: localPatch.lastVisit
+    }, currentUser.id);
+
     return "Readings saved for doctor review and synced to Supabase.";
   };
 
   const startConsultationPayment = async () => {
     const amountRupees = normalizeRupees(consultationFee.amount);
+    const openPaymentLink = (message) => {
+      window.open(RAZORPAY_PAYMENT_LINK, "_blank", "noopener,noreferrer");
+      setConsultPayment({
+        status: "payment_link",
+        message,
+        paymentId: "",
+        paidAt: "",
+        paymentUrl: RAZORPAY_PAYMENT_LINK
+      });
+      setAppointment((current) => ({
+        ...current,
+        mode: "Online consultation",
+        status: "Pending payment verification"
+      }));
+    };
 
     if (!availability.online) {
       setConsultPayment({
         status: "offline",
         message: "Online consultation is not available right now. Please use WhatsApp or book a clinic visit.",
         paymentId: "",
-        paidAt: ""
+        paidAt: "",
+        paymentUrl: RAZORPAY_PAYMENT_LINK
       });
       return;
     }
 
     if (!amountRupees) {
+      if (hasRazorpayPaymentLink) {
+        openPaymentLink(`Opening the clinic Razorpay payment page. Pay Rs ${ONLINE_CONSULTATION_FEE} unless the clinic has shared a different fee. WhatsApp consultation unlocks only after payment is verified.`);
+        return;
+      }
+
       setConsultPayment({
         status: "fee_pending",
         message: "Consultation fee is not set yet. Doctor/admin can set it from Live availability.",
         paymentId: "",
-        paidAt: ""
+        paidAt: "",
+        paymentUrl: ""
       });
       return;
     }
 
     if (!isRazorpayConfigured) {
+      if (hasRazorpayPaymentLink) {
+        openPaymentLink(`Opening the clinic Razorpay payment page for the Rs ${amountRupees} consultation fee. WhatsApp consultation unlocks only after payment is verified.`);
+        return;
+      }
+
       setConsultPayment({
         status: "needs_config",
         message: "Razorpay public key is missing. Add VITE_RAZORPAY_KEY_ID before taking live payments.",
         paymentId: "",
-        paidAt: ""
+        paidAt: "",
+        paymentUrl: ""
       });
       return;
     }
@@ -603,6 +787,7 @@ function App() {
       }));
       await loadRazorpayCheckout();
       const patient = {
+        user_id: currentUser?.id || "",
         name: currentUser?.name || "Patient",
         email: currentUser?.email || "",
         contact: currentUser?.phone || ""
@@ -632,23 +817,34 @@ function App() {
             status: "verifying",
             message: "Verifying payment..."
           }));
-          await verifyConsultationPayment({ order, response, patient, clinic: activeClinic });
-          setConsultPayment({
-            status: "paid",
-            message: "Payment verified. WhatsApp consultation is unlocked.",
-            paymentId: response.razorpay_payment_id,
-            paidAt: new Date().toLocaleString("en-IN", {
-              day: "2-digit",
-              month: "short",
-              hour: "numeric",
-              minute: "2-digit"
-            })
-          });
-          setAppointment((current) => ({
-            ...current,
-            mode: "Online consultation",
-            status: "Payment verified - ready for doctor/admin approval"
-          }));
+          try {
+            await verifyConsultationPayment({ order, response, patient, clinic: activeClinic });
+            setConsultPayment({
+              status: "paid",
+              message: "Payment verified. WhatsApp consultation is unlocked.",
+              paymentId: response.razorpay_payment_id,
+              paidAt: new Date().toLocaleString("en-IN", {
+                day: "2-digit",
+                month: "short",
+                hour: "numeric",
+                minute: "2-digit"
+              }),
+              paymentUrl: ""
+            });
+            setAppointment((current) => ({
+              ...current,
+              mode: "Online consultation",
+              status: "Payment verified - ready for doctor/admin approval"
+            }));
+          } catch (error) {
+            setConsultPayment({
+              status: "failed",
+              message: error.message || "Payment was received by Razorpay but clinic verification failed. Please share the Razorpay receipt with the clinic.",
+              paymentId: response.razorpay_payment_id || "",
+              paidAt: "",
+              paymentUrl: RAZORPAY_PAYMENT_LINK
+            });
+          }
         },
         modal: {
           ondismiss: () => {
@@ -660,13 +856,25 @@ function App() {
           }
         }
       });
+      if (typeof checkout.on === "function") {
+        checkout.on("payment.failed", (response) => {
+          setConsultPayment({
+            status: "failed",
+            message: response?.error?.description || "Razorpay payment failed. No WhatsApp consultation was unlocked.",
+            paymentId: response?.error?.metadata?.payment_id || "",
+            paidAt: "",
+            paymentUrl: RAZORPAY_PAYMENT_LINK
+          });
+        });
+      }
       checkout.open();
     } catch (error) {
       setConsultPayment({
         status: "failed",
         message: error.message || "Could not start Razorpay payment.",
         paymentId: "",
-        paidAt: ""
+        paidAt: "",
+        paymentUrl: RAZORPAY_PAYMENT_LINK
       });
     }
   };
@@ -676,6 +884,16 @@ function App() {
       window.location.replace(window.location.href.replace("127.0.0.1", "localhost"));
     }
   }, []);
+
+  useEffect(() => {
+    loadClinicBackendData();
+  }, []);
+
+  useEffect(() => {
+    if (currentUser?.id) {
+      loadPatientRecords(currentUser);
+    }
+  }, [currentUser?.id, currentUser?.role]);
 
   const logAuthAction = async (user, role, action) => {
     if (!user?.id) return;
@@ -923,6 +1141,98 @@ function App() {
 
 
   const activeClinic = clinics.find((clinic) => clinic.id === availability.clinicId) || clinics[0];
+  const updateLiveAvailability = async (patch) => {
+    const nextAvailability = {
+      ...availability,
+      ...patch,
+      updatedBy: "Dr. Ashwani",
+      updatedAt: "Just now"
+    };
+    setAvailability(nextAvailability);
+
+    const { error } = await supabase
+      .from("clinic_availability")
+      .upsert(availabilityStateToRow(nextAvailability), { onConflict: "id" });
+
+    if (error) {
+      if (isMissingSupabaseTableError(error)) {
+        setAuthMessage("Live availability changed locally. Apply Supabase migrations to sync it for patients.");
+        return;
+      }
+      setAuthMessage(`Live availability sync failed: ${error.message}`);
+    }
+  };
+
+  const publishEducationPost = async (post) => {
+    const nextPost = {
+      id: `post-${Date.now()}`,
+      ...post,
+      title: post.title.trim(),
+      body: post.body.trim(),
+      author: "Dr. Ashwani Kansal",
+      updatedAt: "Just now"
+    };
+
+    setEducationPosts((current) => [nextPost, ...current]);
+
+    const { data, error } = await supabase
+      .from("education_posts")
+      .insert(educationPostToRow(nextPost))
+      .select("*")
+      .single();
+
+    if (error) {
+      if (isMissingSupabaseTableError(error)) {
+        setAuthMessage("Education post is local for now. Apply Supabase migrations to publish it to patients.");
+        return;
+      }
+      setAuthMessage(`Education publish failed: ${error.message}`);
+      return;
+    }
+
+    if (data) {
+      setEducationPosts((current) => current.map((item) => (item.id === nextPost.id ? postRowToEducationPost(data) : item)));
+    }
+  };
+
+  const submitAppointmentRequest = async (nextAppointment) => {
+    setAppointment(nextAppointment);
+
+    if (!currentUser?.id) {
+      return "Please sign in before sending an appointment request.";
+    }
+
+    const isOnline = nextAppointment.mode === "Online consultation";
+    const { error } = await supabase.from("appointment_requests").insert({
+      patient_id: currentUser.id,
+      patient_name: currentUser.name || "Clinic Patient",
+      patient_phone: currentUser.phone || null,
+      clinic_id: activeClinic.id,
+      clinic_name: activeClinic.name,
+      mode: nextAppointment.mode,
+      appointment_date: nextAppointment.date,
+      appointment_time: nextAppointment.time,
+      reason: nextAppointment.reason,
+      payment_status: isOnline ? (consultPayment.status === "paid" ? "PAID_CONFIRMED" : "PAYMENT_PENDING") : "NOT_REQUIRED",
+      payment_reference: consultPayment.paymentId || null,
+      status: nextAppointment.status
+    });
+
+    if (error) {
+      if (isMissingSupabaseTableError(error)) {
+        return "Request saved locally. Apply Supabase migrations to sync appointment requests.";
+      }
+      return `Request saved locally, but cloud sync failed: ${error.message}`;
+    }
+
+    return "Appointment request sent to the clinic backend.";
+  };
+
+  const openAuthFromIntro = (role = "patient") => {
+    setAuthRole(role);
+    setAuthMode("signin");
+    setScreen("auth");
+  };
 
   useEffect(() => {
     setAppointment((current) => {
@@ -954,24 +1264,57 @@ function App() {
     });
   }, [activeClinic, availability.online, setAppointment]);
 
-  const enterPatient = () => {
-    setPatientSignedUp(true);
-    setCurrentUser(
-      googleProfile
-        ? {
-            role: "patient",
-            name: googleProfile.name,
-            email: googleProfile.email,
-            avatar: googleProfile.avatar,
-            provider: "Google"
-          }
-        : {
-            role: "patient",
-            name: "Ramesh Gupta",
-            email: "patient@clinic.app",
-            provider: "Clinic account"
-          }
-    );
+  const enterPatient = async (medicalProfile = {}) => {
+    const nextUser = currentUser || {
+      role: "patient",
+      name: medicalProfile.fullName || googleProfile?.name || "Clinic Patient",
+      email: googleProfile?.email || "",
+      avatar: googleProfile?.avatar || "",
+      provider: googleProfile ? "Google" : "Clinic account"
+    };
+
+    setCurrentUser(nextUser);
+
+    if (nextUser.id) {
+      await supabase
+        .from("clinic_profiles")
+        .update({
+          full_name: medicalProfile.fullName || nextUser.name || "Clinic Patient",
+          phone: medicalProfile.phone || nextUser.phone || null,
+          medical_profile: medicalProfile
+        })
+        .eq("id", nextUser.id);
+
+      await persistPatientRecord({
+        id: nextUser.id,
+        name: medicalProfile.fullName || nextUser.name || "Clinic Patient",
+        age: Number(medicalProfile.age) || 0,
+        gender: medicalProfile.gender || "Patient",
+        mobile: medicalProfile.phone || nextUser.phone || "",
+        whatsapp: medicalProfile.whatsapp || medicalProfile.phone || nextUser.phone || "",
+        abha: medicalProfile.abha || "Not linked",
+        source: nextUser.provider || "Patient app",
+        conditions: medicalProfile.conditions || [],
+        latest: medicalProfile.fasting ? `Fasting ${ensureUnit(medicalProfile.fasting, "mg/dL")}` : "Medical intake completed",
+        risk: medicalProfile.conditions?.includes("Diabetes") || medicalProfile.conditions?.includes("High BP") ? "Medium" : "Low",
+        vitals: {
+          fasting: ensureUnit(medicalProfile.fasting, "mg/dL"),
+          postMeal: "",
+          bp: medicalProfile.bp || "",
+          weight: ensureUnit(medicalProfile.weight, "kg"),
+          hba1c: medicalProfile.hba1c ? `${stripUnit(medicalProfile.hba1c, "%")}%` : "",
+          thyroid: ""
+        },
+        history: medicalProfile.conditions || [],
+        labs: [],
+        symptoms: [],
+        medicines: [],
+        notes: `Preferred consult mode: ${medicalProfile.preferredMode || "Clinic visit"}`,
+        followUp: "Not scheduled",
+        lastVisit: "Medical intake"
+      }, nextUser.id);
+    }
+
     setScreen("patient");
     setActiveTab("home");
   };
@@ -991,6 +1334,12 @@ function App() {
       <div className="phone-shell">
         <StatusBar />
 
+        {screen === "intro" && (
+          <IntroScreen
+            onPatient={() => openAuthFromIntro("patient")}
+            onDoctor={() => openAuthFromIntro("doctor")}
+          />
+        )}
         {screen === "auth" && (
           <AuthScreen
             authMode={authMode}
@@ -1001,29 +1350,7 @@ function App() {
             onEmailAuth={handleEmailAuth}
             onSendPhoneOtp={handleSendPhoneOtp}
             onVerifyPhoneOtp={handleVerifyPhoneOtp}
-            onPatientSignin={enterPatient}
             onGoogleSignIn={handleGoogleSignIn}
-            onPatientProfile={(profileSource) => {
-              setGoogleProfile(profileSource === "google" ? {
-                name: "Aaryan Patient",
-                email: "patient@gmail.com",
-                source: "Google",
-                avatar: "https://ui-avatars.com/api/?name=Aaryan+Patient&background=3478f6&color=ffffff&bold=true"
-              } : null);
-              setScreen("patientMedicalInfo");
-            }}
-            onDoctorDone={() => {
-              setDoctorSignedUp(true);
-              setCurrentUser({
-                role: "doctor",
-                name: "Dr. Ashwani Kansal",
-                email: "doctor@metaboliccare.app",
-                provider: "Doctor credentials"
-              });
-              setScreen("doctor");
-              setDoctorTab("today");
-            }}
-            showPreviewAccess={isDevMode}
           />
         )}
         {screen === "patientMedicalInfo" && (
@@ -1046,6 +1373,7 @@ function App() {
             activeClinic={activeClinic}
             appointment={appointment}
             setAppointment={setAppointment}
+            onSubmitAppointment={submitAppointmentRequest}
             educationPosts={educationPosts}
             patientReadings={patientReadings}
             setPatientReadings={setPatientReadings}
@@ -1065,16 +1393,17 @@ function App() {
             setTheme={setTheme}
             onSignOut={signOut}
             availability={availability}
-            setAvailability={setAvailability}
+            setAvailability={updateLiveAvailability}
             activeClinic={activeClinic}
             selectedPatientId={selectedPatientId}
             setSelectedPatientId={setSelectedPatientId}
             patients={patientRecords}
             updatePatientRecord={updatePatientRecord}
             educationPosts={educationPosts}
-            setEducationPosts={setEducationPosts}
+            onPublishEducationPost={publishEducationPost}
             consultationFee={consultationFee}
-            setConsultationFee={setConsultationFee}
+            consultPayment={consultPayment}
+            setConsultPayment={setConsultPayment}
           />
         )}
       </div>
@@ -1092,6 +1421,44 @@ function StatusBar() {
   );
 }
 
+function IntroScreen({ onPatient, onDoctor }) {
+  return (
+    <section className="screen intro-screen">
+      <div className="intro-hero">
+        <img src="/doctor-ashwani-cutout.png" alt="Dr. Ashwani Kansal" />
+        <div className="intro-photo-wash" />
+        <div className="intro-badge">
+          <HeartPulse size={22} />
+        </div>
+        <div className="intro-hero-card">
+          <strong>Dr. Ashwani's Family Clinic</strong>
+        </div>
+      </div>
+
+      <div className="intro-copy">
+        <span className="kicker">Consultant Diabetologist and Physician</span>
+        <h1>Dr. Ashwani Kansal</h1>
+        <p>MBBS, DFID, M.MED, PGCAT. Diabetes, obesity, thyroid, hypertension, OCD and anxiety care with app-based follow-up.</p>
+      </div>
+
+      <div className="intro-actions">
+        <button className="primary-button" onClick={onPatient}>
+          Continue as Patient
+        </button>
+        <button className="secondary-button" onClick={onDoctor}>
+          Doctor sign in
+        </button>
+      </div>
+
+      <div className="intro-trust-row">
+        <span>Diabetes</span>
+        <span>Thyroid</span>
+        <span>Hypertension</span>
+      </div>
+    </section>
+  );
+}
+
 function AuthScreen({
   authMode,
   setAuthMode,
@@ -1101,11 +1468,7 @@ function AuthScreen({
   onEmailAuth,
   onSendPhoneOtp,
   onVerifyPhoneOtp,
-  onPatientSignin,
-  onPatientProfile,
-  onGoogleSignIn,
-  onDoctorDone,
-  showPreviewAccess
+  onGoogleSignIn
 }) {
   return (
     <section className="screen auth-screen">
@@ -1134,10 +1497,7 @@ function AuthScreen({
             onEmailAuth={onEmailAuth}
             onSendPhoneOtp={onSendPhoneOtp}
             onVerifyPhoneOtp={onVerifyPhoneOtp}
-            onPatientSignin={onPatientSignin}
-            onPatientProfile={onPatientProfile}
             onGoogleSignIn={onGoogleSignIn}
-            showPreviewAccess={showPreviewAccess}
           />
         ) : (
           <DoctorAuthForm
@@ -1145,9 +1505,7 @@ function AuthScreen({
             onEmailAuth={onEmailAuth}
             onSendPhoneOtp={onSendPhoneOtp}
             onVerifyPhoneOtp={onVerifyPhoneOtp}
-            onDoctorDone={onDoctorDone}
             onGoogleSignIn={onGoogleSignIn}
-            showPreviewAccess={showPreviewAccess}
           />
         )}
       </div>
@@ -1167,10 +1525,7 @@ function PatientAuthForm({
   onEmailAuth,
   onSendPhoneOtp,
   onVerifyPhoneOtp,
-  onPatientSignin,
-  onPatientProfile,
-  onGoogleSignIn,
-  showPreviewAccess
+  onGoogleSignIn
 }) {
   const isSignup = authMode === "signup";
   const [form, setForm] = useState({
@@ -1227,7 +1582,6 @@ function PatientAuthForm({
           <button className="primary-button" onClick={submitEmail}>
             <UserPlus size={18} /> Create account
           </button>
-          <button className="text-button" onClick={() => onPatientProfile("signup")}>Preview medical profile without account</button>
         </>
       ) : (
         <>
@@ -1266,7 +1620,6 @@ function PatientAuthForm({
           <button className="text-button" onClick={() => setAuthMode("signup")}>
             New patient? Create account
           </button>
-          {showPreviewAccess && <button className="text-button" onClick={onPatientSignin}>Preview patient app</button>}
         </>
       )}
       {authMessage && <div className="auth-message">{authMessage}</div>}
@@ -1279,9 +1632,7 @@ function DoctorAuthForm({
   onEmailAuth,
   onSendPhoneOtp,
   onVerifyPhoneOtp,
-  onDoctorDone,
-  onGoogleSignIn,
-  showPreviewAccess
+  onGoogleSignIn
 }) {
   const [form, setForm] = useState({
     email: "",
@@ -1341,7 +1692,6 @@ function DoctorAuthForm({
         <Check size={18} /> Sign in
       </button>
       <button className="text-button" onClick={openRecovery}>Forgot password? Send code</button>
-      {showPreviewAccess && <button className="text-button" onClick={onDoctorDone}>Preview doctor app</button>}
       {authMessage && <div className="auth-message">{authMessage}</div>}
     </div>
   );
@@ -1359,6 +1709,30 @@ function GoogleLogo() {
 }
 
 function PatientMedicalInfo({ source, googleProfile, onBack, onDone }) {
+  const conditionOptions = ["Diabetes", "Obesity", "Thyroid", "Fatty liver", "High BP", "Cholesterol", "Neuropathy", "Weight"];
+  const [profile, setProfile] = useState({
+    fullName: googleProfile?.name || "",
+    phone: "",
+    whatsapp: "",
+    age: "",
+    gender: "Male",
+    conditions: ["Diabetes"],
+    fasting: "",
+    hba1c: "",
+    bp: "",
+    weight: "",
+    preferredMode: "Clinic visit"
+  });
+  const updateProfile = (key, value) => setProfile((current) => ({ ...current, [key]: value }));
+  const toggleCondition = (condition) => {
+    setProfile((current) => ({
+      ...current,
+      conditions: current.conditions.includes(condition)
+        ? current.conditions.filter((item) => item !== condition)
+        : [...current.conditions, condition]
+    }));
+  };
+
   return (
     <section className="screen signup-screen">
       <TopAction title="Medical profile" onBack={onBack} />
@@ -1376,21 +1750,21 @@ function PatientMedicalInfo({ source, googleProfile, onBack, onDone }) {
       )}
 
       <div className="form-card">
-        <label>Full name<input placeholder="Patient full name" /></label>
-        <label>Mobile number<input placeholder="+91 98765 43210" /></label>
-        <label>WhatsApp number<input placeholder="+91 98765 43210" /></label>
+        <label>Full name<input value={profile.fullName} onChange={(event) => updateProfile("fullName", event.target.value)} placeholder="Patient full name" /></label>
+        <label>Mobile number<input value={profile.phone} onChange={(event) => updateProfile("phone", event.target.value)} placeholder="+91 98765 43210" /></label>
+        <label>WhatsApp number<input value={profile.whatsapp} onChange={(event) => updateProfile("whatsapp", event.target.value)} placeholder="+91 98765 43210" /></label>
         <div className="two-col">
-          <label>Age<input placeholder="52" /></label>
-          <label>Gender<select><option>Male</option><option>Female</option><option>Other</option></select></label>
+          <label>Age<input value={profile.age} onChange={(event) => updateProfile("age", event.target.value)} placeholder="52" /></label>
+          <label>Gender<select value={profile.gender} onChange={(event) => updateProfile("gender", event.target.value)}><option>Male</option><option>Female</option><option>Other</option></select></label>
         </div>
       </div>
 
       <div className="chip-panel">
         <strong>Existing conditions</strong>
         <div className="chip-wrap">
-          {["Diabetes", "Obesity", "Thyroid", "Fatty liver", "High BP", "Cholesterol", "Neuropathy", "Weight"].map((item) => (
+          {conditionOptions.map((item) => (
             <label className="chip-check" key={item}>
-              <input type="checkbox" defaultChecked={item === "Diabetes"} />
+              <input type="checkbox" checked={profile.conditions.includes(item)} onChange={() => toggleCondition(item)} />
               <span>{item}</span>
             </label>
           ))}
@@ -1399,12 +1773,12 @@ function PatientMedicalInfo({ source, googleProfile, onBack, onDone }) {
 
       <div className="form-card compact-form">
         <div className="two-col">
-          <label>Fasting sugar<input placeholder="mg/dL" /></label>
-          <label>HbA1c<input placeholder="%" /></label>
-          <label>BP<input placeholder="128/82" /></label>
-          <label>Weight<input placeholder="kg" /></label>
+          <label>Fasting sugar<input value={profile.fasting} onChange={(event) => updateProfile("fasting", event.target.value)} placeholder="mg/dL" /></label>
+          <label>HbA1c<input value={profile.hba1c} onChange={(event) => updateProfile("hba1c", event.target.value)} placeholder="%" /></label>
+          <label>BP<input value={profile.bp} onChange={(event) => updateProfile("bp", event.target.value)} placeholder="128/82" /></label>
+          <label>Weight<input value={profile.weight} onChange={(event) => updateProfile("weight", event.target.value)} placeholder="kg" /></label>
         </div>
-        <label>Preferred consult mode<select><option>Clinic visit</option><option>WhatsApp consultation</option><option>Online consultation</option></select></label>
+        <label>Preferred consult mode<select value={profile.preferredMode} onChange={(event) => updateProfile("preferredMode", event.target.value)}><option>Clinic visit</option><option>WhatsApp consultation</option><option>Online consultation</option></select></label>
       </div>
 
       <label className="consent-line">
@@ -1412,7 +1786,7 @@ function PatientMedicalInfo({ source, googleProfile, onBack, onDone }) {
         I consent to storing health data and follow-up reminders.
       </label>
 
-      <button className="primary-button" onClick={onDone}><Check size={18} /> Create patient app</button>
+      <button className="primary-button" onClick={() => onDone(profile)}><Check size={18} /> Create patient app</button>
     </section>
   );
 }
@@ -1470,6 +1844,7 @@ function PatientApp({
   activeClinic,
   appointment,
   setAppointment,
+  onSubmitAppointment,
   educationPosts,
   patientReadings,
   setPatientReadings,
@@ -1513,6 +1888,7 @@ function PatientApp({
           <BookAppointment
             appointment={appointment}
             setAppointment={setAppointment}
+            onSubmitAppointment={onSubmitAppointment}
             activeClinic={activeClinic}
             availability={availability}
             consultationFee={consultationFee}
@@ -1601,13 +1977,17 @@ function LiveAvailabilityViewer({ availability, activeClinic, consultationFee, c
   const canStartConsultPayment = isOnDuty && availability.online;
   const feeAmount = normalizeRupees(consultationFee.amount);
   const isPaid = consultPayment.status === "paid";
+  const usesPaymentLink = consultPayment.status === "payment_link";
+  const doctorWhatsAppHref = doctorWhatsappUrl(`Payment verified for online consultation. Patient is ready to consult Dr. Ashwani Kansal. Payment reference: ${consultPayment.paymentId || "verified in app"}.`);
   const consultButtonLabel = !canStartConsultPayment
     ? "Book instead"
     : isPaid
-      ? "Consult paid"
+      ? "Open WhatsApp"
       : feeAmount
         ? `Pay Rs ${feeAmount}`
-        : "Fee pending";
+        : hasRazorpayPaymentLink
+          ? "Open Razorpay"
+          : "Fee pending";
   return (
     <div className={`live-view-card ${isOnDuty ? "on" : "off"}`}>
       <div className="live-card-head">
@@ -1620,13 +2000,18 @@ function LiveAvailabilityViewer({ availability, activeClinic, consultationFee, c
         <span><Clock size={15} /> {activeClinic.timing}</span>
         {isOnDuty && <span><MapPin size={15} /> {activeClinic.address}</span>}
         <span><Video size={15} /> Online consultation {availability.online ? "available" : "not available"}</span>
-        <span><ShieldCheck size={15} /> Consultation fee {feeAmount ? `₹${feeAmount}` : consultationFee.label}</span>
+        <span><ShieldCheck size={15} /> Consultation fee {feeAmount ? `Rs ${feeAmount}` : consultationFee.label}</span>
       </div>
       {canStartConsultPayment ? (
         <div className={`payment-status-card ${consultPayment.status}`}>
-          <strong>{isPaid ? "Payment verified" : "Payment before consult"}</strong>
+          <strong>{isPaid ? "Payment verified" : usesPaymentLink ? "Payment verification pending" : "Payment before consult"}</strong>
           <p>{consultPayment.message}</p>
           {consultPayment.paymentId && <small>Razorpay: {consultPayment.paymentId}</small>}
+          {consultPayment.paymentUrl && !isPaid && (
+            <a href={consultPayment.paymentUrl} target="_blank" rel="noreferrer">
+              Open Razorpay payment page
+            </a>
+          )}
         </div>
       ) : (
         <div className="payment-status-card booking-only">
@@ -1647,9 +2032,15 @@ function LiveAvailabilityViewer({ availability, activeClinic, consultationFee, c
         ) : (
           <button disabled>Not live now</button>
         )}
-        <button onClick={canStartConsultPayment ? onPayConsult : undefined} disabled={!canStartConsultPayment}>
-          {consultButtonLabel}
-        </button>
+        {isPaid ? (
+          <a className="consult-unlocked-button" href={doctorWhatsAppHref} target="_blank" rel="noreferrer">
+            {consultButtonLabel}
+          </a>
+        ) : (
+          <button onClick={canStartConsultPayment ? onPayConsult : undefined} disabled={!canStartConsultPayment}>
+            {consultButtonLabel}
+          </button>
+        )}
       </div>
     </div>
   );
@@ -1699,13 +2090,17 @@ function HealthUpdates({ readings, setReadings, onSubmitReadings }) {
           <label>Weight<input inputMode="decimal" value={draft.weight} onChange={(event) => updateDraft("weight", event.target.value)} placeholder="84.2" /></label>
         </div>
         <label>HbA1c<input inputMode="decimal" value={draft.hba1c} onChange={(event) => updateDraft("hba1c", event.target.value)} placeholder="7.4" /></label>
-        <label>
-          Report upload
+        <label className="file-upload-field">
+          <span>Report upload</span>
           <input
             type="file"
             accept="image/*,.pdf"
             onChange={(event) => updateDraft("reportName", event.target.files?.[0]?.name || "")}
           />
+          <span className="file-upload-control">
+            <Upload size={17} />
+            {draft.reportName ? "Change report" : "Choose report"}
+          </span>
         </label>
         {draft.reportName && (
           <div className="uploaded-file-chip">
@@ -1746,19 +2141,27 @@ function HealthUpdates({ readings, setReadings, onSubmitReadings }) {
 function BookAppointment({
   appointment,
   setAppointment,
+  onSubmitAppointment,
   activeClinic,
   availability,
   consultationFee,
   consultPayment,
   onPayConsult
 }) {
-  const appointmentDays = getAppointmentDays();
-  const clinicSlots = getSlotsFromClinicTiming(activeClinic, appointment.date);
+  const [requestStatus, setRequestStatus] = useState("");
+  const appointmentDays = useMemo(() => getAppointmentDays(), []);
+  const clinicSlots = useMemo(
+    () => getSlotsFromClinicTiming(activeClinic, appointment.date),
+    [activeClinic, appointment.date]
+  );
   const slots = clinicSlots;
   const selectedSlotExists = slots.includes(appointment.time);
   const feeAmount = normalizeRupees(consultationFee.amount);
-  const needsOnlinePayment = appointment.mode === "Online consultation" && feeAmount > 0 && consultPayment.status !== "paid";
-  const onlineFeePending = appointment.mode === "Online consultation" && feeAmount === 0;
+  const paymentLinkStarted = consultPayment.status === "payment_link";
+  const needsOnlinePayment = appointment.mode === "Online consultation"
+    && feeAmount > 0
+    && consultPayment.status !== "paid";
+  const onlineFeePending = appointment.mode === "Online consultation" && feeAmount === 0 && !hasRazorpayPaymentLink;
   const calendarHref = googleCalendarUrl(
     {
       ...appointment,
@@ -1837,28 +2240,43 @@ function BookAppointment({
         <div className={`consult-payment-gate ${consultPayment.status}`}>
           <span><ShieldCheck size={18} /></span>
           <div>
-            <strong>{feeAmount ? `Online consultation fee: ₹${feeAmount}` : "Online fee to be decided"}</strong>
+            <strong>{feeAmount ? `Online consultation fee: Rs ${feeAmount}` : "Online fee to be decided"}</strong>
             <p>
               {consultPayment.status === "paid"
                 ? "Payment is verified. You can send this consultation request."
+                : paymentLinkStarted
+                  ? `Razorpay payment page was opened. WhatsApp stays locked until payment is verified, matching the Noida Talent Hunt payment-confirmation flow.`
                 : onlineFeePending
                   ? "Doctor/admin has not set the online consultation fee yet."
-                  : "Please complete Razorpay payment before sending an online consultation request."}
+                  : hasRazorpayPaymentLink
+                    ? "Open the clinic Razorpay payment page before sending an online consultation request."
+                    : "Please complete Razorpay payment before sending an online consultation request."}
             </p>
             {consultPayment.paidAt && <small>Paid at {consultPayment.paidAt}</small>}
+            {consultPayment.paymentUrl && consultPayment.status !== "paid" && (
+              <a href={consultPayment.paymentUrl} target="_blank" rel="noreferrer">
+                Razorpay payment page
+              </a>
+            )}
           </div>
-          {consultPayment.status !== "paid" && feeAmount > 0 && (
-            <button onClick={onPayConsult}>Pay ₹{feeAmount}</button>
+          {consultPayment.status !== "paid" && (feeAmount > 0 || hasRazorpayPaymentLink) && (
+            <button onClick={onPayConsult}>{feeAmount ? `Pay Rs ${feeAmount}` : "Open Razorpay"}</button>
           )}
         </div>
       )}
       <button
         className="primary-button"
         disabled={needsOnlinePayment || onlineFeePending}
-        onClick={() => setAppointment({ ...appointment, status: "Sent to doctor/admin" })}
+        onClick={async () => {
+          const nextAppointment = { ...appointment, status: "Sent to doctor/admin" };
+          setRequestStatus("Sending request...");
+          const result = await onSubmitAppointment(nextAppointment);
+          setRequestStatus(result);
+        }}
       >
         Send request
       </button>
+      {requestStatus && <p className="fine-print">{requestStatus}</p>}
       <a className="secondary-button calendar-link" href={calendarHref} target="_blank" rel="noreferrer">
         <CalendarCheck size={18} /> Add consultation to Google Calendar
       </a>
@@ -1871,9 +2289,11 @@ function BookAppointment({
 }
 
 function PatientChat({ availability, activeClinic, patientProfile, setActiveTab }) {
+  const threadRef = useRef(null);
   const [messages, setMessages] = useState([
     {
       role: "bot",
+      label: "Clinic assistant",
       text: "I can review your saved profile, explain general metabolic health topics, help with app features, and answer live clinic availability."
     }
   ]);
@@ -1887,12 +2307,18 @@ function PatientChat({ availability, activeClinic, patientProfile, setActiveTab 
   const [riskAlerts, setRiskAlerts] = useState([]);
 
   const addBotMessage = (text) => {
-  setMessages((items) => [...items, { role: "bot", text }]);
+  setMessages((items) => [...items, { role: "bot", label: "Clinic assistant", text }]);
   };
 
   const addUserMessage = (text) => {
-  setMessages((items) => [...items, { role: "user", text }]);
+  setMessages((items) => [...items, { role: "user", label: "You", text }]);
   };
+
+  useEffect(() => {
+    const thread = threadRef.current;
+    if (!thread) return;
+    thread.scrollTop = thread.scrollHeight;
+  }, [messages]);
 
   const sendMessage = (text) => {
     const cleanText = text.trim();
@@ -2090,12 +2516,12 @@ const hasHighRiskText = (text) => {
   return HIGH_RISK_KEYWORDS.some((word) => text.includes(word));
 };
   const quickPrompts = [
-    "Book Appointment",
-    "Update Sugar",
+    "Book appointment",
+    "Update sugar",
     "Update BP",
-    "Doctor Available Where?",
+    "Where is doctor?",
     "Review my case",
-    "Ask About Diabetes"
+    "Ask about diabetes"
   ];
 
   return (
@@ -2106,6 +2532,9 @@ const hasHighRiskText = (text) => {
           <strong>Clinic assistant</strong>
           <small>Uses your app profile and live doctor availability.</small>
         </div>
+        <button type="button" onClick={() => setActiveTab("book")}>
+          <CalendarCheck size={16} /> Book
+        </button>
       </div>
 
       <div className="chat-quick-prompts">
@@ -2114,27 +2543,32 @@ const hasHighRiskText = (text) => {
         ))}
       </div>
 
-      <div className="chat-thread">
+      <div className="chat-thread" ref={threadRef} aria-live="polite">
         {messages.map((message, index) => (
-          <div className={`bubble ${message.role}`} key={`${message.role}-${index}`}>{message.text}</div>
+          <div className={`message-row ${message.role}`} key={`${message.role}-${index}`}>
+            <div className="message-avatar">{message.role === "bot" ? "A" : "Y"}</div>
+            <div className={`bubble ${message.role}`}>
+              <span>{message.label}</span>
+              <p>{message.text}</p>
+            </div>
+          </div>
         ))}
       </div>
 
-      <div className="safety-strip"><AlertTriangle size={16} /> Emergency symptoms need emergency medical care immediately.</div>
-      <div className="chat-input">
-        <input
+      <div className="chat-composer">
+        <div className="safety-strip"><AlertTriangle size={15} /> Emergency symptoms need urgent medical care.</div>
+        <div className="chat-input">
+          <input
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
           onKeyDown={(event) => {
             if (event.key === "Enter") sendMessage(draft);
           }}
-          placeholder="Ask about your profile, clinic, or general health"
-        />
-        <button onClick={() => sendMessage(draft)} aria-label="Send message"><ChevronRight size={20} /></button>
+            placeholder="Message clinic assistant"
+          />
+          <button onClick={() => sendMessage(draft)} aria-label="Send message"><Send size={18} /></button>
+        </div>
       </div>
-      <button className="secondary-button chat-book-button" onClick={() => setActiveTab("book")}>
-        <CalendarCheck size={18} /> Book or request follow-up
-      </button>
     </div>
   );
 }
@@ -2163,6 +2597,9 @@ function generateClinicAssistantReply(message, { availability, activeClinic, pat
   }
 
   if (has(["my case", "my profile", "review", "what is wrong", "whats wrong", "what's wrong", "profile case"])) {
+    if (!patientProfile) {
+      return "I don't have any saved readings for you yet. Add your fasting sugar, post-meal sugar, BP, weight, or reports in the Updates tab and I can review your case here.";
+    }
     return buildCaseReview(patientProfile);
   }
 
@@ -2274,18 +2711,27 @@ function DoctorApp({
   patients,
   updatePatientRecord,
   educationPosts,
-  setEducationPosts,
+  onPublishEducationPost,
   consultationFee,
-  setConsultationFee
+  consultPayment,
+  setConsultPayment
 }) {
+  const isRisk = (patient, level) => String(patient.risk || "").toLowerCase() === level;
   const stats = useMemo(
     () => [
-      ["Patients", "6,248", Users, "blue"],
-      ["Requests", "38", CalendarCheck, "green"],
-      ["Alerts", "14", AlertTriangle, "rose"],
-      ["Inactive", "812", Bell, "lavender"]
+      ["Patients", String(patients.length), Users, "blue"],
+      ["Follow-ups", String(patients.filter((p) => p.followUp && p.followUp !== "Not scheduled").length), CalendarCheck, "green"],
+      ["High risk", String(patients.filter((p) => isRisk(p, "high")).length), AlertTriangle, "rose"],
+      ["Reviewed", String(patients.filter((p) => p.lastVisit && p.lastVisit !== "Medical intake").length), Bell, "lavender"]
     ],
-    []
+    [patients]
+  );
+  const alerts = useMemo(
+    () =>
+      patients
+        .filter((p) => isRisk(p, "high") || isRisk(p, "medium"))
+        .map((p) => `${p.risk} risk: ${p.name}${p.latest ? ` (${p.latest})` : ""}`),
+    [patients]
   );
   const selectedPatient = patients.find((patient) => patient.id === selectedPatientId) || patients[0];
 
@@ -2300,7 +2746,7 @@ function DoctorApp({
               : doctorTab === "availability"
                 ? "Edit live availability"
                 : doctorTab === "patientDetail"
-                  ? selectedPatient.name
+                  ? (selectedPatient?.name || "Patient")
                   : doctorTab === "education"
                     ? "Education posts"
                     : "Patient management"}
@@ -2310,14 +2756,14 @@ function DoctorApp({
       </div>
 
       <div className="scroll-area">
-        {doctorTab === "today" && <DoctorToday stats={stats} setDoctorTab={setDoctorTab} />}
+        {doctorTab === "today" && <DoctorToday stats={stats} alerts={alerts} setDoctorTab={setDoctorTab} />}
         {doctorTab === "availability" && (
           <DoctorAvailabilityEditor
             availability={availability}
             setAvailability={setAvailability}
             activeClinic={activeClinic}
-            consultationFee={consultationFee}
-            setConsultationFee={setConsultationFee}
+            consultPayment={consultPayment}
+            setConsultPayment={setConsultPayment}
           />
         )}
         {doctorTab === "patients" && (
@@ -2337,7 +2783,7 @@ function DoctorApp({
           />
         )}
         {doctorTab === "education" && (
-          <DoctorEducationEditor posts={educationPosts} setPosts={setEducationPosts} />
+          <DoctorEducationEditor posts={educationPosts} onPublishPost={onPublishEducationPost} />
         )}
       </div>
 
@@ -2346,27 +2792,17 @@ function DoctorApp({
   );
 }
 
-function DoctorEducationEditor({ posts, setPosts }) {
+function DoctorEducationEditor({ posts, onPublishPost }) {
   const [draft, setDraft] = useState({
-    title: "Diabetes follow-up basics",
-    body: "Bring sugar readings, medicine timing, weight changes and latest reports together for review.",
+    title: "",
+    body: "",
     tone: educationThemeOptions[0].id,
     tag: "Doctor-approved"
   });
   const updateDraft = (key, value) => setDraft((current) => ({ ...current, [key]: value }));
-  const publishPost = () => {
+  const publishPost = async () => {
     if (!draft.title.trim() || !draft.body.trim()) return;
-    setPosts((current) => [
-      {
-        id: `post-${Date.now()}`,
-        ...draft,
-        title: draft.title.trim(),
-        body: draft.body.trim(),
-        author: "Dr. Ashwani Kansal",
-        updatedAt: "Just now"
-      },
-      ...current
-    ]);
+    await onPublishPost(draft);
     setDraft({
       title: "",
       body: "",
@@ -2424,7 +2860,7 @@ function DoctorEducationEditor({ posts, setPosts }) {
   );
 }
 
-function DoctorToday({ stats, setDoctorTab }) {
+function DoctorToday({ stats, alerts = [], setDoctorTab }) {
   return (
     <div className="stack">
       <div className="doctor-stats">
@@ -2442,17 +2878,19 @@ function DoctorToday({ stats, setDoctorTab }) {
         <small>This is visible on patient app instantly.</small>
         <ChevronRight size={22} />
       </button>
-      {[
-        "Very high fasting sugar: Ramesh Gupta",
-        "Dose review due: Iqbal Khan",
-        "No response after 3 reminders",
-        "Prescription pending: Meena Sharma"
-      ].map((alert) => (
-        <div className="alert-row-card" key={alert}>
-          <AlertTriangle size={18} />
-          <span>{alert}</span>
+      {alerts.length > 0 ? (
+        alerts.map((alert) => (
+          <div className="alert-row-card" key={alert}>
+            <AlertTriangle size={18} />
+            <span>{alert}</span>
+          </div>
+        ))
+      ) : (
+        <div className="empty-state">
+          <span>No patient alerts yet</span>
+          <small>High and medium risk patients will appear here as records are added.</small>
         </div>
-      ))}
+      )}
     </div>
   );
 }
@@ -2461,8 +2899,8 @@ function DoctorAvailabilityEditor({
   availability,
   setAvailability,
   activeClinic,
-  consultationFee,
-  setConsultationFee
+  consultPayment,
+  setConsultPayment
 }) {
   const updateAvailability = (patch) => {
     setAvailability({
@@ -2472,12 +2910,18 @@ function DoctorAvailabilityEditor({
       updatedAt: "Just now"
     });
   };
-  const updateConsultationFee = (amount) => {
-    const cleanAmount = String(amount).replace(/[^\d.]/g, "");
-    setConsultationFee({
-      amount: cleanAmount,
-      label: cleanAmount ? `₹${cleanAmount}` : "To be decided",
-      updatedAt: "Just now"
+  const verifyConsultPaymentManually = () => {
+    setConsultPayment({
+      status: "paid",
+      message: "Payment manually verified by doctor/admin. WhatsApp consultation is unlocked.",
+      paymentId: "manual-razorpay-receipt",
+      paidAt: new Date().toLocaleString("en-IN", {
+        day: "2-digit",
+        month: "short",
+        hour: "numeric",
+        minute: "2-digit"
+      }),
+      paymentUrl: ""
     });
   };
 
@@ -2523,18 +2967,28 @@ function DoctorAvailabilityEditor({
 
       <div className="form-card">
         <label>Custom patient message<input value={availability.message} onChange={(event) => updateAvailability({ message: event.target.value })} /></label>
-        <label>
-          Online consultation fee
-          <input
-            inputMode="decimal"
-            value={consultationFee.amount}
-            onChange={(event) => updateConsultationFee(event.target.value)}
-            placeholder="Set amount before consultation"
-          />
-        </label>
+        <div className="locked-fee-card">
+          <span>Online consultation fee</span>
+          <strong>Rs {ONLINE_CONSULTATION_FEE}</strong>
+          <small>Static fee locked for all online consultations.</small>
+        </div>
         <small className="field-help">
           Patients must pay this fee through Razorpay before sending an online consultation request.
         </small>
+      </div>
+
+      <div className={`consult-payment-gate ${consultPayment.status}`}>
+        <span><ShieldCheck size={18} /></span>
+        <div>
+          <strong>Online consult payment gate</strong>
+          <p>{consultPayment.message}</p>
+          {consultPayment.paymentId && <small>Reference: {consultPayment.paymentId}</small>}
+        </div>
+        {consultPayment.status !== "paid" ? (
+          <button onClick={verifyConsultPaymentManually}>Mark payment verified</button>
+        ) : (
+          <button disabled>WhatsApp unlocked</button>
+        )}
       </div>
 
       <div className="audit-card">
@@ -2559,15 +3013,21 @@ function DoctorPatients({ patients, onOpenPatient }) {
           <button onClick={() => setNotice("")}>Dismiss</button>
         </div>
       )}
+      {patients.length === 0 && (
+        <div className="empty-state">
+          <span>No patients yet</span>
+          <small>Patient records appear here as people sign up or you import a CSV.</small>
+        </div>
+      )}
       {patients.map((patient) => (
         <button className="patient-row" key={patient.id} onClick={() => onOpenPatient(patient.id)}>
           <span>
             <strong>{patient.name}</strong>
             <small>
-              {patient.gender[0]} - {patient.age}y - {patient.mobile} - {patient.conditions[0]}
+              {(patient.gender || "?")[0]} - {patient.age}y - {patient.mobile} - {patient.conditions?.[0] || "—"}
             </small>
           </span>
-          <em className={patient.risk.toLowerCase()}>{patient.risk}</em>
+          <em className={String(patient.risk || "low").toLowerCase()}>{patient.risk || "Low"}</em>
         </button>
       ))}
       <button className="secondary-button" onClick={() => setNotice("CSV upload flow ready: choose a patient sheet with name, mobile, age, condition, risk, latest reading and follow-up date.")}>
@@ -2837,6 +3297,11 @@ function prettyKey(key) {
 
 function whatsappUrl(patient, message) {
   const digits = patient.whatsapp.replace(/\D/g, "");
+  return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
+}
+
+function doctorWhatsappUrl(message) {
+  const digits = DOCTOR_WHATSAPP_NUMBER.replace(/\D/g, "");
   return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
 }
 

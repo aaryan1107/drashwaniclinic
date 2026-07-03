@@ -7,15 +7,23 @@
     "dev": "vite --host localhost",
     "test": "node src/auth.test.mjs",
     "build": "vite build",
-    "preview": "vite preview --host 127.0.0.1"
+    "preview": "vite preview --host 127.0.0.1",
+    "native:sync": "npm run build && npx cap sync",
+    "native:android": "npm run build && npx cap open android",
+    "native:ios": "npm run build && npx cap open ios"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.108.0",
     "@vitejs/plugin-react": "latest",
-    "firebase": "^12.14.0",
     "lucide-react": "latest",
     "react": "latest",
     "react-dom": "latest",
     "vite": "latest"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^8.4.1",
+    "@capacitor/cli": "^8.4.1",
+    "@capacitor/core": "^8.4.1",
+    "@capacitor/ios": "^8.4.1"
   }
 }

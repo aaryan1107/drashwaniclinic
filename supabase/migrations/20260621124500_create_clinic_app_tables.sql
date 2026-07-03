@@ -38,10 +38,10 @@ create table if not exists public.patient_readings (
 
 create table if not exists public.clinic_availability (
   id text primary key default 'live',
-  status text not null default 'On Duty',
+  status text not null default 'Off Duty',
   clinic_id text not null default 'clinic-2',
-  online boolean not null default true,
-  message text not null default 'Running 20 minutes late. Please check before visiting.',
+  online boolean not null default false,
+  message text not null default '',
   consultation_fee integer,
   updated_by text,
   updated_at timestamptz not null default now()
@@ -181,7 +181,7 @@ using ((auth.jwt() -> 'app_metadata' ->> 'role') = 'doctor')
 with check ((auth.jwt() -> 'app_metadata' ->> 'role') = 'doctor');
 
 insert into public.clinic_availability (id, status, clinic_id, online, message, consultation_fee, updated_by)
-values ('live', 'On Duty', 'clinic-2', true, 'Running 20 minutes late. Please check before visiting.', null, 'Dr. Ashwani')
+values ('live', 'Off Duty', 'clinic-2', false, '', 700, null)
 on conflict (id) do nothing;
 
 insert into public.education_posts (title, body, tone, tag, author)

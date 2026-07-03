@@ -1,9 +1,28 @@
 node_modules/
 dist/
-.vite/
+.DS_Store
 .env
 .env.*
 !.env.example
+.npm-cache/
+
+# Local/private clinic documents and generated assistant state
 private/
+.claude/
+
+# Native build output and signing material
+android/.gradle/
+android/app/build/
+android/build/
+ios/App/build/
+ios/App/Pods/
+ios/App/Podfile.lock
+*.jks
+*.keystore
+*.p8
+*.mobileprovision
+
+# Local generated folders
 medical-free-chatbot/venv/
+supabase/.temp/
 security-scans/

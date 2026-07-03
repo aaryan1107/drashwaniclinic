@@ -1,0 +1,15 @@
+{
+	"appId": "com.drashwani.familyclinic",
+	"appName": "Dr Ashwani Family Clinic",
+	"webDir": "dist",
+	"bundledWebRuntime": false,
+	"server": {
+		"androidScheme": "https"
+	},
+	"plugins": {
+		"SplashScreen": {
+			"launchAutoHide": true,
+			"backgroundColor": "#f4f8fd"
+		}
+	}
+}

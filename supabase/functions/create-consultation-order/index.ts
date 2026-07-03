@@ -19,14 +19,26 @@ Deno.serve(async (request) => {
     const currency = String(body.currency || "INR").toUpperCase();
     const keyId = String(Deno.env.get("RAZORPAY_KEY_ID") || "").trim();
     const keySecret = String(Deno.env.get("RAZORPAY_KEY_SECRET") || "").trim();
+    const authUser = await getAuthenticatedUser(request);
 
     if (!keyId || !keySecret) {
       return json({ error: "Razorpay keys are missing in Supabase secrets." }, 500);
     }
 
-    if (!Number.isInteger(amount) || amount < 100) {
-      return json({ error: "Invalid consultation amount." }, 400);
+    if (!authUser) {
+      return json({ error: "Please sign in before paying for consultation." }, 401);
     }
+
+    if (!Number.isInteger(amount) || amount !== 70000) {
+      return json({ error: "Invalid consultation amount. Online consultation fee is fixed at Rs 700." }, 400);
+    }
+
+    const patient = {
+      ...(body.patient || {}),
+      user_id: authUser.id,
+      email: authUser.email || body.patient?.email || "",
+      contact: authUser.phone || body.patient?.contact || ""
+    };
 
     const orderResponse = await fetch("https://api.razorpay.com/v1/orders", {
       method: "POST",
@@ -41,7 +53,8 @@ Deno.serve(async (request) => {
         notes: {
           purpose: "doctor_consultation",
           clinic: body.clinic?.name || "",
-          patient: body.patient?.name || ""
+          patient: patient.name || "",
+          patient_id: authUser.id
         }
       })
     });
@@ -55,7 +68,7 @@ Deno.serve(async (request) => {
       razorpay_order_id: order.id,
       amount: order.amount,
       currency: order.currency,
-      patient: body.patient || {},
+      patient,
       clinic: body.clinic || {}
     });
 
@@ -70,18 +83,35 @@ Deno.serve(async (request) => {
   }
 });
 
+async function getAuthenticatedUser(request: Request) {
+  const supabaseUrl = Deno.env.get("PROJECT_URL");
+  const serviceKey = Deno.env.get("SERVICE_ROLE_KEY");
+  const authorization = request.headers.get("Authorization") || "";
+  if (!supabaseUrl || !serviceKey || !authorization.startsWith("Bearer ")) return null;
+
+  const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
+    headers: {
+      "apikey": serviceKey,
+      "Authorization": authorization
+    }
+  });
+
+  if (!response.ok) return null;
+  return response.json();
+}
+
 async function storePaymentDraft(row: Record<string, unknown>) {
-  const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const supabaseUrl = Deno.env.get("PROJECT_URL");
+  const serviceKey = Deno.env.get("SERVICE_ROLE_KEY");
   if (!supabaseUrl || !serviceKey) return;
 
-  await fetch(`${supabaseUrl}/rest/v1/consultation_payments`, {
+  await fetch(`${supabaseUrl}/rest/v1/consultation_payments?on_conflict=razorpay_order_id`, {
     method: "POST",
     headers: {
       "apikey": serviceKey,
       "Authorization": `Bearer ${serviceKey}`,
       "Content-Type": "application/json",
-      "Prefer": "resolution=merge-duplicates"
+      "Prefer": "resolution=merge-duplicates,return=minimal"
     },
     body: JSON.stringify({
       ...row,
