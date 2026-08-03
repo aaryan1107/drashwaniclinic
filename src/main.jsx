@@ -26,6 +26,7 @@ import {
   Moon,
   NotebookPen,
   Palette,
+  Phone,
   Pill,
   Plus,
   Search,
@@ -216,6 +217,30 @@ const patientToRecordRow = (patient, ownerId = null) => ({
   follow_up: patient.followUp || null,
   last_visit: patient.lastVisit || null
 });
+
+const patientToPatientPartialRow = (patient, ownerId = null) => {
+  const row = {
+    name: patient.name || "Clinic Patient",
+    ...(patient.age !== undefined && patient.age !== null ? { age: Number(patient.age) || 0 } : {}),
+    ...(patient.gender ? { gender: patient.gender } : {}),
+    ...(patient.mobile ? { mobile: patient.mobile } : {}),
+    ...(patient.whatsapp ? { whatsapp: patient.whatsapp } : {}),
+    ...(patient.abha ? { abha: patient.abha } : {}),
+    ...(patient.source ? { source: patient.source } : {}),
+    ...(patient.conditions ? { conditions: patient.conditions } : {}),
+    ...(patient.latest ? { latest: patient.latest } : {}),
+    ...(patient.vitals ? { vitals: patient.vitals } : {}),
+    ...(patient.symptoms ? { symptoms: patient.symptoms } : {}),
+    ...(patient.lastVisit ? { last_visit: patient.lastVisit } : {}),
+    ...(ownerId ? { owner_id: ownerId } : {})
+  };
+  if (patient.labs && patient.labs.length > 0) {
+    row.labs = patient.labs;
+  }
+  return row;
+};
+
+export { patientToRecordRow, patientToPatientPartialRow };
 
 const EMERGENCY_KEYWORDS = [
   "chest pain", "heart attack", "unconscious", "stroke", "can't breathe", "cannot breathe",
@@ -592,6 +617,45 @@ function App() {
     }
   };
 
+  const persistPatientVitals = async (patient, ownerId = patient.ownerId || null) => {
+    const patientId = String(patient.id);
+    const partialRow = patientToPatientPartialRow(patient, ownerId);
+    const { data, error } = await supabase
+      .from("patient_records")
+      .update(partialRow)
+      .eq("id", patientId)
+      .select("id");
+
+    if (error && !isMissingSupabaseTableError(error)) {
+      console.warn("Patient vitals sync failed:", error.message);
+      return;
+    }
+
+    // Update matched an existing row — done.
+    if (data && data.length > 0) return;
+
+    // 0 rows returned: either row doesn't exist, or RLS blocked the update.
+    // Attempt a SELECT to disambiguate before falling back to full insert.
+    const { data: existing } = await supabase
+      .from("patient_records")
+      .select("id")
+      .eq("id", patientId)
+      .maybeSingle();
+
+    if (existing) {
+      // Row exists but update was blocked (likely RLS / owner_id mismatch).
+      console.warn(
+        `persistPatientVitals: row ${patientId} exists but .update() returned 0 rows. ` +
+        "This likely means RLS blocked the write (owner_id mismatch). Skipping fallback insert."
+      );
+      return;
+    }
+
+    // Row genuinely doesn't exist — first-time patient, insert with defaults.
+    console.info(`persistPatientVitals: no existing row for ${patientId}, inserting new record.`);
+    await persistPatientRecord(patient, ownerId);
+  };
+
   const updatePatientRecord = (patientId, patch) => {
     let nextPatient = null;
     setPatientRecords((records) => {
@@ -693,7 +757,7 @@ function App() {
       return `Readings saved locally, but cloud sync failed: ${error.message}`;
     }
 
-    await persistPatientRecord({
+    await persistPatientVitals({
       id: patientId,
       name: patientName,
       age: 0,
@@ -1285,7 +1349,7 @@ function App() {
         })
         .eq("id", nextUser.id);
 
-      await persistPatientRecord({
+      await persistPatientVitals({
         id: nextUser.id,
         name: medicalProfile.fullName || nextUser.name || "Clinic Patient",
         age: Number(medicalProfile.age) || 0,
@@ -1427,9 +1491,6 @@ function IntroScreen({ onPatient, onDoctor }) {
       <div className="intro-hero">
         <img src="/doctor-ashwani-cutout.png" alt="Dr. Ashwani Kansal" />
         <div className="intro-photo-wash" />
-        <div className="intro-badge">
-          <HeartPulse size={22} />
-        </div>
         <div className="intro-hero-card">
           <strong>Dr. Ashwani's Family Clinic</strong>
         </div>
@@ -1441,19 +1502,23 @@ function IntroScreen({ onPatient, onDoctor }) {
         <p>MBBS, DFID, M.MED, PGCAT. Diabetes, obesity, thyroid, hypertension, OCD and anxiety care with app-based follow-up.</p>
       </div>
 
-      <div className="intro-actions">
-        <button className="primary-button" onClick={onPatient}>
-          Continue as Patient
-        </button>
-        <button className="secondary-button" onClick={onDoctor}>
-          Doctor sign in
-        </button>
-      </div>
-
       <div className="intro-trust-row">
-        <span>Diabetes</span>
+        <span className="chip-accent">Diabetes</span>
         <span>Thyroid</span>
         <span>Hypertension</span>
+        <span>Obesity</span>
+        <span>OCD</span>
+        <span>Anxiety</span>
+      </div>
+
+      <div className="intro-actions">
+        <button className="primary-button" onClick={onPatient}>
+          <CalendarCheck size={18} />
+          Book Appointment
+        </button>
+        <button className="intro-patient-link" onClick={onPatient}>
+          Continue as Patient →
+        </button>
       </div>
     </section>
   );

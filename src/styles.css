@@ -197,7 +197,7 @@ p {
   position: relative;
   justify-content: space-between;
   gap: 14px;
-  padding: 18px 24px calc(24px + env(safe-area-inset-bottom, 0px));
+  padding: 0 24px calc(24px + env(safe-area-inset-bottom, 0px));
   color: #102033;
   background:
     linear-gradient(112deg, #ffffff 0 54%, rgba(255, 255, 255, 0.82) 54.2% 60%, transparent 60.2%),
@@ -238,7 +238,7 @@ p {
   position: relative;
   z-index: 1;
   min-height: 288px;
-  margin: -4px -24px 0;
+  margin: 0 -24px 0;
   overflow: hidden;
 }
 
@@ -296,28 +296,25 @@ p {
 
 .intro-hero-card {
   position: absolute;
-  left: 24px;
-  top: 26px;
+  left: 20px;
+  top: 16px;
   z-index: 3;
-  width: min(214px, calc(100% - 176px));
-  display: grid;
-  gap: 6px;
-}
-
-.intro-hero-card span {
-  width: fit-content;
-  padding: 7px 10px;
-  border-radius: 999px;
-  color: #fff;
-  background: #173f72;
-  font-size: 0.72rem;
-  font-weight: 900;
+  width: auto;
+  max-width: 210px;
+  padding: 10px 14px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  box-shadow: 0 8px 28px rgba(15, 76, 145, 0.14);
 }
 
 .intro-hero-card strong {
-  color: #1b2230;
-  font-size: 1.54rem;
-  line-height: 0.98;
+  color: #09244a;
+  font-size: 1.22rem;
+  font-weight: 850;
+  line-height: 1.08;
+  display: block;
 }
 
 .intro-copy,
@@ -385,24 +382,41 @@ p {
   gap: 10px;
 }
 
-.intro-actions .primary-button,
-.intro-actions .secondary-button {
+.intro-actions .primary-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   min-height: 54px;
   border-radius: 999px;
   font-size: 0.96rem;
-}
-
-.intro-actions .primary-button {
   color: #fff;
   background: #0f4c91;
   box-shadow: 0 18px 38px rgba(13, 45, 101, 0.22);
 }
 
-.intro-actions .secondary-button {
+.intro-patient-link {
+  all: unset;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 52px;
+  border-radius: 999px;
+  font-size: 0.95rem;
+  font-weight: 800;
   color: #0f4c91;
-  border-color: rgba(255, 255, 255, 0.5);
-  background: rgba(255, 255, 255, 0.84);
-  backdrop-filter: blur(14px);
+  background: #ffffff;
+  border: 2px solid #0f4c91;
+  box-shadow: 0 4px 14px rgba(15, 76, 145, 0.18);
+  cursor: pointer;
+  box-sizing: border-box;
+  text-align: center;
+}
+
+.intro-patient-link:hover {
+  background: #f0f7ff;
+  border-color: #09244a;
+  color: #09244a;
 }
 
 .intro-trust-row {
@@ -412,15 +426,48 @@ p {
 }
 
 .intro-trust-row span {
-  min-height: 36px;
+  min-height: 34px;
   display: grid;
   place-items: center;
-  border: 1px solid rgba(255, 255, 255, 0.22);
+  padding: 0 14px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 999px;
   color: #fff;
-  background: rgba(9, 36, 74, 0.28);
-  font-size: 0.76rem;
+  background: #0f4c91;
+  font-size: 0.74rem;
   font-weight: 850;
+}
+
+.intro-trust-row .chip-accent {
+  background: #1a6fd4;
+  border-color: rgba(255, 255, 255, 0.32);
+  box-shadow: 0 4px 14px rgba(26, 111, 212, 0.28);
+}
+
+.intro-doctor-link {
+  all: unset;
+  display: block;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.74rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 6px 0 2px;
+}
+
+.intro-doctor-link:hover {
+  color: rgba(255, 255, 255, 0.72);
+  text-decoration: underline;
+}
+
+.intro-timing {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 0.72rem;
+  font-weight: 700;
 }
 
 @media (max-height: 820px) {
