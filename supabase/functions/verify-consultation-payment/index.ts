@@ -62,7 +62,7 @@ Deno.serve(async (request) => {
       return json({ error: `Payment is not completed. Current status: ${payment.status}` }, 400);
     }
 
-    await storeVerifiedPayment({
+    const saved = await storeVerifiedPayment({
       razorpay_order_id: orderId,
       razorpay_payment_id: paymentId,
       amount: payment.amount,
@@ -78,6 +78,14 @@ Deno.serve(async (request) => {
       clinic: body.clinic || {},
       verified_at: new Date().toISOString()
     });
+
+    if (!saved) {
+      // Money was captured, but the unlock could not be stored. Tell the patient to send the receipt.
+      return json({
+        error: "Payment was received, but the clinic record could not be saved. Please share the Razorpay receipt with the clinic.",
+        razorpay_payment_id: paymentId
+      }, 500);
+    }
 
     return json({
       ok: true,
@@ -129,21 +137,25 @@ function timingSafeEqual(left: string, right: string) {
   return mismatch === 0;
 }
 
-async function storeVerifiedPayment(row: Record<string, unknown>) {
+// Upserts on razorpay_order_id so the paid row exists even if the order draft write failed.
+// Returns false when the row could not be saved, so the caller can refuse to report success.
+async function storeVerifiedPayment(row: Record<string, unknown>): Promise<boolean> {
   const supabaseUrl = Deno.env.get("PROJECT_URL");
   const serviceKey = Deno.env.get("SERVICE_ROLE_KEY");
-  if (!supabaseUrl || !serviceKey) return;
+  if (!supabaseUrl || !serviceKey) return false;
 
-  await fetch(`${supabaseUrl}/rest/v1/consultation_payments?razorpay_order_id=eq.${encodeURIComponent(String(row.razorpay_order_id))}`, {
-    method: "PATCH",
+  const response = await fetch(`${supabaseUrl}/rest/v1/consultation_payments?on_conflict=razorpay_order_id`, {
+    method: "POST",
     headers: {
       "apikey": serviceKey,
       "Authorization": `Bearer ${serviceKey}`,
       "Content-Type": "application/json",
-      "Prefer": "return=minimal"
+      "Prefer": "resolution=merge-duplicates,return=minimal"
     },
     body: JSON.stringify(row)
-  }).catch(() => undefined);
+  }).catch(() => null);
+
+  return Boolean(response?.ok);
 }
 
 function json(payload: unknown, status = 200) {

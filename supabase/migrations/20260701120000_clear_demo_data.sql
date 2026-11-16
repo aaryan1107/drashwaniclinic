@@ -1,8 +1,8 @@
 -- Production cleanup: remove demo/seed data that earlier migrations inserted.
--- Safe to run on the existing project. Real patient signups are NOT affected
--- (only the known demo patient id is removed).
+-- Only touches known demo rows. Real patient signups, appointment requests and
+-- patient readings are NOT deleted by this migration.
 
--- 1. Remove the demo patient record (Ramesh Gupta) seeded by the hardening migration.
+-- 1. Remove the demo patient records seeded for the demo/testing app state.
 delete from public.patient_records
 where id in ('ramesh', 'meena', 'sunita', 'iqbal');
 
@@ -15,10 +15,6 @@ set status = 'Off Duty',
     consultation_fee = 700
 where id = 'live';
 
--- 3. Clear any test appointment requests and patient readings captured during testing.
-delete from public.appointment_requests;
-delete from public.patient_readings;
-
--- 4. Education posts are real clinic content and are kept by default.
+-- 3. Education posts are real clinic content and are kept by default.
 --    Uncomment the next line ONLY if you want to start with an empty education library:
 -- delete from public.education_posts;

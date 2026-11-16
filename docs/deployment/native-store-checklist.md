@@ -28,12 +28,10 @@ http://localhost:5288
 http://localhost:5288/
 https://your-production-domain.example
 https://your-production-domain.example/
-capacitor://localhost
-capacitor://localhost/
 com.drashwani.familyclinic://auth/callback
 ```
 
-Google OAuth must also allow the production web domain in Google Cloud OAuth settings.
+Follow the Google provider setup in [Firebase Hosting Setup](firebase-hosting.md). The native browser returns to the app via the callback above. Run `npm run native:sync` before building either platform and verify sign-in from both a cold launch and an already-open app.
 
 ## Google Play
 

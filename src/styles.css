@@ -1,23 +1,34 @@
 :root {
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: Axiforma, "Sofia Pro", "Neo Sans", Relative, Area, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color: #102033;
   background: #dce9f8;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
-  --blue: #3478f6;
-  --blue-dark: #195ed8;
-  --green: #1f9d7a;
+  --navy: #09244a;
+  --royal-blue: #256fe8;
+  --electric-accent: #4f8cff;
+  --emerald: #14a77d;
+  --amber: #f5a524;
+  --rose: #e25563;
+  --blue: var(--royal-blue);
+  --blue-dark: #1559c7;
+  --green: var(--emerald);
   --ink: #102033;
-  --muted: #687588;
-  --line: #dce6f2;
+  --muted: #627188;
+  --line: #d8e4f2;
   --surface: #ffffff;
   --app: #f4f8fd;
-  --soft-blue: #e7f0ff;
-  --soft-green: #dff7ed;
-  --soft-rose: #ffe2e2;
+  --soft-blue: #e8f1ff;
+  --soft-green: #ddf7ee;
+  --soft-rose: #ffe5e8;
   --soft-lavender: #eae7ff;
-  --warning: #fff4e7;
+  --warning: #fff3de;
+  --glass: rgba(255, 255, 255, 0.78);
+  --glass-border: rgba(255, 255, 255, 0.62);
+  --shadow-soft: 0 12px 30px rgba(30, 71, 121, 0.08);
+  --shadow-lift: 0 18px 42px rgba(30, 71, 121, 0.12);
   --shadow: 0 24px 70px rgba(30, 71, 121, 0.16);
+  --focus-ring: 0 0 0 4px rgba(79, 140, 255, 0.16);
 }
 
 * {
@@ -48,6 +59,32 @@ textarea {
 
 button {
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+a {
+  -webkit-tap-highlight-color: transparent;
+  overflow-wrap: anywhere;
+}
+
+.glass-surface {
+  border: 1px solid var(--glass-border);
+  background: var(--glass);
+  box-shadow: var(--shadow-soft);
+  backdrop-filter: blur(18px) saturate(1.08);
+}
+
+.elevation-soft {
+  box-shadow: var(--shadow-soft);
+}
+
+.elevation-lift {
+  box-shadow: var(--shadow-lift);
+}
+
+.tap-lift {
+  will-change: transform;
 }
 
 .app-stage {
@@ -63,20 +100,31 @@ button {
 }
 
 .app-stage.dark-theme {
-  --blue: #5f9cff;
-  --blue-dark: #8fbdff;
-  --green: #54ddb5;
+  --navy: #dbeafe;
+  --royal-blue: #6ea8ff;
+  --electric-accent: #8fbdff;
+  --emerald: #5ee6bd;
+  --amber: #ffc56d;
+  --rose: #ff8a98;
+  --blue: var(--royal-blue);
+  --blue-dark: var(--electric-accent);
+  --green: var(--emerald);
   --ink: #f4f8ff;
-  --muted: #b8c4d4;
-  --line: #2c3d52;
-  --surface: #111c2b;
-  --app: #0a1522;
-  --soft-blue: #122f55;
-  --soft-green: #123a32;
-  --soft-rose: #4a2430;
-  --soft-lavender: #2d2857;
-  --warning: #432d18;
+  --muted: #c6d2e2;
+  --line: #405168;
+  --surface: #111d2d;
+  --app: #081421;
+  --soft-blue: #153865;
+  --soft-green: #123f35;
+  --soft-rose: #552932;
+  --soft-lavender: #332d60;
+  --warning: #4c351e;
+  --glass: rgba(17, 29, 45, 0.76);
+  --glass-border: rgba(149, 184, 232, 0.18);
+  --shadow-soft: 0 12px 30px rgba(0, 0, 0, 0.3);
+  --shadow-lift: 0 18px 48px rgba(0, 0, 0, 0.4);
   --shadow: 0 24px 70px rgba(0, 0, 0, 0.42);
+  --focus-ring: 0 0 0 4px rgba(143, 189, 255, 0.22);
   background:
     radial-gradient(circle at 18% 0%, rgba(110, 165, 255, 0.18), transparent 33%),
     radial-gradient(circle at 82% 18%, rgba(79, 212, 170, 0.1), transparent 28%),
@@ -156,6 +204,8 @@ h3,
 p {
   margin: 0;
   letter-spacing: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 h1 {
@@ -542,10 +592,11 @@ p {
   display: grid;
   gap: 12px;
   padding: 14px;
-  border: 1px solid rgba(220, 230, 242, 0.95);
+  border: 1px solid var(--glass-border);
   border-radius: 26px;
-  background: rgba(255, 255, 255, 0.92);
-  box-shadow: 0 18px 42px rgba(30, 71, 121, 0.12);
+  background: var(--glass);
+  box-shadow: var(--shadow-lift);
+  backdrop-filter: blur(18px) saturate(1.08);
 }
 
 .auth-form {
@@ -762,7 +813,7 @@ p {
   padding: 20px;
   text-align: left;
   color: var(--ink);
-  box-shadow: 0 18px 42px rgba(30, 71, 121, 0.1);
+  box-shadow: var(--shadow-lift);
 }
 
 .role-card.patient {
@@ -868,7 +919,7 @@ p {
   border: 1px solid rgba(220, 230, 242, 0.9);
   border-radius: 24px;
   background: var(--surface);
-  box-shadow: 0 14px 36px rgba(30, 71, 121, 0.07);
+  box-shadow: var(--shadow-soft);
 }
 
 label {
@@ -915,7 +966,7 @@ input:focus,
 select:focus,
 textarea:focus {
   border-color: #8db6ff;
-  box-shadow: 0 0 0 4px rgba(52, 120, 246, 0.12);
+  box-shadow: var(--focus-ring);
 }
 
 .two-col {
@@ -1386,7 +1437,7 @@ textarea:focus {
   background: #fff;
   padding: 14px;
   text-align: left;
-  box-shadow: 0 14px 36px rgba(30, 71, 121, 0.07);
+  box-shadow: var(--shadow-soft);
 }
 
 .row-card > span:nth-child(2),
@@ -1445,7 +1496,7 @@ textarea:focus {
   border: 1px solid rgba(220, 230, 242, 0.9);
   border-radius: 22px;
   background: var(--surface);
-  box-shadow: 0 12px 30px rgba(30, 71, 121, 0.07);
+  box-shadow: var(--shadow-soft);
 }
 
 .booking-context-card > span {
@@ -1548,7 +1599,7 @@ textarea:focus {
   background:
     linear-gradient(180deg, rgba(231, 240, 255, 0.56), rgba(255, 255, 255, 0) 150px),
     #fff;
-  box-shadow: 0 16px 42px rgba(30, 71, 121, 0.08);
+  box-shadow: var(--shadow-lift);
 }
 
 .smart-chat {
@@ -1772,7 +1823,7 @@ textarea:focus {
   border: 1px solid rgba(220, 230, 242, 0.95);
   border-radius: 22px;
   background: #fff;
-  box-shadow: 0 12px 30px rgba(30, 71, 121, 0.07);
+  box-shadow: var(--shadow-soft);
 }
 
 .chat-input input {
@@ -1842,7 +1893,7 @@ textarea:focus {
   border: 1px solid rgba(220, 230, 242, 0.9);
   border-radius: 24px;
   background: #fff;
-  box-shadow: 0 12px 30px rgba(30, 71, 121, 0.07);
+  box-shadow: var(--shadow-soft);
 }
 
 .editor-title-row {
@@ -2209,6 +2260,71 @@ textarea:focus {
   background: rgba(255, 255, 255, 0.03);
 }
 
+.pending-payments {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid rgba(220, 230, 242, 0.9);
+  border-radius: 24px;
+  background: #fff;
+}
+
+.pending-payments-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink);
+}
+
+.pending-payments-head svg {
+  color: var(--green);
+}
+
+.pending-payments-notice {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 14px;
+  color: var(--ink);
+  background: var(--soft-green);
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.pending-payment-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--soft-blue);
+}
+
+.pending-payment-row > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.pending-payment-row small {
+  color: var(--muted);
+  font-size: 0.76rem;
+  overflow-wrap: anywhere;
+}
+
+.pending-payment-row .primary-button {
+  min-height: 40px;
+  padding: 0 14px;
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+.dark-theme .pending-payments {
+  background: #111c2b;
+}
+
 .clinic-switcher button.selected {
   border-color: #82b2ff;
   background: var(--soft-blue);
@@ -2375,7 +2491,7 @@ textarea:focus {
   border: 1px solid rgba(220, 230, 242, 0.9);
   border-radius: 24px;
   background: #fff;
-  box-shadow: 0 12px 30px rgba(30, 71, 121, 0.07);
+  box-shadow: var(--shadow-soft);
 }
 
 .patient-summary-card span,
@@ -2609,6 +2725,7 @@ textarea:focus {
   color: var(--ink);
   border-color: var(--line);
   background: var(--surface);
+  box-shadow: var(--shadow-soft);
 }
 
 .dark-theme .auth-brand h1,
@@ -2728,6 +2845,7 @@ textarea:focus {
 .dark-theme .live-view-card.off,
 .dark-theme .safety-strip,
 .dark-theme .medical-note {
+  color: #ffd7a3;
   border: 1px solid rgba(255, 181, 82, 0.22);
   background: #2b2118;
 }
@@ -2886,6 +3004,7 @@ textarea:focus {
 }
 
 .dark-theme .alert-row-card {
+  color: #ffd7a3;
   background: #2b2118;
   border: 1px solid rgba(255, 181, 82, 0.22);
 }
@@ -2932,6 +3051,7 @@ textarea:focus {
 
 .dark-theme .bubble.bot {
   color: var(--ink);
+  border-color: rgba(143, 189, 255, 0.18);
   background: #132335;
 }
 
@@ -2960,8 +3080,9 @@ textarea:focus {
 }
 
 .dark-theme .profile-menu {
-  background: #0f1b29;
-  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.5);
+  background: var(--glass);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(18px) saturate(1.08);
 }
 
 .dark-theme .chip-check span,
@@ -3173,6 +3294,11 @@ textarea:focus {
 .chat-input,
 .chat-context-card,
 .doctor-section,
+.booking-context-card,
+.consult-payment-gate,
+.quick-actions button,
+.round-action,
+.bottom-nav,
 .metric-tile,
 .doctor-stat,
 input,
@@ -3210,7 +3336,13 @@ button {
 }
 
 .primary-button:not(:disabled):hover,
-.chat-input button:hover {
+.secondary-button:not(:disabled):hover,
+.chat-input button:hover,
+.quick-actions button:hover,
+.row-card:hover,
+.patient-row:hover,
+.round-action:hover,
+.story-card:hover {
   transform: translateY(-1px);
 }
 
@@ -3218,6 +3350,63 @@ input:focus,
 select:focus,
 textarea:focus {
   outline: none;
+}
+
+button:focus-visible,
+a:focus-visible,
+.chip-check input:focus-visible + span {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* Design-system guardrails: accessible touch targets and compact text resilience */
+button,
+[role="button"],
+.split-actions a,
+.whatsapp-panel a,
+.calendar-link,
+.urgent-care-actions a {
+  min-width: 48px;
+  min-height: 48px;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+select {
+  min-height: 48px;
+}
+
+.chip-check span,
+.consent-line,
+.switch-card {
+  min-height: 48px;
+}
+
+.row-card > span,
+.patient-row > span,
+.booking-context-card div,
+.consult-payment-gate div,
+.chat-context-card div,
+.doctor-section-head > div,
+.whatsapp-panel > div,
+.clinic-switcher button > * {
+  min-width: 0;
+}
+
+.row-card strong,
+.row-card small,
+.patient-row strong,
+.patient-row small,
+.booking-context-card strong,
+.booking-context-card small,
+.consult-payment-gate strong,
+.consult-payment-gate p,
+.chat-context-card strong,
+.chat-context-card small,
+.clinic-switcher button strong,
+.clinic-switcher button span,
+.theme-swatch strong,
+.theme-swatch small {
+  overflow-wrap: anywhere;
 }
 
 /* Respect users who prefer reduced motion */
@@ -3230,4 +3419,1545 @@ textarea:focus {
     transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
   }
+
+  .urgent-care-header svg,
+  .urgent-care-banner {
+    animation: none !important;
+  }
+}
+
+/* ── Urgent Care Emergency Protocol Banner ── */
+.urgent-care-banner {
+  margin: 12px 0;
+  padding: 16px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: #ffffff;
+  box-shadow: 0 12px 32px rgba(239, 68, 68, 0.32);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: rise-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.urgent-care-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 850;
+  font-size: 1.05rem;
+}
+
+.urgent-care-header svg {
+  animation: urgent-care-pulse 1.8s infinite;
+}
+
+@keyframes urgent-care-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.15); opacity: 0.85; }
+}
+
+.urgent-care-body p {
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.urgent-care-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.urgent-care-actions button,
+.urgent-care-actions a {
+  border: 0;
+  margin: 0;
+  background: none;
+  font: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 16px;
+  min-height: 48px;
+  border-radius: 999px;
+  font-size: 0.84rem;
+  font-weight: 850;
+  cursor: pointer;
+  box-sizing: border-box;
+  text-decoration: none;
+}
+
+.urgent-btn-call {
+  background: #ffffff;
+  color: #dc2626 !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+}
+
+.urgent-btn-whatsapp {
+  background: #25d366;
+  color: #ffffff !important;
+}
+
+.urgent-btn-dismiss {
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+/* ── Interactive In-Chat Action Cards ── */
+.chat-action-card {
+  margin: 8px 0;
+  padding: 14px;
+  border-radius: 18px;
+  background: rgba(244, 248, 253, 0.95);
+  border: 1.5px solid var(--line);
+  box-shadow: 0 6px 20px rgba(15, 76, 145, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.chat-action-card strong {
+  color: var(--blue-dark);
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.chat-action-card-form {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.chat-action-card-form input {
+  flex: 1;
+  min-height: 40px;
+  padding: 0 12px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: #ffffff;
+  font-size: 0.88rem;
+}
+
+.chat-action-card-form button {
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: 12px;
+  border: 0;
+  background: var(--blue);
+  color: #ffffff;
+  font-weight: 850;
+  font-size: 0.84rem;
+}
+
+.dark-theme .chat-action-card {
+  background: rgba(17, 28, 43, 0.95);
+  border-color: var(--line);
+}
+
+.dark-theme .chat-action-card-form input {
+  background: #0a1522;
+  color: #ffffff;
+}
+
+/* ── Patient Success & Education Stories Carousel ── */
+.stories-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 14px 0;
+}
+
+.stories-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.stories-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 850;
+  color: var(--ink);
+}
+
+.stories-scroll {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  scrollbar-width: none;
+}
+
+.stories-scroll:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: 18px;
+}
+
+.stories-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.story-card {
+  flex: 0 0 240px;
+  padding: 14px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(231, 240, 255, 0.6));
+  border: 1px solid rgba(220, 230, 242, 0.9);
+  box-shadow: 0 8px 24px rgba(15, 76, 145, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: transform 0.22s ease, box-shadow 0.22s ease;
+}
+
+.story-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px rgba(15, 76, 145, 0.14);
+}
+
+.story-badge {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 850;
+  color: #0f4c91;
+  background: #e0edff;
+  width: fit-content;
+}
+
+.story-card strong {
+  font-size: 0.92rem;
+  color: #09244a;
+  line-height: 1.25;
+}
+
+.story-card p {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+  line-height: 1.38;
+}
+
+.dark-theme .story-card {
+  background: linear-gradient(135deg, rgba(17, 28, 43, 0.95), rgba(18, 47, 85, 0.5));
+  border-color: var(--line);
+}
+
+.dark-theme .story-card strong {
+  color: #f4f8ff;
+}
+
+.dark-theme .story-badge {
+  background: #122f55;
+  color: #8fbdff;
+}
+
+/* ============================================================
+   Clean clinic redesign layer
+   ============================================================ */
+
+:root {
+  --navy: #102033;
+  --royal-blue: #1f6feb;
+  --electric-accent: #4f8cff;
+  --emerald: #0f9f7a;
+  --amber: #d97706;
+  --rose: #dc2626;
+  --blue: var(--royal-blue);
+  --blue-dark: #1557c7;
+  --green: var(--emerald);
+  --ink: #102033;
+  --muted: #64748b;
+  --line: #d8e4f2;
+  --surface: #ffffff;
+  --app: #f3f7fc;
+  --soft-blue: #e7f0ff;
+  --soft-green: #ddf7ee;
+  --soft-rose: #ffe8ec;
+  --soft-lavender: #edf0ff;
+  --warning: #fff4e6;
+  --glass: rgba(255, 255, 255, 0.82);
+  --glass-border: rgba(216, 228, 242, 0.82);
+  --shadow-soft: 0 10px 26px rgba(28, 65, 111, 0.08);
+  --shadow-lift: 0 18px 44px rgba(28, 65, 111, 0.12);
+  --shadow: 0 34px 90px rgba(28, 65, 111, 0.18);
+  --focus-ring: 0 0 0 4px rgba(31, 111, 235, 0.18);
+}
+
+.app-stage {
+  background:
+    radial-gradient(circle at 12% 8%, rgba(31, 111, 235, 0.13), transparent 30%),
+    linear-gradient(180deg, #edf5ff 0%, #d9e8f9 100%);
+}
+
+.app-stage.dark-theme {
+  --navy: #eaf2ff;
+  --royal-blue: #76aaff;
+  --electric-accent: #9ec4ff;
+  --emerald: #52d6b1;
+  --amber: #f6b860;
+  --rose: #fb7185;
+  --blue: var(--royal-blue);
+  --blue-dark: #9ec4ff;
+  --green: var(--emerald);
+  --ink: #f7fbff;
+  --muted: #b8c7d9;
+  --line: rgba(161, 184, 214, 0.26);
+  --surface: #101d2d;
+  --app: #07111f;
+  --soft-blue: #122d52;
+  --soft-green: #10382f;
+  --soft-rose: #451d28;
+  --soft-lavender: #20284b;
+  --warning: #342719;
+  --glass: rgba(16, 29, 45, 0.86);
+  --glass-border: rgba(161, 184, 214, 0.22);
+  --shadow-soft: 0 14px 34px rgba(0, 0, 0, 0.28);
+  --shadow-lift: 0 22px 54px rgba(0, 0, 0, 0.36);
+  --shadow: 0 34px 90px rgba(0, 0, 0, 0.44);
+  background:
+    radial-gradient(circle at 16% 8%, rgba(118, 170, 255, 0.16), transparent 31%),
+    radial-gradient(circle at 88% 12%, rgba(82, 214, 177, 0.08), transparent 26%),
+    linear-gradient(180deg, #0d1a2a 0%, #050d18 100%);
+}
+
+body {
+  color: var(--ink);
+  background: var(--app);
+}
+
+.phone-shell {
+  position: relative;
+  border-width: 9px;
+  border-style: solid;
+  border-color: #263243;
+  border-radius: 48px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.58), rgba(255, 255, 255, 0) 240px),
+    var(--app);
+  font-variant-numeric: tabular-nums;
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 255, 255, 0.72),
+    inset 0 0 0 4px rgba(20, 35, 56, 0.08),
+    0 34px 90px rgba(28, 65, 111, 0.18),
+    0 10px 28px rgba(20, 35, 56, 0.18);
+}
+
+.phone-shell::before,
+.phone-shell::after {
+  content: "";
+  position: absolute;
+  z-index: 8;
+  pointer-events: none;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #566276, #202a39);
+  box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.14);
+}
+
+.phone-shell::before {
+  left: -13px;
+  top: 154px;
+  width: 5px;
+  height: 78px;
+}
+
+.phone-shell::after {
+  right: -13px;
+  top: 192px;
+  width: 5px;
+  height: 104px;
+}
+
+.dark-theme .phone-shell {
+  border-color: #1d2938;
+  background:
+    linear-gradient(180deg, rgba(31, 58, 91, 0.38), rgba(31, 58, 91, 0) 230px),
+    var(--app);
+}
+
+.status-bar {
+  height: 48px;
+  padding: 0 26px;
+  font-weight: 800;
+}
+
+.status-bar span {
+  background: #101820;
+  opacity: 0.96;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 8px 18px rgba(16, 24, 32, 0.16);
+}
+
+.screen {
+  padding: 18px 24px 24px;
+}
+
+.scroll-area {
+  gap: 14px;
+  padding-bottom: calc(102px + env(safe-area-inset-bottom, 0px));
+}
+
+.kicker {
+  color: var(--green);
+  font-size: 0.76rem;
+  letter-spacing: 0.07em;
+}
+
+h1,
+h2,
+h3 {
+  color: var(--ink);
+  text-wrap: balance;
+}
+
+h1 {
+  font-size: clamp(2.05rem, 8vw, 2.75rem);
+  line-height: 0.98;
+  font-weight: 900;
+}
+
+h2 {
+  font-size: clamp(1.72rem, 6vw, 2.2rem);
+  line-height: 1.02;
+  font-weight: 900;
+}
+
+.intro-screen {
+  gap: 14px;
+  padding: 0 24px 24px;
+  background:
+    radial-gradient(circle at 88% 8%, rgba(31, 111, 235, 0.12), transparent 24%),
+    linear-gradient(158deg, rgba(255, 255, 255, 0.98) 0 50%, rgba(232, 242, 255, 0.96) 50.4% 65%, transparent 65.2%),
+    linear-gradient(180deg, #f8fbff 0%, #dbeaff 50%, #1f6feb 50.2%, #1557c7 100%);
+}
+
+.intro-screen::before,
+.intro-screen::after {
+  display: none;
+}
+
+.intro-hero {
+  min-height: 292px;
+  margin-inline: -24px;
+}
+
+.intro-hero::before {
+  right: -58px;
+  bottom: -14px;
+  width: 286px;
+  height: 286px;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(255, 255, 255, 0.36), rgba(255, 255, 255, 0.14) 48%, transparent 72%);
+}
+
+.intro-hero img {
+  right: -30px;
+  bottom: -36px;
+  width: 264px;
+  filter: saturate(1.03) contrast(1.04) drop-shadow(0 24px 30px rgba(8, 42, 92, 0.34));
+}
+
+.intro-photo-wash {
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.98) 0 43%, rgba(255, 255, 255, 0.74) 56%, rgba(31, 111, 235, 0.12)),
+    linear-gradient(180deg, rgba(255, 255, 255, 0), rgba(21, 87, 199, 0.1));
+}
+
+.intro-hero-card {
+  left: 28px;
+  top: 34px;
+  max-width: 224px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.intro-hero-card strong {
+  color: #102033;
+  font-size: 1.3rem;
+  letter-spacing: -0.01em;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.intro-copy {
+  padding: 0 0 2px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.intro-copy h1 {
+  color: #102033;
+  font-size: 1.94rem;
+}
+
+.intro-copy p {
+  color: #526579;
+  font-size: 0.88rem;
+  max-width: 30ch;
+}
+
+.intro-trust-row {
+  grid-template-columns: repeat(2, 1fr);
+  gap: 9px;
+}
+
+.intro-trust-row span {
+  min-height: 38px;
+  color: #ffffff;
+  background: rgba(16, 32, 51, 0.28);
+  border-color: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(12px);
+}
+
+.intro-trust-row .chip-accent {
+  background: rgba(255, 255, 255, 0.92);
+  color: #1557c7;
+}
+
+.intro-actions .primary-button,
+.primary-button {
+  background: var(--blue);
+  box-shadow: 0 16px 34px rgba(31, 111, 235, 0.24);
+}
+
+.intro-patient-link,
+.secondary-button,
+.split-actions button,
+.split-actions a,
+.segmented button,
+.date-row button,
+.slot-wrap button {
+  border-color: var(--line);
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.auth-screen {
+  gap: 18px;
+}
+
+.auth-brand {
+  gap: 9px;
+}
+
+.app-mark,
+.avatar-button {
+  background: linear-gradient(135deg, #1f6feb, #0f9f7a);
+}
+
+.auth-card,
+.form-card,
+.chip-panel,
+.doctor-auth-card,
+.search-card,
+.audit-card,
+.booking-context-card,
+.consult-payment-gate,
+.education-editor,
+.post-list-preview,
+.updates-form-card,
+.update-summary-card,
+.row-card,
+.patient-row,
+.doctor-section,
+.patient-summary-card,
+.past-visit-card,
+.whatsapp-panel {
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+}
+
+.auth-card {
+  padding: 16px;
+  border-radius: 30px;
+}
+
+.auth-card input,
+input,
+select,
+textarea {
+  color: var(--ink);
+  background: #fbfdff;
+}
+
+.auth-role,
+.auth-mode,
+.auth-method {
+  background: #edf4fc;
+}
+
+.auth-card .segmented button {
+  min-height: 44px;
+}
+
+.segmented button.active,
+.auth-role button.active,
+.auth-mode button.active,
+.date-row button.active,
+.slot-wrap button.active,
+.split-actions :first-child {
+  color: #fff;
+  border-color: var(--blue);
+  background: var(--blue);
+}
+
+.google-button {
+  min-height: 50px;
+  background: #fff;
+}
+
+.medical-note,
+.safety-strip {
+  color: #7c3f12;
+  background: var(--warning);
+  border: 1px solid rgba(217, 119, 6, 0.18);
+}
+
+.app-header {
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.app-header h2 {
+  max-width: 310px;
+}
+
+.avatar-button {
+  width: 48px;
+  height: 48px;
+  flex: 0 0 auto;
+}
+
+.live-view-card,
+.mobile-card {
+  border: 1px solid rgba(31, 111, 235, 0.12);
+  border-radius: 28px;
+  box-shadow: var(--shadow-soft);
+}
+
+.live-view-card.on {
+  background:
+    linear-gradient(135deg, rgba(15, 159, 122, 0.14), rgba(31, 111, 235, 0.06)),
+    var(--surface);
+}
+
+.live-view-card.off {
+  background:
+    linear-gradient(135deg, rgba(217, 119, 6, 0.12), rgba(31, 111, 235, 0.04)),
+    var(--surface);
+}
+
+.live-view-card h3,
+.live-view-card p,
+.clinic-detail-list span {
+  color: var(--ink);
+}
+
+.clinic-detail-list span,
+.mobile-card p,
+.mobile-card div {
+  color: var(--muted);
+}
+
+.mobile-card {
+  color: var(--ink);
+  background:
+    radial-gradient(circle at 85% 18%, rgba(15, 159, 122, 0.18), transparent 28%),
+    linear-gradient(135deg, rgba(231, 240, 255, 0.94), rgba(255, 255, 255, 0.94));
+}
+
+.metric-tile,
+.doctor-stat {
+  min-height: 110px;
+  border: 1px solid rgba(216, 228, 242, 0.74);
+  border-radius: 24px;
+}
+
+.metric-tile strong,
+.doctor-stat strong {
+  color: var(--ink);
+  letter-spacing: 0;
+}
+
+.metric-tile span,
+.metric-tile small,
+.doctor-stat span {
+  color: var(--muted);
+}
+
+.quick-actions {
+  gap: 9px;
+}
+
+.quick-actions button {
+  min-height: 76px;
+  border-radius: 20px;
+  box-shadow: none;
+}
+
+.smart-chat {
+  min-height: 0;
+  height: 100%;
+  max-height: none;
+  padding: 12px;
+  border-radius: 26px;
+  background:
+    linear-gradient(180deg, rgba(231, 240, 255, 0.62), rgba(255, 255, 255, 0) 170px),
+    var(--surface);
+}
+
+.scroll-area:has(.smart-chat) {
+  padding-bottom: calc(94px + env(safe-area-inset-bottom, 0px));
+}
+
+.chat-context-card {
+  grid-template-columns: 42px minmax(0, 1fr);
+  padding: 12px;
+  border-radius: 22px;
+  background:
+    linear-gradient(135deg, rgba(15, 159, 122, 0.12), rgba(31, 111, 235, 0.06)),
+    var(--surface);
+}
+
+.chat-context-card button {
+  grid-column: 1 / -1;
+  justify-content: center;
+  min-height: 42px;
+  color: #fff;
+  background: var(--blue);
+}
+
+.chat-quick-prompts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.chat-quick-prompts button {
+  min-width: 0;
+  min-height: 38px;
+  border-radius: 16px;
+  color: var(--blue-dark);
+  background: var(--soft-blue);
+}
+
+.chat-thread {
+  gap: 10px;
+  padding: 6px 2px 8px;
+}
+
+.message-row {
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 8px;
+}
+
+.message-row.user {
+  grid-template-columns: minmax(0, 1fr) 28px;
+}
+
+.message-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 12px;
+}
+
+.bubble {
+  max-width: min(100%, 284px);
+  padding: 11px 13px;
+  border-radius: 18px;
+  box-shadow: none;
+}
+
+.bubble.bot {
+  color: var(--ink);
+  background: #f0f6ff;
+  border-color: rgba(216, 228, 242, 0.9);
+}
+
+.bubble.user {
+  color: #fff;
+  background: var(--blue);
+}
+
+.chat-composer {
+  padding-top: 0;
+}
+
+.smart-chat .safety-strip {
+  padding: 8px 10px;
+  border-radius: 14px;
+}
+
+.chat-input {
+  border-radius: 24px;
+  background: #ffffff;
+  box-shadow: 0 12px 26px rgba(28, 65, 111, 0.09);
+}
+
+.chat-input button:disabled,
+.chat-quick-prompts button:disabled {
+  opacity: 0.58;
+}
+
+.smart-chat > .quick-actions {
+  display: none;
+}
+
+.bottom-nav {
+  height: 72px;
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.bottom-nav button {
+  border-radius: 20px;
+}
+
+.bottom-nav button.active {
+  color: #fff;
+  background: var(--blue);
+}
+
+.article-card {
+  border: 1px solid rgba(216, 228, 242, 0.72);
+}
+
+.tone-0,
+.tone-1,
+.tone-2,
+.tone-3 {
+  background: var(--surface);
+}
+
+.tone-0 { border-left: 4px solid #1f6feb; }
+.tone-1 { border-left: 4px solid #0f9f7a; }
+.tone-2 { border-left: 4px solid #6d5dd3; }
+.tone-3 { border-left: 4px solid #dc2626; }
+
+.file-upload-control {
+  background: linear-gradient(180deg, #ffffff, #edf5ff);
+}
+
+.dark-theme .intro-screen {
+  background:
+    linear-gradient(150deg, rgba(16, 29, 45, 0.98) 0 47%, rgba(18, 45, 82, 0.92) 47.4% 61%, transparent 61.2%),
+    linear-gradient(180deg, #17365c 0%, #0f2f57 58%, #07111f 100%);
+}
+
+.dark-theme .intro-photo-wash {
+  background:
+    linear-gradient(90deg, rgba(16, 29, 45, 0.96) 0 42%, rgba(16, 29, 45, 0.62) 58%, rgba(31, 111, 235, 0.16)),
+    linear-gradient(180deg, rgba(16, 29, 45, 0), rgba(7, 17, 31, 0.26));
+}
+
+.dark-theme .intro-hero-card,
+.dark-theme .intro-copy {
+  border-color: rgba(161, 184, 214, 0.2);
+  background: rgba(16, 29, 45, 0.88);
+}
+
+.dark-theme .intro-hero-card,
+.dark-theme .intro-copy {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.dark-theme .intro-hero-card strong,
+.dark-theme .intro-copy h1 {
+  color: var(--ink);
+}
+
+.dark-theme .intro-copy p {
+  color: var(--muted);
+}
+
+.dark-theme .intro-trust-row span {
+  color: var(--ink);
+  background: rgba(16, 29, 45, 0.68);
+}
+
+.dark-theme .intro-trust-row .chip-accent {
+  color: #07111f;
+  background: var(--blue);
+}
+
+.dark-theme .auth-card,
+.dark-theme .form-card,
+.dark-theme .chip-panel,
+.dark-theme .doctor-auth-card,
+.dark-theme .search-card,
+.dark-theme .audit-card,
+.dark-theme .booking-context-card,
+.dark-theme .consult-payment-gate,
+.dark-theme .education-editor,
+.dark-theme .post-list-preview,
+.dark-theme .updates-form-card,
+.dark-theme .update-summary-card,
+.dark-theme .row-card,
+.dark-theme .patient-row,
+.dark-theme .doctor-section,
+.dark-theme .patient-summary-card,
+.dark-theme .past-visit-card,
+.dark-theme .whatsapp-panel,
+.dark-theme .chat-panel {
+  color: var(--ink);
+  border-color: var(--line);
+  background: var(--surface);
+}
+
+.dark-theme input,
+.dark-theme select,
+.dark-theme textarea,
+.dark-theme .auth-role,
+.dark-theme .auth-mode,
+.dark-theme .auth-method,
+.dark-theme .chat-input,
+.dark-theme .split-actions button,
+.dark-theme .split-actions a,
+.dark-theme .segmented button,
+.dark-theme .date-row button,
+.dark-theme .slot-wrap button,
+.dark-theme .theme-swatch {
+  color: var(--ink);
+  border-color: var(--line);
+  background: #0b1726;
+}
+
+.dark-theme .google-button {
+  color: #102033;
+  background: #ffffff;
+}
+
+.dark-theme .live-view-card.on,
+.dark-theme .live-view-card.off,
+.dark-theme .mobile-card,
+.dark-theme .doctor-live-preview,
+.dark-theme .doctor-duty-cta {
+  color: var(--ink);
+  background:
+    radial-gradient(circle at 86% 18%, rgba(82, 214, 177, 0.12), transparent 28%),
+    var(--surface);
+}
+
+.dark-theme .chat-context-card {
+  background:
+    linear-gradient(135deg, rgba(82, 214, 177, 0.1), rgba(118, 170, 255, 0.08)),
+    #101d2d;
+}
+
+.dark-theme .bubble.bot {
+  color: var(--ink);
+  background: #13243a;
+  border-color: var(--line);
+}
+
+.dark-theme .bubble.user,
+.dark-theme .segmented button.active,
+.dark-theme .auth-role button.active,
+.dark-theme .auth-mode button.active,
+.dark-theme .date-row button.active,
+.dark-theme .slot-wrap button.active,
+.dark-theme .split-actions :first-child,
+.dark-theme .primary-button,
+.dark-theme .bottom-nav button.active {
+  color: #07111f;
+  background: var(--blue);
+}
+
+.dark-theme .bottom-nav {
+  border-color: var(--line);
+  background: rgba(16, 29, 45, 0.94);
+}
+
+.dark-theme .bottom-nav button {
+  color: #b8c7d9;
+}
+
+.dark-theme .article-card,
+.dark-theme .tone-0,
+.dark-theme .tone-1,
+.dark-theme .tone-2,
+.dark-theme .tone-3 {
+  background: var(--surface);
+}
+
+.dark-theme .article-card span {
+  color: #dff8f0;
+  background: rgba(82, 214, 177, 0.14);
+}
+
+@media (max-width: 440px) {
+  .screen {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+
+  .intro-screen {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+
+  .intro-hero {
+    margin-inline: -20px;
+  }
+
+  .intro-hero img {
+    right: -38px;
+    width: 256px;
+  }
+
+  .intro-copy h1 {
+    font-size: 1.82rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* Preview-safe phone sizing: never let the prototype exceed its host frame. */
+.app-stage {
+  min-height: 100dvh;
+  padding: clamp(10px, 2.5dvh, 22px);
+}
+
+.phone-shell {
+  width: min(100%, 430px);
+  height: min(932px, calc(100dvh - clamp(20px, 5dvh, 44px)));
+  min-height: min(720px, calc(100dvh - clamp(20px, 5dvh, 44px)));
+}
+
+@media (max-height: 780px) and (min-width: 441px) {
+  .app-stage {
+    padding: 8px;
+  }
+
+  .phone-shell {
+    height: calc(100dvh - 16px);
+    min-height: 0;
+    border-width: 6px;
+    border-radius: 34px;
+  }
+
+  .status-bar {
+    height: 40px;
+  }
+}
+
+@media (max-width: 440px) {
+  .app-stage {
+    padding: 0;
+  }
+
+  .phone-shell {
+    width: 100vw;
+    height: 100dvh;
+    min-height: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .phone-shell::before,
+  .phone-shell::after {
+    display: none;
+  }
+}
+
+/* ============================================================
+   Phone sizing, adopted from WayWell Sigma (tested on device):
+   - 48px minimum touch target on every tappable control
+   - 52px minimum button height, 12px control radius
+   - 14px card radius
+   - 15px body-text floor for reading copy
+   ============================================================ */
+@media (max-width: 440px) {
+  .primary-button,
+  .secondary-button,
+  .intro-actions .primary-button,
+  .intro-actions .secondary-button {
+    min-height: 52px;
+    border-radius: 12px;
+  }
+
+  .chat-quick-prompts button,
+  .quick-actions button,
+  .segmented button,
+  .clinic-switcher button,
+  .chat-context-card button,
+  .round-action,
+  .bottom-nav button,
+  .chat-input input,
+  .chat-input button {
+    min-height: 48px;
+  }
+
+  .chat-input button {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+  }
+
+  .chat-quick-prompts button {
+    border-radius: 12px;
+  }
+
+  .auth-card,
+  .form-card,
+  .chat-panel,
+  .row-card,
+  .patient-row,
+  .doctor-section,
+  .updates-form-card,
+  .update-summary-card,
+  .intro-copy,
+  .intro-contact-card,
+  .pending-payments {
+    border-radius: 14px;
+  }
+
+  .bubble p,
+  .intro-copy p,
+  .empty-state small,
+  .medical-note p {
+    font-size: 15px;
+  }
+}
+
+/* Phone (native or mobile web): the OS draws the real status bar, so hide the
+   in-app mock one and keep content below the real top inset. The 28px floor
+   covers Android WebViews that report no safe-area value. */
+@media (max-width: 440px) {
+  .status-bar {
+    display: none;
+  }
+
+  .phone-shell {
+    padding-top: max(env(safe-area-inset-top, 0px), 28px);
+  }
+
+  .intro-hero-card {
+    top: 20px;
+  }
+}
+
+/* Clinic visual system */
+:root {
+  font-family: "Outfit Variable", "Avenir Next", system-ui, sans-serif;
+  --royal-blue: #1c5fcd;
+  --app: #f3f7fc;
+}
+
+.app-stage {
+  min-height: 100dvh;
+  background: #e4edf8;
+}
+
+.app-stage.dark-theme {
+  color-scheme: dark;
+  background: #0b1523;
+  --app: #07111f;
+}
+
+.phone-shell,
+.dark-theme .phone-shell {
+  height: min(900px, calc(100dvh - 32px));
+  min-height: 0;
+  border: 1px solid var(--line);
+  border-radius: 30px;
+  background: var(--app);
+  box-shadow: var(--shadow-soft);
+}
+
+.phone-shell::before,
+.phone-shell::after {
+  display: none;
+}
+
+.intro-screen,
+.dark-theme .intro-screen {
+  justify-content: flex-start;
+  gap: 24px;
+  padding: 20px 20px max(20px, env(safe-area-inset-bottom));
+  background: var(--app);
+}
+
+.intro-hero {
+  flex: none;
+  min-height: clamp(216px, 35dvh, 300px);
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background: linear-gradient(150deg, var(--surface), var(--soft-blue));
+  animation-duration: 290ms;
+}
+
+.intro-hero::before {
+  right: -18%;
+  bottom: -43%;
+  width: 86%;
+  height: auto;
+  aspect-ratio: 1;
+  background: var(--blue);
+  opacity: 0.13;
+}
+
+.intro-hero img {
+  right: 0;
+  bottom: 0;
+  width: 57%;
+  height: 100%;
+  object-fit: contain;
+  object-position: right bottom;
+  filter: none;
+}
+
+.intro-hero-card,
+.dark-theme .intro-hero-card {
+  top: 20px;
+  left: 16px;
+  width: 42%;
+  gap: 14px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.intro-clinic-mark {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  color: var(--blue-dark);
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+
+.intro-hero-card strong,
+.dark-theme .intro-hero-card strong {
+  font-size: clamp(1.05rem, 4.2vw, 1.4rem);
+  line-height: 1.15;
+  letter-spacing: normal;
+  color: var(--ink);
+  text-shadow: none;
+}
+
+.intro-copy,
+.dark-theme .intro-copy {
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  animation: rise-in 290ms ease-out 50ms both;
+}
+
+.intro-copy .kicker,
+.app-header .kicker,
+.auth-brand .kicker {
+  color: var(--blue-dark);
+}
+
+.intro-copy h1,
+.dark-theme .intro-copy h1 {
+  color: var(--ink);
+  font-size: clamp(1.7rem, 7vw, 2.25rem);
+  line-height: 1.1;
+}
+
+.intro-copy p,
+.dark-theme .intro-copy p {
+  max-width: 38ch;
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.intro-actions {
+  gap: 8px;
+  margin-top: auto;
+  animation: rise-in 290ms ease-out 85ms both;
+}
+
+.intro-actions button,
+.auth-screen .top-action button {
+  min-height: 48px;
+}
+
+.intro-actions .primary-button {
+  color: #fff;
+  box-shadow: none;
+}
+
+.dark-theme .intro-actions .primary-button {
+  color: #07111f;
+}
+
+.auth-screen .top-action button {
+  min-width: 48px;
+}
+
+.auth-brand h1,
+.app-header h2 {
+  font-size: clamp(1.35rem, 5vw, 1.75rem);
+  line-height: 1.15;
+}
+
+.app-header {
+  margin-bottom: 12px;
+}
+
+.app-screen {
+  padding-bottom: 0;
+}
+
+.app-screen .scroll-area,
+.app-screen .scroll-area:has(.smart-chat) {
+  padding: 3px 3px 16px;
+  gap: 16px;
+}
+
+.bottom-nav,
+.dark-theme .bottom-nav {
+  position: static;
+  z-index: auto;
+  flex: none;
+  height: auto;
+  min-width: 0;
+  margin-inline: -24px;
+  padding: 8px 12px max(8px, env(safe-area-inset-bottom));
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  background: var(--surface);
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.bottom-nav button {
+  min-width: 0;
+  min-height: 48px;
+  padding: 5px 2px;
+  line-height: 1.2;
+  border-radius: 12px;
+  font-size: 0.75rem;
+}
+
+.bottom-nav button.active,
+.dark-theme .bottom-nav button.active {
+  color: var(--blue-dark);
+  background: var(--soft-blue);
+  box-shadow: none;
+}
+
+.live-view-card,
+.dark-theme .live-view-card,
+.dark-theme .live-view-card.on,
+.dark-theme .live-view-card.off,
+.live-view-card.on,
+.live-view-card.off,
+.chat-panel,
+.dark-theme .chat-panel {
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: var(--surface);
+  box-shadow: none;
+}
+
+.live-view-card.off .split-actions > :only-child {
+  grid-column: 1 / -1;
+  min-height: 48px;
+}
+
+.chat-panel {
+  flex: 1 0 auto;
+  min-height: 0;
+}
+
+.chat-context-card,
+.dark-theme .chat-context-card {
+  background: var(--soft-blue);
+  border-color: var(--line);
+}
+
+.chat-quick-prompts button {
+  min-height: 48px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.chat-thread {
+  flex: 1 0 120px;
+  max-height: min(44dvh, 360px);
+}
+
+.chat-input,
+.dark-theme .chat-input {
+  grid-template-columns: minmax(0, 1fr) 48px;
+  background: var(--app);
+  border-color: var(--line);
+  box-shadow: none;
+}
+
+.chat-input button,
+.dark-theme .chat-input button {
+  width: 48px;
+  height: 48px;
+  color: #fff;
+  background: var(--blue);
+}
+
+.dark-theme .chat-input button {
+  color: #07111f;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+.chat-input:focus-within {
+  outline: 2px solid var(--blue-dark);
+  outline-offset: 2px;
+}
+
+.chat-input input:focus-visible {
+  outline: none;
+}
+
+@media (max-width: 440px), (max-height: 500px) and (orientation: landscape) {
+  .app-stage {
+    padding: 0;
+  }
+
+  .phone-shell,
+  .dark-theme .phone-shell {
+    height: 100dvh;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+}
+
+@media (max-width: 440px) {
+  .screen:not(.intro-screen) {
+    padding-inline: 18px;
+  }
+
+  .bottom-nav,
+  .dark-theme .bottom-nav {
+    margin-inline: -18px;
+  }
+}
+
+@media (max-height: 500px) and (orientation: landscape) {
+  .phone-shell {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .intro-screen {
+    padding-inline: max(20px, env(safe-area-inset-left), env(safe-area-inset-right));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .intro-hero,
+  .intro-copy,
+  .intro-actions {
+    animation: none;
+  }
+}
+
+.profile-menu {
+  position: static;
+  max-width: calc(100vw - 36px);
+}
+
+.profile-menu button {
+  min-height: 48px;
+}
+
+.chat-context-card {
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.chat-context-card button {
+  grid-column: auto;
+  min-height: 48px;
+}
+
+.chat-thread {
+  flex-basis: 152px;
+}
+
+.doctor-live-preview,
+.dark-theme .doctor-live-preview {
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  color: var(--ink);
+  background: var(--surface);
+  box-shadow: none;
+}
+
+.doctor-live-preview p,
+.dark-theme .doctor-live-preview p {
+  color: var(--muted);
+}
+
+.doctor-live-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+}
+
+.doctor-live-status .live-dot {
+  width: 9px;
+  height: 9px;
+  background: var(--green);
+  box-shadow: none;
+}
+
+.doctor-live-status .live-dot.off {
+  background: var(--muted);
+}
+
+.clinic-switcher button.selected,
+.dark-theme .clinic-switcher button.selected {
+  background: var(--soft-blue);
+  border-color: var(--blue);
+}
+
+.clinic-switcher button.off.selected,
+.dark-theme .clinic-switcher button.off.selected {
+  border-color: var(--line);
+  background: var(--app);
 }

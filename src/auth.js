@@ -18,3 +18,23 @@ export function normalizeClinicIdentifier(value) {
 export function isApprovedDoctorEmail(email) {
   return APPROVED_DOCTOR_EMAILS.includes(String(email || "").trim().toLowerCase());
 }
+
+export const NATIVE_AUTH_CALLBACK = "com.drashwani.familyclinic://auth/callback";
+
+export function readOAuthCallback(value, expectedUrl) {
+  let url;
+  try {
+    url = new URL(value);
+  } catch {
+    return null;
+  }
+  const expected = new URL(expectedUrl);
+  if (url.protocol !== expected.protocol || url.host !== expected.host ||
+      url.pathname !== expected.pathname || url.username || url.password) return null;
+
+  const fragment = new URLSearchParams(url.hash.slice(1));
+  return {
+    code: url.searchParams.get("code"),
+    error: url.searchParams.get("error") || fragment.get("error")
+  };
+}

@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import {
+  NATIVE_AUTH_CALLBACK,
   isApprovedDoctorEmail,
-  normalizeClinicIdentifier
+  normalizeClinicIdentifier,
+  readOAuthCallback
 } from "./auth.js";
 
 assert.equal(
@@ -30,5 +32,14 @@ assert.equal(
 
 assert.equal(isApprovedDoctorEmail("doctortest@drashwaniclinic.local"), true);
 assert.equal(isApprovedDoctorEmail("patienttest@drashwaniclinic.local"), false);
+
+assert.deepEqual(readOAuthCallback(`${NATIVE_AUTH_CALLBACK}?code=test-code`, NATIVE_AUTH_CALLBACK), {
+  code: "test-code",
+  error: null
+});
+assert.equal(readOAuthCallback("https://auth/callback?code=test-code", NATIVE_AUTH_CALLBACK), null);
+assert.equal(readOAuthCallback("com.drashwani.familyclinic://other/callback?code=test-code", NATIVE_AUTH_CALLBACK), null);
+assert.equal(readOAuthCallback("not a URL", NATIVE_AUTH_CALLBACK), null);
+assert.equal(readOAuthCallback(`${NATIVE_AUTH_CALLBACK}#error=access_denied`, NATIVE_AUTH_CALLBACK).error, "access_denied");
 
 console.log("auth helper tests passed");

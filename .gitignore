@@ -21,8 +21,10 @@ ios/App/Podfile.lock
 *.keystore
 *.p8
 *.mobileprovision
+keystore.properties
+keystore-credentials*.txt
 
-# Local generated folders
+.superdesign/tmp/
 medical-free-chatbot/venv/
 supabase/.temp/
 security-scans/

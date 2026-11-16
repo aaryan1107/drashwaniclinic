@@ -5,6 +5,7 @@ const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "sb_publish
 
 export const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: {
+    flowType: "pkce",
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true

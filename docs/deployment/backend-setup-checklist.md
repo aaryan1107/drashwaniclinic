@@ -68,7 +68,11 @@ supabase secrets set RAZORPAY_KEY_ID=rzp_live_or_test_key --project-ref aswxzekl
 supabase secrets set RAZORPAY_KEY_SECRET=your_razorpay_secret --project-ref aswxzeklbabtflgmjszz
 supabase secrets set PROJECT_URL=https://aswxzeklbabtflgmjszz.supabase.co --project-ref aswxzeklbabtflgmjszz
 supabase secrets set SERVICE_ROLE_KEY=your_service_role_key --project-ref aswxzeklbabtflgmjszz
+supabase secrets set OPENAI_API_KEY=your_openai_key --project-ref aswxzeklbabtflgmjszz
+supabase secrets set OPENAI_MODEL=gpt-4.1-mini --project-ref aswxzeklbabtflgmjszz
 ```
+
+The functions read `PROJECT_URL` and `SERVICE_ROLE_KEY`. Do not use `SUPABASE_`-prefixed secret names: the functions would fail to authenticate users and every payment or AI call would return 401.
 
 ## Required Frontend Environment
 

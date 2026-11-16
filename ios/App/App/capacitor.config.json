@@ -12,5 +12,8 @@
 			"backgroundColor": "#f4f8fd"
 		}
 	},
-	"packageClassList": []
+	"packageClassList": [
+		"AppPlugin",
+		"CAPBrowserPlugin"
+	]
 }
