@@ -81,5 +81,7 @@ assert.equal(writes[0].method, "PATCH");
 assert.equal(writes[0].body.patient, undefined);
 assert.equal(writes[0].url.searchParams.get("payment_status"), "in.(ORDER_CREATED,AUTHORIZED,CAPTURE_PENDING,FAILED)");
 assert.equal((await webhook("payment.failed")).status, 200);
-assert.equal(writes.at(-1).url.searchParams.get("payment_status"), "in.(ORDER_CREATED)");
+assert.equal(writes.at(-1).url.searchParams.get("payment_status"), null);
+assert.equal(writes.at(-1).url.searchParams.get("or"),
+  "(payment_status.eq.ORDER_CREATED,and(payment_status.in.(AUTHORIZED,CAPTURE_PENDING),razorpay_payment_id.eq.pay_1))");
 console.log("Consultation payment ownership, capture, failure and webhook tests passed.");

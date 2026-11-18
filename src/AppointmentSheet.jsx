@@ -13,7 +13,7 @@ export default function AppointmentSheet({ patient, clinic, onBack, onWriteRx })
   const [a, setA] = useState(() => blankAppointment(today));
   const [tag, setTag] = useState("");
   const [status, setStatus] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState("");   // "", "book" or "checkin"
   const attempt = useRef(null);
   const set = (p) => {
     attempt.current = null;
@@ -29,7 +29,7 @@ export default function AppointmentSheet({ patient, clinic, onBack, onWriteRx })
       : a;
     const err = validateAppointment(form, today);
     if (err) { setStatus(err); return; }
-    setBusy(true);
+    setBusy(kind);
     if (attempt.current?.kind !== kind) {
       const row = buildAppointmentRow(form, { patient, clinic, status: kind === "checkin" ? "Checked in" : "Booked by clinic" });
       if (kind === "checkin") row.checked_in_at = now.toISOString();
@@ -42,7 +42,7 @@ export default function AppointmentSheet({ patient, clinic, onBack, onWriteRx })
     } catch (failure) {
       error = failure;
     } finally {
-      setBusy(false);
+      setBusy("");
     }
     if (error) {
       setStatus("The clinic server did not confirm this appointment. Keep this sheet open and retry.");
@@ -88,8 +88,8 @@ export default function AppointmentSheet({ patient, clinic, onBack, onWriteRx })
       {status && <p className="vt-note" role="status">{status}</p>}
       <div className="vt-footer vt-footer-fixed">
         <Button intent="secondary" icon={<PenLine size={18} />} onClick={onWriteRx}>Write Rx</Button>
-        <Button intent="secondary" disabled={busy} icon={<ClipboardCheck size={18} />} onClick={() => save("checkin")}>Check in</Button>
-        <Button loading={busy} disabled={Boolean(error)} title={error || undefined} icon={<CalendarCheck size={18} />} onClick={() => save("book")}>Book slot</Button>
+        <Button intent="secondary" loading={busy === "checkin"} disabled={Boolean(busy)} icon={<ClipboardCheck size={18} />} onClick={() => save("checkin")}>Check in</Button>
+        <Button loading={busy === "book"} disabled={Boolean(error) || Boolean(busy)} title={error || undefined} icon={<CalendarCheck size={18} />} onClick={() => save("book")}>Book slot</Button>
       </div>
     </div>
   );

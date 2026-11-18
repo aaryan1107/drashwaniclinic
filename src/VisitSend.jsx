@@ -4,7 +4,6 @@ import { supabase } from "./supabase.js";
 import { indiaDate } from "./carePlan.js";
 import { rxNumber, scheduleText, toCarePlan, validatePrescription } from "./prescription.js";
 import { prescribingWarnings, visitToPrescriptionRow } from "./visitRx.js";
-import { markSent } from "./visitCloud.js";
 import { Button } from "./ui/Button.jsx";
 
 
@@ -26,7 +25,6 @@ export function SendScreen({ visit, patient, clinic, onEdit, onSent }) {
       setState({ busy: false, message: offline ? "You are offline. Nothing was sent; your draft is safe. Try again when connected." : "Could not send the prescription. Nothing was sent; your draft is safe." });
       return;
     }
-    markSent(visit, clinic?.id);   // best-effort: the prescription row above is the source of truth
     onSent(data);
   }
 

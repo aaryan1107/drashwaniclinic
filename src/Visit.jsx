@@ -9,7 +9,7 @@ import { FollowUpScreen, HistoryScreen, NotesScreen, PrescribeScreen } from "./V
 import { historyTerms } from "./visitRx.js";
 import { SendScreen, SentScreen } from "./VisitSend.jsx";
 import { addCustomTerm, bumpUsage, clearDraft, loadCustomTerms, loadDraft, loadLastVitals, loadUsage, replaceUsage, saveDraft, saveLastVitals } from "./visitStore.js";
-import { pullDraft, pullUsage, pushDraft, pushUsage } from "./visitCloud.js";
+import { markSent, pullDraft, pullUsage, pushDraft, pushUsage } from "./visitCloud.js";
 import { pickNewerDraft } from "./visitSync.js";
 import { SECTIONS, blankVisit, bmi, bmiCategory, carryForward, completedCount, egfr, sectionDone, toCelsius, vitalFlag, weightDose } from "./visit.js";
 
@@ -152,7 +152,11 @@ export default function Visit({ doctorId, patient, clinic, onBack }) {
   if (sentRx) return <div className="vt">{header}<SentScreen rx={sentRx} patient={patient} clinic={clinic} onDone={onBack} /></div>;
   if (screen === "send") return (
     <div className="vt">{header}<SendScreen visit={{ ...visit, cloud_id: cloudId.current }} patient={patient} clinic={clinic} onEdit={setScreen}
-      onSent={(rx) => { saveLastVitals(doctorId, pid, visit.vitals); clearDraft(doctorId, pid); setSentRx(rx); }} /></div>
+      onSent={(rx) => {
+        saveLastVitals(doctorId, pid, visit.vitals); clearDraft(doctorId, pid); setSentRx(rx);
+        // Best-effort: the prescription row is the source of truth. Queue behind any autosave so the draft is never inserted twice.
+        pushing.current = pushing.current.then(() => markSent({ ...visit, cloud_id: cloudId.current }, clinic?.id));
+      }} /></div>
   );
   if (screen === "rx") return <div className="vt">{header}<PrescribeScreen visit={visit} patch={patch} index={index} usage={usage} onUsed={used} onOpenHistory={() => setScreen("history")} onDone={toHome} /></div>;
 

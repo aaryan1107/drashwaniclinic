@@ -101,10 +101,14 @@ function clean(data: Record<string, unknown>) {
 
 async function updateOrder(projectUrl: string, serviceKey: string, orderId: string,
   patch: { payment_status: string } & Record<string, unknown>) {
-  const query = new URLSearchParams({
-    razorpay_order_id: `eq.${orderId}`,
-    payment_status: `in.(${priorStates[patch.payment_status]})`
-  });
+  const query = new URLSearchParams({ razorpay_order_id: `eq.${orderId}` });
+  const paymentId = String(patch.razorpay_payment_id || "");
+  if (patch.payment_status === "FAILED" && /^pay_[A-Za-z0-9]+$/.test(paymentId)) {
+    // A failure may also end the same payment's authorization, but never another attempt on this order.
+    query.set("or", `(payment_status.eq.ORDER_CREATED,and(payment_status.in.(AUTHORIZED,CAPTURE_PENDING),razorpay_payment_id.eq.${paymentId}))`);
+  } else {
+    query.set("payment_status", `in.(${priorStates[patch.payment_status]})`);
+  }
   const response = await fetch(`${projectUrl}/rest/v1/consultation_payments?${query}`, {
     method: "PATCH",
     headers: {

@@ -17,7 +17,12 @@ export async function pushDraft(visit, clinicId) {
     if (id) {
       const { data, error } = await supabase.from("visits").update(row).eq("id", id).eq("status", "draft").select("id");
       if (error) { quiet(error); return null; }
-      if (!data?.length) id = null;          // sent or removed elsewhere: start a fresh draft
+      if (!data?.length) {
+        // Not an editable draft any more. If it was sent, stop: a late autosave must never reopen it as a new draft.
+        const found = await supabase.from("visits").select("id").eq("id", id).maybeSingle();
+        if (found.error || found.data) { quiet(found.error); return null; }
+        id = null;                           // removed elsewhere: start a fresh draft
+      }
     }
     if (!id) {
       const { data, error } = await supabase.from("visits").insert({ ...row, status: "draft" }).select("id").single();

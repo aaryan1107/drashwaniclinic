@@ -125,7 +125,12 @@ async function fetchConsultPayment(userId) {
     };
   }
 
-  if (rows.some((row) => ["AUTHORIZED", "CAPTURE_PENDING"].includes(row.payment_status))) {
+  // Only the latest attempt decides pending/failed, so an old attempt can never lock the Pay button.
+  const latest = rows[0]?.payment_status;
+  if (latest === "FAILED") {
+    return { ...makeDefaultConsultPayment(), status: "failed", message: "Your last payment did not go through. If money was deducted, Razorpay returns it automatically. You can try again." };
+  }
+  if (["AUTHORIZED", "CAPTURE_PENDING"].includes(latest)) {
     return { status: "capture_pending", message: "Payment authorized. Waiting for Razorpay to confirm capture.", paymentId: "", paidAt: "", paymentUrl: "" };
   }
 
@@ -1063,7 +1068,7 @@ function App() {
           clinic: activeClinic.name,
           purpose: "doctor_consultation"
         },
-        theme: { color: "#3478f6" },
+        theme: { color: "#176763" },
         handler: async (response) => {
           setConsultPayment((current) => ({
             ...current,
