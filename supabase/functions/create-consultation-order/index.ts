@@ -29,7 +29,7 @@ Deno.serve(async (request) => {
       return json({ error: "Please sign in before paying for consultation." }, 401);
     }
 
-    if (!Number.isInteger(amount) || amount !== 70000) {
+    if (!Number.isInteger(amount) || amount !== 70000 || currency !== "INR") {
       return json({ error: "Invalid consultation amount. Online consultation fee is fixed at Rs 700." }, 400);
     }
 
@@ -64,13 +64,15 @@ Deno.serve(async (request) => {
       return json({ error: "Failed to create Razorpay order.", details: order }, 502);
     }
 
-    await storePaymentDraft({
+    const saved = await storePaymentDraft({
       razorpay_order_id: order.id,
       amount: order.amount,
       currency: order.currency,
       patient,
       clinic: body.clinic || {}
     });
+
+    if (!saved) return json({ error: "Could not save the consultation order. No payment was requested." }, 503);
 
     return json({
       razorpay_key_id: keyId,
@@ -103,21 +105,22 @@ async function getAuthenticatedUser(request: Request) {
 async function storePaymentDraft(row: Record<string, unknown>) {
   const supabaseUrl = Deno.env.get("PROJECT_URL");
   const serviceKey = Deno.env.get("SERVICE_ROLE_KEY");
-  if (!supabaseUrl || !serviceKey) return;
+  if (!supabaseUrl || !serviceKey) return false;
 
-  await fetch(`${supabaseUrl}/rest/v1/consultation_payments?on_conflict=razorpay_order_id`, {
+  const response = await fetch(`${supabaseUrl}/rest/v1/consultation_payments`, {
     method: "POST",
     headers: {
       "apikey": serviceKey,
       "Authorization": `Bearer ${serviceKey}`,
       "Content-Type": "application/json",
-      "Prefer": "resolution=merge-duplicates,return=minimal"
+      "Prefer": "return=minimal"
     },
     body: JSON.stringify({
       ...row,
       payment_status: "ORDER_CREATED"
     })
-  }).catch(() => undefined);
+  }).catch(() => null);
+  return Boolean(response?.ok);
 }
 
 function json(payload: unknown, status = 200) {

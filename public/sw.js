@@ -1,5 +1,5 @@
 const CACHE_NAME = "metabolic-care-v2";
-const APP_SHELL = ["/", "/index.html", "/manifest.webmanifest", "/icon.svg"];
+const APP_SHELL = ["/", "/index.html", "/manifest.webmanifest", "/icon.svg", "/clinic-boot.js"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

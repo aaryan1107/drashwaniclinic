@@ -35,16 +35,7 @@ Follow the Google provider setup in [Firebase Hosting Setup](firebase-hosting.md
 
 ## Google Play
 
-1. Create the app in Google Play Console.
-2. Build a signed Android App Bundle from Android Studio after `npm run native:sync`.
-3. Configure Play App Signing.
-4. Complete Data Safety:
-   - Health information: collected.
-   - Personal information: name, email, phone.
-   - Financial information: payment transaction metadata through Razorpay.
-   - Data is used for appointments, follow-up, doctor review, payments.
-5. Add privacy policy URL before review.
-6. Start with Internal testing, then Closed testing, then Production.
+Follow the [Google Play release checklist](google-play-release.md) for signing, backend checks, device testing and Play Console submission.
 
 ## iOS App Store
 

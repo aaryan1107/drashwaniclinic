@@ -1,0 +1,162 @@
+# Common primary-care diagnoses with ICD-10 codes (WHO ICD-10 2019 version; codes/titles referenced, synonyms written by us).
+# Format: ICD10 | display | synonyms. LICENCE CHECK REQUIRED before redistribution: see SOURCES.md. Needs doctor review.
+A09 | Gastroenteritis, presumed infectious | loose motions; acute diarrhea; stomach flu
+A01.0 | Typhoid fever | enteric fever
+A90 | Dengue fever | dengue
+A91 | Dengue haemorrhagic fever | DHF
+B50.9 | Plasmodium falciparum malaria | malaria; falciparum
+B51.9 | Plasmodium vivax malaria | vivax malaria
+A15.9 | Respiratory tuberculosis | pulmonary TB
+B34.9 | Viral infection, unspecified | viral fever
+B01.9 | Varicella (chickenpox) | chicken pox
+B02.9 | Herpes zoster | shingles
+B35.9 | Dermatophytosis | ringworm; tinea; fungal infection
+B86 | Scabies | scabies
+B82.9 | Intestinal parasitism | worm infestation
+B15.9 | Hepatitis A | infective hepatitis
+B16.9 | Acute hepatitis B | hepatitis B
+D50.9 | Iron deficiency anaemia | anemia; low hemoglobin
+D51.9 | Vitamin B12 deficiency anaemia | B12 anemia
+E11.9 | Type 2 diabetes mellitus | T2DM; diabetes; sugar
+E10.9 | Type 1 diabetes mellitus | T1DM
+E11.4 | Type 2 diabetes with neuropathy | diabetic neuropathy
+E11.2 | Type 2 diabetes with nephropathy | diabetic kidney disease
+E11.3 | Type 2 diabetes with retinopathy | diabetic retinopathy
+E11.5 | Type 2 diabetes with peripheral circulatory complications | diabetic foot
+R73.0 | Abnormal glucose tolerance test | prediabetes; impaired glucose tolerance
+R73.9 | Hyperglycaemia, unspecified | high sugar
+E03.9 | Hypothyroidism | underactive thyroid
+E05.9 | Thyrotoxicosis | hyperthyroidism
+E04.9 | Non-toxic goitre | goitre
+E66.9 | Obesity | overweight
+E78.5 | Hyperlipidaemia | dyslipidemia; high cholesterol
+E78.2 | Mixed hyperlipidaemia | high cholesterol and triglycerides
+E55.9 | Vitamin D deficiency | low vitamin D
+E53.8 | Vitamin B12 deficiency | low B12
+E86 | Dehydration | volume depletion
+E87.1 | Hyponatraemia | low sodium
+E87.6 | Hypokalaemia | low potassium
+E79.0 | Hyperuricaemia | high uric acid
+M10.9 | Gout | gouty arthritis
+F32.9 | Depressive episode | depression
+F41.9 | Anxiety disorder | anxiety
+F41.1 | Generalised anxiety disorder | GAD
+F51.0 | Insomnia, nonorganic | sleep disorder
+F10.2 | Alcohol dependence | alcohol use disorder
+G43.9 | Migraine | migraine headache
+G44.2 | Tension-type headache | tension headache
+R51 | Headache | headache
+G40.9 | Epilepsy | seizure disorder
+G47.3 | Sleep apnoea | OSA
+G56.0 | Carpal tunnel syndrome | CTS
+G62.9 | Polyneuropathy | peripheral neuropathy
+G81.9 | Hemiplegia | stroke weakness
+H66.9 | Otitis media | ear infection
+H60.9 | Otitis externa | outer ear infection
+H10.9 | Conjunctivitis | pink eye
+H52.1 | Myopia | short sightedness
+H25.9 | Senile cataract | cataract
+H40.9 | Glaucoma | raised eye pressure
+H81.1 | Benign paroxysmal positional vertigo | BPPV
+H93.1 | Tinnitus | ringing in ears
+I10 | Essential hypertension | hypertension; high BP; HTN
+I11.9 | Hypertensive heart disease | hypertensive heart disease
+I20.9 | Angina pectoris | angina
+I21.9 | Acute myocardial infarction | heart attack; MI
+I25.1 | Atherosclerotic heart disease | coronary artery disease; CAD; IHD
+I50.9 | Heart failure | cardiac failure; CHF
+I48 | Atrial fibrillation | AF
+I63.9 | Cerebral infarction | ischemic stroke
+I83.9 | Varicose veins of lower extremities | varicose veins
+I84.9 | Haemorrhoids | piles
+J00 | Acute nasopharyngitis | common cold
+J02.9 | Acute pharyngitis | sore throat; pharyngitis
+J03.9 | Acute tonsillitis | tonsillitis
+J01.9 | Acute sinusitis | sinusitis
+J06.9 | Acute upper respiratory infection | URTI
+J04.0 | Acute laryngitis | laryngitis
+J20.9 | Acute bronchitis | chest infection
+J18.9 | Pneumonia | lung infection
+J21.9 | Acute bronchiolitis | bronchiolitis
+J30.4 | Allergic rhinitis | hay fever; nasal allergy
+J32.9 | Chronic sinusitis | chronic sinus
+J45.9 | Asthma | bronchial asthma
+J44.9 | Chronic obstructive pulmonary disease | COPD; chronic bronchitis
+K29.7 | Gastritis | acid gastritis
+K21.9 | Gastro-oesophageal reflux disease | GERD; acid reflux
+K25.9 | Gastric ulcer | peptic ulcer
+K27.9 | Peptic ulcer | duodenal ulcer
+K30 | Functional dyspepsia | indigestion
+K58.9 | Irritable bowel syndrome | IBS
+K59.0 | Constipation | hard stools
+K76.0 | Fatty liver | NAFLD; fatty liver disease
+K74.6 | Cirrhosis of liver | liver cirrhosis
+K80.2 | Gallstones | cholelithiasis
+K35.8 | Acute appendicitis | appendicitis
+K40.9 | Inguinal hernia | groin hernia
+K60.2 | Anal fissure | fissure in ano
+K12.0 | Recurrent oral aphthae | mouth ulcers
+K02.9 | Dental caries | tooth decay
+L20.9 | Atopic dermatitis | eczema
+L23.9 | Allergic contact dermatitis | contact dermatitis
+L30.9 | Dermatitis | skin allergy
+L50.9 | Urticaria | hives
+L70.0 | Acne vulgaris | acne
+L40.9 | Psoriasis | psoriasis
+L21.0 | Seborrhoea capitis | dandruff
+L02.9 | Cutaneous abscess | boil
+L03.9 | Cellulitis | skin infection
+L63.9 | Alopecia areata | patchy hair loss
+L65.9 | Nonscarring hair loss | hair fall
+L80 | Vitiligo | white patches
+M54.5 | Low back pain | lumbago; backache
+M54.2 | Cervicalgia | neck pain
+M54.3 | Sciatica | sciatic pain
+M47.8 | Spondylosis | cervical spondylosis; lumbar spondylosis
+M17.9 | Osteoarthritis of knee | knee arthritis
+M19.9 | Osteoarthritis | joint wear and tear
+M06.9 | Rheumatoid arthritis | RA
+M79.1 | Myalgia | muscle pain
+M75.0 | Adhesive capsulitis of shoulder | frozen shoulder
+M77.1 | Lateral epicondylitis | tennis elbow
+M72.2 | Plantar fasciitis | heel pain
+M81.9 | Osteoporosis | bone thinning
+N39.0 | Urinary tract infection | UTI
+N30.0 | Acute cystitis | bladder infection
+N20.0 | Calculus of kidney | kidney stone
+N18.9 | Chronic kidney disease | CKD
+N40 | Benign prostatic hyperplasia | enlarged prostate; BPH
+N76.0 | Acute vaginitis | vaginal infection
+N92.6 | Irregular menstruation | irregular periods
+N94.6 | Dysmenorrhoea | painful periods
+N95.1 | Menopausal state | menopause
+E28.2 | Polycystic ovarian syndrome | PCOS; PCOD
+O80 | Normal delivery | spontaneous delivery
+Z34.9 | Supervision of normal pregnancy | antenatal visit; ANC
+O21.9 | Vomiting of pregnancy | hyperemesis
+O24.4 | Gestational diabetes mellitus | GDM
+O13 | Gestational hypertension | pregnancy induced hypertension
+P59.9 | Neonatal jaundice | newborn jaundice
+R50.9 | Fever, unspecified | fever; pyrexia of unknown origin
+R05 | Cough | cough
+R07.4 | Chest pain, unspecified | chest pain
+R10.4 | Abdominal pain | pain abdomen
+R11 | Nausea and vomiting | vomiting
+R42 | Dizziness | giddiness
+R55 | Syncope | fainting
+R53 | Malaise and fatigue | weakness; tiredness
+R63.4 | Abnormal weight loss | weight loss
+R60.0 | Localised oedema | swelling
+R56.0 | Febrile convulsions | fever fits
+T14.9 | Injury, unspecified | injury
+S93.4 | Sprain of ankle | ankle sprain
+S61.9 | Open wound of wrist and hand | cut hand
+T30.0 | Burn, unspecified | burn
+T78.4 | Allergy, unspecified | allergic reaction
+T63.4 | Insect bite toxic effect | insect bite
+W54 | Dog bite | animal bite
+Z00.0 | General medical examination | routine check up; health check
+Z23 | Need for immunization | vaccination
+Z71.3 | Dietary counselling | diet advice
+Z72.0 | Tobacco use | smoking
+Z76.0 | Repeat prescription | medication refill

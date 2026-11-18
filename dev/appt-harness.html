@@ -1,0 +1,7 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Appointment harness (dev only)</title></head>
+<body><div id="root" class="app-stage" style="padding:18px;max-width:430px;margin:0 auto;min-height:100vh;background:var(--app)"></div><script type="module">
+import "./theme.js";
+import { createElement as h } from "react"; import { createRoot } from "react-dom/client";
+import AppointmentSheet from "../src/AppointmentSheet.jsx";
+createRoot(document.getElementById("root")).render(h(AppointmentSheet, { patient: { id: "fake-001", name: "Test Patient (fake)", mobile: "" }, clinic: { id: "t", name: "Test Clinic (fake)" }, onBack() {}, onWriteRx() { alert("Write Rx"); } }));
+</script></body></html>

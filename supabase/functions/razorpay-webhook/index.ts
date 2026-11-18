@@ -14,7 +14,11 @@ const corsHeaders = {
 };
 
 const CONSULT_AMOUNT_PAISE = 70000;
-const PROTECTED_STATUSES = ["PAID_CONFIRMED", "AUTHORIZED", "MANUALLY_VERIFIED"];
+const priorStates: Record<string, string> = {
+  PAID_CONFIRMED: "ORDER_CREATED,AUTHORIZED,CAPTURE_PENDING,FAILED",
+  CAPTURE_PENDING: "ORDER_CREATED,AUTHORIZED,FAILED",
+  FAILED: "ORDER_CREATED"
+};
 
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -53,32 +57,11 @@ Deno.serve(async (request) => {
     const patch = buildPatch(event.event, payment, order);
     if (!patch) return json({ handled: false, event: event.event, message: "Event not used." });
 
-    const existing = await fetchRow(projectUrl, serviceKey, orderId);
-    if (existing && PROTECTED_STATUSES.includes(existing.payment_status) && patch.payment_status === "FAILED") {
-      return json({ handled: true, message: "Ignored: payment already confirmed." });
+    if (patch.payment_status !== "FAILED" && (patch.amount !== CONSULT_AMOUNT_PAISE || patch.currency !== "INR")) {
+      return json({ error: "Payment amount or currency does not match the consultation fee." }, 400);
     }
 
-    // Amount guard: a captured payment must match the locked consultation fee.
-    if (patch.payment_status === "PAID_CONFIRMED" || patch.payment_status === "AUTHORIZED") {
-      if (patch.amount !== CONSULT_AMOUNT_PAISE || patch.currency !== "INR") {
-        return json({ error: "Payment amount or currency does not match the consultation fee." }, 400);
-      }
-    }
-
-    // Upsert so a paid event still lands if the order draft row was never written.
-    const notes = (order?.notes || payment?.notes || {}) as Record<string, string>;
-    const row = {
-      razorpay_order_id: orderId,
-      ...patch,
-      patient: {
-        ...(existing?.patient || {}),
-        user_id: existing?.patient?.user_id || notes.patient_id || "",
-        name: existing?.patient?.name || notes.patient || "Patient"
-      },
-      clinic: existing?.clinic || { name: notes.clinic || "" }
-    };
-
-    const saved = await upsertRow(projectUrl, serviceKey, row);
+    const saved = await updateOrder(projectUrl, serviceKey, orderId, patch);
     if (!saved) return json({ error: "Could not save webhook update." }, 500);
 
     return json({ handled: true, event: event.event, razorpay_order_id: orderId });
@@ -104,7 +87,7 @@ function buildPatch(eventType: string, payment: any, order: any) {
     return { ...clean(base), payment_status: "PAID_CONFIRMED", verified_at: new Date().toISOString() };
   }
   if (eventType === "payment.authorized") {
-    return { ...clean(base), payment_status: "AUTHORIZED" };
+    return { ...clean(base), payment_status: "CAPTURE_PENDING" };
   }
   if (eventType === "payment.failed") {
     return { ...clean(base), payment_status: "FAILED" };
@@ -116,28 +99,23 @@ function clean(data: Record<string, unknown>) {
   return Object.fromEntries(Object.entries(data).filter(([, value]) => value !== undefined && value !== ""));
 }
 
-async function fetchRow(projectUrl: string, serviceKey: string, orderId: string) {
-  const response = await fetch(
-    `${projectUrl}/rest/v1/consultation_payments?select=*&razorpay_order_id=eq.${encodeURIComponent(orderId)}&limit=1`,
-    { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` } }
-  );
-  if (!response.ok) throw new Error("Lookup failed");
-  const rows = await response.json();
-  return rows[0] || null;
-}
-
-async function upsertRow(projectUrl: string, serviceKey: string, row: Record<string, unknown>) {
-  const response = await fetch(`${projectUrl}/rest/v1/consultation_payments?on_conflict=razorpay_order_id`, {
-    method: "POST",
+async function updateOrder(projectUrl: string, serviceKey: string, orderId: string,
+  patch: { payment_status: string } & Record<string, unknown>) {
+  const query = new URLSearchParams({
+    razorpay_order_id: `eq.${orderId}`,
+    payment_status: `in.(${priorStates[patch.payment_status]})`
+  });
+  const response = await fetch(`${projectUrl}/rest/v1/consultation_payments?${query}`, {
+    method: "PATCH",
     headers: {
       apikey: serviceKey,
       Authorization: `Bearer ${serviceKey}`,
       "Content-Type": "application/json",
-      Prefer: "resolution=merge-duplicates,return=minimal"
+      Prefer: "return=minimal"
     },
-    body: JSON.stringify(row)
-  }).catch(() => null);
-  return Boolean(response?.ok);
+    body: JSON.stringify(patch)
+  });
+  return response.ok;
 }
 
 async function hmacSha256Hex(message: string, secret: string) {

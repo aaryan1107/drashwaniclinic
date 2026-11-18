@@ -1,0 +1,113 @@
+.vt { display: grid; gap: 14px; padding-bottom: 96px; color: var(--ink); }
+.vt-head { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; }
+.vt-head strong { display: block; font-size: var(--clinic-section); font-weight: 660; }
+.vt-head span { color: var(--muted); font-size: .95rem; font-variant-numeric: tabular-nums; }
+.vt-progress { padding: 6px 12px; font-variant-numeric: tabular-nums; font-size: var(--clinic-caption); border-radius: 999px; background: var(--soft-blue); color: var(--blue-dark) !important; font-weight: 650; }
+.vt-title { margin: 0; font-size: var(--clinic-section); font-weight: 660; }
+.vt-note { margin: 0; color: var(--muted); font-size: .9375rem; line-height: 1.45; }
+.vt-empty { color: var(--muted); font-size: .95rem; margin: 6px 0; }
+.vt-sections { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.vt-section { width: 100%; min-height: 64px; display: grid; grid-template-columns: auto 1fr auto auto; align-items: center; gap: 12px; padding: 12px 14px; text-align: left; border: 1px solid var(--line); border-radius: var(--clinic-card-radius); background: var(--surface); color: var(--ink); }
+.vt-section-text { display: grid; gap: 2px; min-width: 0; }
+.vt-section-text small { color: var(--muted); font-size: var(--clinic-caption); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vt-check { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--line); display: grid; place-items: center; }
+.vt-check-on { background: var(--green); border-color: var(--green); color: var(--clinic-success-ink); }
+.vt-state { color: var(--green); font-size: var(--clinic-caption); font-weight: 620; }
+.vt-footer { display: flex; gap: 10px; }
+.vt-footer > * { flex: 1; min-height: 52px; border-radius: var(--clinic-control-radius); }
+.vt-footer-fixed { position: sticky; bottom: 0; padding: 12px; margin-inline: -12px; border-top: 1px solid var(--line); background: var(--clinic-overlay-fill); }
+.vt-search { display: flex; align-items: center; gap: 8px; min-height: 52px; padding: 0 12px; border: 1px solid var(--clinic-control-line); border-radius: var(--clinic-control-radius); background: var(--surface); }
+.vt-search:focus-within { box-shadow: var(--focus-ring); border-color: var(--blue); }
+.vt-search input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--ink); font: inherit; font-size: 1rem; min-height: 48px; }
+.vt-icon { width: 44px; height: 44px; border: 0; background: transparent; color: var(--muted); display: grid; place-items: center; }
+.vt-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.vt-h { margin: 6px 0; font-size: var(--clinic-caption); font-weight: 620; color: var(--muted); }
+.vt-switch { display: flex; align-items: center; gap: 8px; min-height: 44px; font-size: .95rem; }
+.vt-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.vt-chip { min-height: 44px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--clinic-control-line); background: var(--clinic-raised); color: var(--ink); font: inherit; font-size: .95rem; display: inline-flex; align-items: center; gap: 6px; }
+.vt-chip-on { background: var(--soft-blue); border-color: var(--blue); color: var(--blue-dark); }
+.vt-results { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.vt-row { width: 100%; min-height: 52px; display: flex; align-items: center; gap: 10px; padding: 8px 14px; text-align: left; border: 1px solid var(--line); border-radius: var(--clinic-control-radius); background: var(--surface); color: var(--ink); font: inherit; }
+.vt-row-main { flex: 1; min-width: 0; }
+.vt-row-on { border-color: var(--green); background: var(--soft-green); }
+.vt-row-free { border-style: dashed; border-color: var(--clinic-control-line); color: var(--blue-dark); font-weight: 620; }
+.vt-code { color: var(--muted); font-style: normal; font-variant-numeric: tabular-nums; }
+.vt-tag { padding: 3px 9px; border-radius: 999px; font-size: var(--clinic-caption); font-weight: 650; background: var(--soft-blue); color: var(--blue-dark); white-space: nowrap; }
+.vt-tag-symptom { background: var(--warning); }
+.vt-tag-diagnosis { background: var(--soft-blue); }
+.vt-tag-finding { background: var(--soft-green); }
+.vt-tag-lab_test { background: var(--soft-lavender); }
+.vt-tag-lab_panel { background: var(--soft-rose); }
+.vt-tag-symptom, .vt-tag-diagnosis, .vt-tag-finding, .vt-tag-lab_test, .vt-tag-lab_panel { color: var(--ink); }
+.vt-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 12px; padding: 4px; border-radius: var(--clinic-control-radius); background: var(--clinic-raised); border: 1px solid var(--line); }
+.vt-tabs button { min-height: 44px; border: 0; border-radius: calc(var(--clinic-control-radius) - 3px); background: transparent; color: var(--ink); font: inherit; font-weight: 620; }
+.vt-tabs button.on { background: var(--surface); box-shadow: var(--shadow-soft); }
+.vt-field { display: grid; gap: 6px; margin-bottom: 14px; }
+.vt-field label { font-weight: 620; font-size: .95rem; }
+.vt-inputrow { display: flex; align-items: center; gap: 8px; }
+.vt-inputrow input, .vt-inputrow select, .vt-readonly { min-height: 52px; border: 1px solid var(--clinic-control-line); border-radius: var(--clinic-control-radius); background: var(--surface); color: var(--ink); font: inherit; font-size: 1rem; padding: 0 12px; font-variant-numeric: tabular-nums; }
+.vt-inputrow input { flex: 1; min-width: 0; }
+.vt-inputrow input:focus, .vt-inputrow select:focus { outline: 0; border-color: var(--blue); box-shadow: var(--focus-ring); }
+.vt-readonly { display: flex; align-items: center; background: var(--clinic-raised); border-color: var(--line); }
+.vt-unit { color: var(--muted); min-width: 36px; text-align: center; }
+.vt-lock { width: 48px; height: 48px; border-radius: var(--clinic-control-radius); border: 1px solid var(--clinic-control-line); background: var(--clinic-raised); color: var(--muted); display: grid; place-items: center; flex: none; }
+.vt-lock.on { background: var(--soft-blue); color: var(--blue-dark); border-color: var(--blue); }
+.vt-flag { color: var(--rose); font-weight: 650; font-size: var(--clinic-caption); }
+.vt-calcs { display: grid; gap: 16px; }
+.vt-calcs section { padding: 14px; border: 1px solid var(--line); border-radius: var(--clinic-card-radius); background: var(--surface); display: grid; gap: 8px; }
+.vt-calcs h4 { margin: 0; }
+.vt-calcs p { margin: 0; font-variant-numeric: tabular-nums; }
+.vt-start { width: 100%; min-height: 52px; }
+@media (prefers-reduced-motion: no-preference) { .vt-section, .vt-row, .vt-chip { transition: transform .18s ease; } .vt-section:active, .vt-row:active, .vt-chip:active { transform: scale(.98); } }
+/* The app's global input rule sets width:100%; scope sizing back down inside the workspace. */
+.vt .vt-inputrow input { width: auto; flex: 1 1 0; min-width: 0; }
+.vt .vt-inputrow select { width: auto; flex: 0 0 84px; }
+.vt .vt-search input { width: auto; border: 0; padding: 0; background: transparent; border-radius: 0; }
+.vt .vt-switch input { width: 22px; min-height: 22px; padding: 0; }
+.vt-footer .primary-button, .vt-footer .secondary-button { padding: 0 8px; font-size: .95rem; }
+.vt { grid-template-columns: minmax(0, 1fr); min-width: 0; max-width: 100%; }
+.vt > *, .vt-field, .vt-inputrow { min-width: 0; max-width: 100%; }
+.vt-inputrow input[type="date"] { min-width: 0; }
+.vt .vt-search input:focus { border: 0; box-shadow: none; }
+.vt-tag-hx { background: var(--soft-lavender); color: var(--ink); }
+.vt-section-simple { grid-template-columns: 1fr auto; min-height: 56px; }
+.vt-textarea { width: 100%; min-height: 160px; padding: 12px 14px; border: 1px solid var(--clinic-control-line); border-radius: var(--clinic-control-radius); background: var(--surface); color: var(--ink); font: inherit; font-size: 1rem; line-height: 1.5; resize: vertical; }
+.vt-toolbar { display: flex; gap: 8px; }
+.vt-toolbar button { width: 48px; height: 48px; border: 1px solid var(--clinic-control-line); border-radius: var(--clinic-control-radius); background: var(--clinic-raised); color: var(--ink); display: grid; place-items: center; }
+.vt-preview { padding: 12px 14px; border: 1px dashed var(--line); border-radius: var(--clinic-control-radius); line-height: 1.5; }
+.vt-li { padding-left: 4px; }
+.vt-alert { padding: 12px 14px; border-radius: var(--clinic-control-radius); background: var(--warning); color: var(--ink); font-size: .9375rem; line-height: 1.45; }
+.vt-history-box { display: grid; gap: 6px; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--clinic-card-radius); background: var(--surface); font-size: .95rem; }
+.vt-link { justify-self: start; min-height: 44px; border: 0; background: transparent; color: var(--blue-dark); font: inherit; font-weight: 620; padding: 0; }
+.vt-meds { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.vt-med { padding: 14px; border: 1px solid var(--line); border-radius: var(--clinic-card-radius); background: var(--surface); display: grid; gap: 8px; }
+.vt-med-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.vt-warn { display: flex; gap: 8px; align-items: flex-start; padding: 10px 12px; border-radius: calc(var(--clinic-control-radius) - 2px); font-size: .9375rem; font-weight: 620; line-height: 1.4; }
+.vt-warn svg { flex: none; margin-top: 2px; }
+.vt-warn-red { background: var(--soft-rose); color: var(--ink); border: 1px solid var(--rose); }
+.vt-warn-amber { background: var(--warning); color: var(--ink); border: 1px solid var(--amber); }
+.vt-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.vt .vt-field input, .vt .vt-field select { width: 100%; min-height: 52px; border-radius: var(--clinic-control-radius); font-size: 1rem; }
+.vt .vt-inputrow select { width: auto; }
+.vt .vt-field input[type="checkbox"] { width: 22px; min-height: 22px; }
+.vt-rx-preview { padding: 14px; border: 1px solid var(--line); border-radius: var(--clinic-card-radius); background: var(--surface); display: grid; gap: 8px; font-size: .95rem; line-height: 1.45; }
+.vt-rx-preview header { display: flex; justify-content: space-between; gap: 8px; border-bottom: 2px solid var(--blue); padding-bottom: 8px; }
+.vt-rx-preview header span { color: var(--muted); }
+.vt-rx-preview p, .vt-rx-preview ol { margin: 0; }
+.vt-rx-preview ol { padding-left: 20px; display: grid; gap: 4px; }
+.vt-pre { margin: 0; white-space: pre-wrap; font: inherit; color: var(--ink); }
+.vt-sent { display: flex; gap: 12px; align-items: center; padding: 14px; border-radius: var(--clinic-card-radius); background: var(--soft-green); color: var(--ink); }
+.vt-sent svg { color: var(--green); flex: none; }
+.vt-sent div { display: grid; }
+.vt-sent span { color: inherit; opacity: .9; font-size: var(--clinic-caption); }
+.vt-actions { display: grid; gap: 10px; }
+.vt-actions button { min-height: 52px; border-radius: var(--clinic-control-radius); }
+.vt-rx-preview p { white-space: pre-line; }
+.vt-start-row { display: grid; grid-template-columns: 2fr 1fr; gap: 10px; }
+.vt .vt-field input:disabled { opacity: .55; }
+/* New clinic UI: tactile press, focus outline, raised secondary surfaces. */
+.vt :is(.vt-chip, .vt-lock, .vt-toolbar button, .vt-tabs button):focus-visible { outline: 2px solid var(--blue-dark); outline-offset: 2px; }
+.vt .vt-tabs button.on { background: var(--surface); color: var(--blue-dark); box-shadow: 0 1px 2px rgb(26 59 50 / 10%); }
+.vt .vt-chip-on { background: var(--soft-blue); border-color: var(--blue); color: var(--blue-dark); }
+.vt .vt-lock.on { background: var(--soft-blue); color: var(--blue-dark); border-color: var(--blue); }
+.vt-calcs h4 { font-size: 1rem; font-weight: 650; }

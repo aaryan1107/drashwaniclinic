@@ -1,0 +1,208 @@
+# Common primary-care symptoms. Format: display | synonym; synonym. Written by us; needs doctor review.
+Fever | bukhar; pyrexia; high temperature
+Fever with chills | chills and rigors; shivering with fever
+Low grade fever | evening rise of temperature
+Cough | khansi
+Dry cough | non productive cough
+Cough with phlegm | productive cough; wet cough; balgam
+Cough with blood | hemoptysis; blood in sputum
+Night cough | cough at night
+Whooping cough spells | paroxysmal cough
+Cold | common cold; runny nose; zukam
+Sneezing | allergic sneezing
+Nasal congestion | blocked nose; stuffy nose
+Runny nose | rhinorrhea
+Nosebleed | epistaxis
+Sore throat | throat pain; pain on swallowing
+Hoarseness of voice | voice change; loss of voice
+Difficulty swallowing | dysphagia
+Ear pain | earache; otalgia
+Ear discharge | otorrhea
+Reduced hearing | hearing loss
+Ringing in ears | tinnitus
+Headache | sir dard
+Migraine-type headache | one sided headache; throbbing headache
+Heaviness of head | head heaviness
+Dizziness | giddiness; chakkar
+Spinning sensation | vertigo
+Fainting | syncope; blackout
+Seizure | fits; convulsions
+Tremor | shaking of hands
+Numbness | loss of sensation
+Tingling in hands and feet | pins and needles; paresthesia
+Weakness of limbs | limb weakness
+Generalised weakness | weakness; kamzori; asthenia
+Fatigue | tiredness; easy fatiguability
+Lethargy | sluggishness
+Sleepiness during day | excessive daytime sleepiness
+Insomnia | difficulty sleeping; sleeplessness
+Anxiety | nervousness; restlessness
+Low mood | depressed mood; sadness
+Irritability | short temper
+Loss of concentration | poor memory; forgetfulness
+Chest pain | seene mein dard
+Chest tightness | chest heaviness
+Palpitations | racing heart; heart pounding
+Shortness of breath | breathlessness; dyspnea; saans phoolna
+Breathlessness on exertion | exertional dyspnea
+Breathlessness lying flat | orthopnea
+Wheezing | whistling sound in chest
+Leg swelling | pedal edema; swollen feet
+Facial swelling | puffy face
+Calf pain on walking | claudication
+Cold extremities | cold hands and feet
+Abdominal pain | pet dard; stomach ache
+Upper abdominal pain | epigastric pain
+Lower abdominal pain | hypogastric pain
+Right lower abdominal pain | right iliac fossa pain
+Colicky abdominal pain | cramps
+Burning in chest | heartburn; acidity; reflux
+Bloating | gas; flatulence; distension of abdomen
+Nausea | ji machlana
+Vomiting | ulti; emesis
+Vomiting blood | hematemesis
+Loss of appetite | anorexia; no hunger
+Excessive hunger | polyphagia
+Early satiety | feeling full quickly
+Indigestion | dyspepsia; apach
+Loose stools | diarrhea; loose motions; dast
+Watery stools | watery diarrhea
+Stools with blood | blood in stool; hematochezia
+Black stools | melena; tarry stools
+Constipation | kabz; hard stools
+Pain on passing stool | painful defecation
+Bleeding per rectum | rectal bleeding
+Anal itching | pruritus ani
+Passage of worms | worms in stool
+Yellow discoloration of eyes | jaundice; peeliya
+Dark urine | high coloured urine
+Frequent urination | polyuria; increased urine frequency
+Night time urination | nocturia
+Burning urination | dysuria; burning micturition
+Blood in urine | hematuria
+Urgency of urine | urinary urgency
+Difficulty passing urine | hesitancy; poor stream
+Urinary incontinence | leakage of urine
+Reduced urine output | oliguria
+Foamy urine | frothy urine
+Excessive thirst | polydipsia
+Dry mouth | xerostomia
+Weight loss | loss of weight
+Weight gain | increase in weight
+Increased sweating | hyperhidrosis
+Night sweats | sweating at night
+Heat intolerance | feels hot
+Cold intolerance | feels cold
+Hair fall | hair loss; alopecia
+Dry skin | xerosis
+Itching | pruritus; khujli
+Rash | skin rash; eruptions
+Red itchy patches | eczema-like patches
+Hives | urticaria; wheals
+Skin blisters | vesicles; bullae
+Pus filled boils | boils; abscess
+Skin discoloration | pigmentation
+White patches on skin | depigmentation
+Nail changes | nail discoloration
+Itchy scalp | scalp itching
+Dandruff | flaky scalp
+Acne | pimples
+Wound not healing | non healing ulcer
+Foot ulcer | diabetic foot wound
+Burning sensation in feet | burning feet
+Joint pain | arthralgia
+Joint swelling | swollen joints
+Morning stiffness | stiffness in morning
+Knee pain | pain in knees
+Back pain | low back pain; kamar dard
+Neck pain | cervical pain
+Shoulder pain | pain in shoulder
+Muscle pain | body ache; myalgia
+Muscle cramps | cramps in legs
+Heel pain | plantar pain
+Hand pain | wrist pain
+Pain radiating to leg | sciatica
+Eye pain | pain in eye
+Red eye | conjunctival redness
+Watering of eyes | epiphora
+Eye discharge | sticky eyes
+Blurred vision | dhundhla dikhna
+Difficulty seeing at night | night blindness
+Eye itching | itchy eyes
+Seeing floaters | spots before eyes
+Toothache | dental pain
+Bleeding gums | gum bleeding
+Mouth ulcers | aphthous ulcers
+Bad breath | halitosis
+Swelling in neck | neck lump
+Swollen glands | lymph node swelling
+Lump in breast | breast lump
+Breast pain | mastalgia
+Painful periods | dysmenorrhea
+Heavy periods | menorrhagia
+Irregular periods | irregular menses
+Missed period | amenorrhea
+Bleeding between periods | intermenstrual bleeding
+Excessive vaginal discharge | white discharge; leucorrhea
+Vaginal itching | pruritus vulvae
+Pelvic pain | pain in lower abdomen in women
+Pain during intercourse | dyspareunia
+Hot flashes | menopausal flushes
+Pregnancy nausea | morning sickness
+Erectile difficulty | erectile dysfunction
+Scrotal swelling | swelling in testis
+Penile discharge | urethral discharge
+Child not feeding | poor feeding
+Excessive crying | irritable infant
+Delayed milestones | developmental delay
+Bed wetting | enuresis
+Poor weight gain | failure to thrive
+Snoring | loud snoring
+Pauses in breathing during sleep | witnessed apnea
+Swelling in abdomen | abdominal distension; ascites
+Hernia swelling | bulge in groin
+Piles | hemorrhoids; bawasir
+Varicose veins | dilated veins in legs
+Cold sores | herpes labialis
+Insect bite | bite reaction
+Dog bite | animal bite
+Burn injury | burns
+Fall injury | trauma after fall
+Road traffic injury | accident injury
+Sprain | twisted ankle
+Cut wound | laceration
+Foreign body sensation | something stuck
+Loss of smell | anosmia
+Loss of taste | ageusia
+Body pain with fever | viral aches
+Rash with fever | fever with rash
+Abdominal pain with vomiting | gastroenteritis symptoms
+Hiccups | hiccough
+Belching | burping
+Ankle swelling | swollen ankle
+Cough for more than 2 weeks | chronic cough
+Breathlessness with fever | respiratory distress with fever
+Poor sleep quality | disturbed sleep
+Craving for sweets | sweet craving
+Slow healing of wounds | delayed wound healing
+Recurrent infections | frequent infections
+Easy bruising | bruises
+Pallor | paleness; looks pale
+Yellow palms | yellowish skin
+Swelling around eyes | periorbital puffiness
+Sudden weakness one side | hemiparesis
+Slurred speech | difficulty speaking
+Facial deviation | facial droop
+Loss of balance | unsteady gait
+Difficulty walking | gait difficulty
+Memory loss | forgetfulness
+Hallucinations | seeing or hearing things
+Suicidal thoughts | self harm thoughts
+Substance use concern | alcohol or tobacco dependence
+Tobacco use | smoking; chewing tobacco
+Alcohol use | drinking
+Routine check-up | health check; screening
+Follow-up visit | review visit
+Medication refill | repeat prescription
+Vaccination request | immunisation
+Fitness certificate | medical certificate

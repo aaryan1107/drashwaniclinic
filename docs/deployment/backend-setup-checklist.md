@@ -32,13 +32,15 @@ It adds:
 
 ## Required Supabase Auth Setup
 
-Create or confirm these users:
+Create the real doctor account (`drashwanikansal@gmail.com`) and set its password in Supabase Auth only. Never write passwords in this repository.
 
-```text
-patienttest@drashwaniclinic.local / 21stjune@2026
-doctortest@drashwaniclinic.local / 21stjune@2026
-drashwanikansal@gmail.com / set the private doctor password in Supabase Auth only
+Do not keep shared test logins on a production project. If test accounts are needed, create them in a separate staging project. The earlier `doctortest@drashwaniclinic.local` test doctor must be deactivated on production:
+
+```sql
+update public.clinic_doctors set active = false where email = 'doctortest@drashwaniclinic.local';
 ```
+
+Then delete that user in Supabase Auth, and rotate any password that was ever written in this repository's history.
 
 Doctor access is allowed only if the email exists in `public.clinic_doctors`.
 
@@ -94,3 +96,17 @@ VITE_RAZORPAY_PAYMENT_LINK=https://razorpay.me/@drashwanisfamilyclinicdiagnos
 - Razorpay Checkout verifies through `verify-consultation-payment`.
 - WhatsApp consult unlocks only after verification returns success.
 - If live Checkout keys are missing, the hosted Razorpay payment link can open, but the doctor/admin must manually verify the receipt.
+
+## Front-desk staff (read-only prescriptions)
+
+Front-desk staff can search, view and print prescriptions but cannot issue, edit or void them. They are allowlisted by email in `public.clinic_staff`, which the app can never write to. Add or remove staff in the Supabase SQL editor:
+
+```sql
+insert into public.clinic_staff (email, name) values (lower('frontdesk@example.com'), 'Front Desk')
+on conflict (email) do update set active = true;
+
+-- To remove access:
+update public.clinic_staff set active = false where email = 'frontdesk@example.com';
+```
+
+The staff member signs in with that email through the normal sign-in screen; the app routes them to the front-desk screen automatically. Create their account with a verified email address.

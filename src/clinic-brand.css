@@ -1,0 +1,178 @@
+/* Brand layer: "settled" surfaces. Flat cards, depth from tinted layers (paper > card > rooms),
+   no card borders or shadows, label-style eyebrows, pill tags. Loaded after clinic-theme.css.
+   Reference (inspiration only): Refero Styles "Botanical greenhouse on cream paper". See docs/brand/BRANDKIT.md. */
+
+:root,
+.app-stage {
+  --app: #F6F8F3;                 /* paper canvas */
+  --surface: #FFFFFD;
+  --clinic-raised: #EDF3EC;
+  --line: #E1E8E1;                /* hairline dividers only */
+  --soft-blue: #E1F4DF;           /* keylime wash: highlighted controls */
+  --room-mint: #E1F4DF;           /* care, next steps */
+  --room-sage: #CFE7D3;           /* feature highlight */
+  --room-sky: #DDE9EC;            /* information, slate hush */
+  --room-amber: #F7EED9;
+  --room-rose: #FBE8EC;
+  --room-ink: var(--ink);
+  --shadow-soft: none;
+}
+
+:root,
+.app-stage,
+.app-stage.dark-theme {
+  --clinic-card-radius: 14px;
+  --clinic-card-pad: 18px;
+  --clinic-panel-fill: var(--surface);
+}
+
+.app-stage.dark-theme {
+  --room-mint: #263B35;
+  --room-sage: #2E4740;
+  --room-sky: #26343A;
+  --room-amber: #3A3123;
+  --room-rose: #432C33;
+  --clinic-panel-fill: var(--surface);
+}
+
+.app-stage.dark-theme[data-clinic-theme="pine"] {
+  --room-mint: #243B2F;
+  --room-sage: #2C4838;
+  --room-sky: #233539;
+  --clinic-panel-fill: var(--surface);
+}
+
+[data-clinic-theme="light"] .clinic-mesh {
+  --clinic-mesh-fallback:
+    radial-gradient(ellipse at 96% 4%, #DDE9EC 0%, transparent 60%),
+    radial-gradient(ellipse at 10% 55%, #E1F4DF 0%, transparent 65%);
+  --clinic-mesh-scrim: linear-gradient(160deg, rgb(246 248 243 / 30%), rgb(246 248 243 / 55%));
+}
+
+/* Settled cards: fill contrast instead of strokes and shadows. */
+.app-stage :is(.auth-card, .form-card, .mobile-card, .appointment-card, .live-view-card, .live-view-card.on,
+  .live-view-card.off, .chat-panel, .doctor-section, .doctor-live-preview, .doctor-duty-cta,
+  .medical-profile-card, .updates-form-card, .update-summary-card, .patient-summary-card, .past-visit-card,
+  .row-card, .patient-row, .alert-row-card, .article-card, .education-editor, .post-list-preview,
+  .pending-payments, .search-card, .audit-card, .booking-context-card, .whatsapp-panel,
+  .patient-shortcut, .vt-section, .vt-row, .vt-med, .vt-history-box, .vt-rx-preview, .vt-search, .vt-calcs section, .empty-state,
+  .ui-card) {
+  border-color: transparent;
+  box-shadow: none;
+}
+
+/* Rooms: tinted panels that group a kind of content. Always paired with a visible label. */
+.app-stage :is(.appointment-card, .doctor-duty-cta, .ui-card.tone-mint) { background: var(--room-mint); }
+.app-stage :is(.live-view-card.on, .ui-card.tone-sage) { background: var(--room-sage); }
+.app-stage :is(.booking-context-card, .ui-card.tone-sky) { background: var(--room-sky); }
+.app-stage .ui-card.tone-amber { background: var(--room-amber); }
+.app-stage .ui-card.tone-rose { background: var(--room-rose); }
+
+/* Status rooms keep their coloured text but lose the coloured stroke. */
+.app-stage :is(.payment-status-card, .consult-payment-gate, .medical-note, .safety-strip, .vt-sent, .vt-warn-amber, .vt-warn-red) {
+  border-color: transparent;
+}
+.app-stage .urgent-care-banner { border-color: color-mix(in srgb, var(--rose) 45%, transparent); }
+
+.ui-card {
+  display: grid;
+  gap: 12px;
+  padding: var(--clinic-card-pad);
+  color: var(--ink);
+  background: var(--clinic-panel-fill);
+  border: 1px solid transparent;
+  border-radius: var(--clinic-card-radius);
+}
+.ui-card.pad-lg { --clinic-card-pad: 22px; }
+
+/* Eyebrow: prescription-label small caps. */
+.clinic-eyebrow,
+.app-stage .vt-eyebrow {
+  margin: 0;
+  color: var(--muted);
+  font-size: .75rem;
+  font-weight: 620;
+  line-height: 1.3;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+
+/* Wordmark: "Dr Ashwani" over a small-caps "Family Clinic". */
+.clinic-wordmark { display: grid; gap: 1px; line-height: 1.1; }
+.clinic-wordmark b { font-size: 1.0625rem; font-weight: 680; letter-spacing: -.02em; color: var(--ink); }
+.clinic-wordmark small { font-size: .6875rem; font-weight: 620; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); }
+
+/* Pill tags. */
+.ui-tag,
+.app-stage :is(.status-chip, .status-pill) {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: .8125rem;
+  font-weight: 600;
+}
+.ui-tag { color: var(--blue-dark); background: var(--surface); }
+
+/* Buttons: 12px radius (house rule), tactile press, clear focus, honest loading/disabled. */
+.app-stage :is(.primary-button, .secondary-button, .ui-button) {
+  transition: transform 120ms cubic-bezier(.22, 1, .36, 1), background-color 160ms ease, opacity 160ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .app-stage :is(.primary-button, .secondary-button, .ui-button):not(:disabled):active { transform: scale(.97); }
+}
+.app-stage :is(.primary-button, .secondary-button, .ui-button):focus-visible {
+  outline: 2px solid var(--blue-dark);
+  outline-offset: 2px;
+}
+.app-stage .primary-button:not(:disabled):hover { background: var(--blue-dark); }
+.app-stage .secondary-button:not(:disabled):hover { background: var(--soft-blue); }
+
+.ui-button.ghost {
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 14px;
+  color: var(--blue-dark);
+  background: transparent;
+  border: 0;
+  border-radius: var(--clinic-control-radius);
+  font: inherit;
+  font-weight: 620;
+}
+.ui-button.ghost:not(:disabled):hover { background: var(--clinic-raised); }
+.app-stage .ui-button.danger {
+  color: var(--rose);
+  background: var(--soft-rose);
+  border: 1px solid transparent;
+}
+.ui-button.block { width: 100%; }
+.ui-button.size-sm { min-height: 44px; padding-inline: 14px; font-size: .9375rem; }
+.ui-button[data-loading] { cursor: progress; }
+.ui-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 999px;
+  animation: ui-spin .7s linear infinite;
+}
+@keyframes ui-spin { to { transform: rotate(1turn); } }
+@media (prefers-reduced-motion: reduce) { .ui-spinner { animation-duration: 2s; } }
+
+/* Welcome: same settled language. Tiles become flat rooms (sky, mint, sage) instead of blue and lilac gradients. */
+.app-stage .clinic-welcome.intro-screen { --welcome-card: var(--surface); --welcome-card-line: transparent; }
+.app-stage .welcome-care li { --care-tint: var(--room-sky); --care-accent: #2E5C66; background: var(--care-tint); border-color: transparent; }
+.app-stage .welcome-care li[data-care-tone="1"] { --care-tint: var(--room-mint); --care-accent: #236951; }
+.app-stage .welcome-care li[data-care-tone="2"] { --care-tint: var(--room-sage); --care-accent: #1F5A44; }
+.app-stage.dark-theme .welcome-care li { --care-accent: #B9DCE3; }
+.app-stage.dark-theme .welcome-care li[data-care-tone="1"] { --care-accent: #AEDCC4; }
+.app-stage.dark-theme .welcome-care li[data-care-tone="2"] { --care-accent: #BFE6C9; }
+.app-stage .welcome-feature-trigger { border-color: transparent; }
+.app-stage .welcome-features h2 { font-size: .75rem; font-weight: 620; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); }
+.app-stage .welcome-doctor { background: var(--room-mint); border-radius: var(--clinic-card-radius); }

@@ -1,0 +1,554 @@
+/* Palette roles shared by the browser and both Capacitor shells. */
+:root,
+.app-stage {
+  --app: #F4F8F7;
+  --clinic-frame: #E5EEEB;
+  --surface: #FFFFFF;
+  --clinic-raised: #EAF2F0;
+  --ink: #172D2A;
+  --muted: #4C6660;
+  --line: #D1DFDB;
+  --clinic-control-line: #809A92;
+  --blue: #176763;
+  --blue-dark: #165C57;
+  --clinic-action-ink: #FFFFFF;
+  --soft-blue: #E0F0EC;
+  --green: #246847;
+  --soft-green: #E4F2E9;
+  --clinic-success-ink: #FFFFFF;
+  --amber: #84530C;
+  --warning: #F9EED9;
+  --rose: #A1243A;
+  --soft-rose: #FBE8EC;
+  --soft-lavender: #ECEBF3;
+  --shadow-soft: 0 6px 22px rgb(26 59 50 / 7%);
+  --shadow-lift: 0 12px 30px rgb(26 59 50 / 13%);
+}
+
+.app-stage.dark-theme {
+  --app: #191D1D;
+  --clinic-frame: #111515;
+  --surface: #232929;
+  --clinic-raised: #2D3634;
+  --ink: #EFF5F2;
+  --muted: #B7C8C2;
+  --line: #414F4B;
+  --clinic-control-line: #7B968C;
+  --blue: #B7DED3;
+  --blue-dark: #C1E9DE;
+  --clinic-action-ink: #152E28;
+  --soft-blue: #2B4540;
+  --green: #A5DCB7;
+  --soft-green: #294237;
+  --clinic-success-ink: #142B1F;
+  --amber: #F2CF91;
+  --warning: #413626;
+  --rose: #FFB5C0;
+  --soft-rose: #4B3038;
+  --soft-lavender: #383646;
+  --shadow-soft: 0 6px 22px rgb(0 0 0 / 14%);
+  --shadow-lift: 0 12px 30px rgb(0 0 0 / 24%);
+}
+
+.app-stage.dark-theme[data-clinic-theme="pine"] {
+  --app: #14211B;
+  --clinic-frame: #0E1914;
+  --surface: #1D2C24;
+  --clinic-raised: #26382E;
+  --ink: #EEF7F0;
+  --muted: #BCD0C2;
+  --line: #40584C;
+  --clinic-control-line: #799B88;
+  --blue: #ACE1BF;
+  --blue-dark: #BAEACC;
+  --clinic-action-ink: #152E21;
+  --clinic-success-ink: #142B1F;
+  --soft-blue: #2B4738;
+  --green: #ABE0BC;
+  --soft-green: #284436;
+  --warning: #403723;
+  --soft-rose: #482F35;
+}
+
+:root,
+.app-stage,
+.app-stage.dark-theme {
+  --navy: var(--ink);
+  --royal-blue: var(--blue);
+  --electric-accent: var(--blue-dark);
+  --emerald: var(--green);
+  --glass: var(--surface);
+  --glass-border: var(--line);
+  --shadow: var(--shadow-lift);
+  --focus-ring: 0 0 0 3px color-mix(in srgb, var(--blue) 28%, transparent);
+  --clinic-card-radius: 17px;
+  --clinic-control-radius: 12px;
+  --clinic-title: 1.5rem;
+  --clinic-section: 1.0625rem;
+  --clinic-caption: .8125rem;
+  --clinic-panel-fill: color-mix(in srgb, var(--surface) 75%, transparent);
+  --clinic-overlay-fill: color-mix(in srgb, var(--surface) 94%, transparent);
+}
+
+:root {
+  font-family: "Geist Variable", system-ui, sans-serif;
+  background: var(--app);
+  color: var(--ink);
+}
+
+.app-stage,
+.app-stage.dark-theme {
+  background: var(--clinic-frame);
+  color: var(--ink);
+  line-height: 1.45;
+}
+
+.app-stage .phone-shell {
+  background: var(--app);
+  isolation: isolate;
+}
+
+.app-stage :is(.app-screen, .auth-screen, .signup-screen, .welcome-screen, .clinic-welcome.intro-screen) {
+  background: transparent;
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+.clinic-mesh {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  background: var(--clinic-mesh-fallback);
+}
+
+.clinic-mesh-canvas,
+.clinic-mesh::after {
+  position: absolute;
+  inset: 0;
+}
+
+.clinic-mesh-canvas {
+  opacity: 0;
+  transition: opacity 280ms ease-out;
+}
+
+.clinic-mesh-canvas[data-webgl="true"] { opacity: 1; }
+
+.clinic-mesh::after {
+  content: "";
+  background: var(--clinic-mesh-scrim);
+}
+
+[data-clinic-theme="light"] .clinic-mesh {
+  --clinic-mesh-fallback:
+    radial-gradient(ellipse at 96% 4%, #c8e2ff 0%, transparent 60%),
+    radial-gradient(ellipse at 10% 55%, #cfece0 0%, transparent 65%);
+  --clinic-mesh-scrim: linear-gradient(160deg, rgb(244 248 247 / 12%), rgb(244 248 247 / 32%));
+}
+
+[data-clinic-theme="charcoal"] .clinic-mesh {
+  --clinic-mesh-fallback:
+    radial-gradient(ellipse at 96% 6%, #3c4142 0%, transparent 65%),
+    radial-gradient(ellipse at 8% 72%, #343c37 0%, transparent 63%);
+  --clinic-mesh-scrim: linear-gradient(160deg, rgb(20 24 23 / 26%), rgb(20 24 23 / 54%));
+}
+
+[data-clinic-theme="pine"] .clinic-mesh {
+  --clinic-mesh-fallback: url("/clinic-mesh-dark.webp") center / cover no-repeat;
+  --clinic-mesh-scrim: linear-gradient(155deg, rgb(15 32 28 / 43%), rgb(11 28 21 / 77%));
+}
+
+.app-stage :is(.app-header h2, .clinic-auth-heading h1) {
+  color: var(--ink);
+  font-size: var(--clinic-title);
+  font-weight: 660;
+  line-height: 1.17;
+  letter-spacing: normal;
+}
+
+.app-stage :is(.kicker, .app-header .kicker, .auth-brand .kicker) {
+  font-size: var(--clinic-caption);
+  font-weight: 620;
+  line-height: 1.3;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--blue-dark);
+}
+
+.app-stage :is(.doctor-section-head strong, .patient-shortcuts h3, .vt-title) {
+  font-size: var(--clinic-section);
+  font-weight: 660;
+  line-height: 1.28;
+}
+
+.app-stage :is(.detail-copy, .screen-copy, .vt-note, .vt-empty, .welcome-feature-popover p) {
+  color: var(--muted);
+  line-height: 1.48;
+}
+
+.app-stage :is(.auth-card, .form-card, .mobile-card, .appointment-card, .live-view-card, .live-view-card.on,
+  .live-view-card.off, .chat-panel, .doctor-section, .doctor-live-preview, .doctor-duty-cta,
+  .medical-profile-card, .updates-form-card, .update-summary-card, .patient-summary-card, .past-visit-card,
+  .row-card, .patient-row, .alert-row-card, .article-card, .education-editor, .post-list-preview,
+  .pending-payments, .search-card, .audit-card, .booking-context-card, .whatsapp-panel,
+  .metric-tile.rose, .metric-tile.blue, .metric-tile.green, .metric-tile.lavender,
+  .patient-shortcut, .vt-section, .vt-row, .vt-med, .vt-history-box, .vt-rx-preview, .vt-search, .vt-calcs section, .empty-state) {
+  color: var(--ink);
+  background: var(--clinic-panel-fill);
+  border-color: var(--line);
+  border-radius: var(--clinic-card-radius);
+  box-shadow: none;
+}
+
+.app-stage :is(.metric-tile strong, .doctor-stat strong, .booking-amount, .detail-metric strong, .vt-code) {
+  font-variant-numeric: tabular-nums;
+}
+
+.app-stage .metric-tile {
+  min-height: 90px;
+}
+
+.app-stage :is(.metric-tile span, .metric-tile small, .patient-row small,
+  .live-view-card p, .appointment-card p, .article-card p, .auth-form label) {
+  color: var(--muted);
+}
+
+.app-stage :is(.row-icon, .patient-avatar, .message-avatar, .chat-spark, .profile-mini-avatar,
+  .doctor-section-head span, .quick-actions span, .editor-title-row > span, .uploaded-file-chip, .article-card span) {
+  color: var(--blue-dark);
+  background: var(--soft-blue);
+  border-color: var(--line);
+}
+
+.app-stage :is(.primary-button, .chat-input button, .chat-context-card button,
+  .split-actions > :first-child, .segmented button.active, .date-row button.active, .slot-wrap button.active) {
+  color: var(--clinic-action-ink);
+  background: var(--blue);
+  border-color: var(--blue);
+  box-shadow: none;
+}
+
+.app-stage :is(.primary-button, .secondary-button, .chat-input button, .chat-context-card button, .google-button) {
+  border-radius: var(--clinic-control-radius);
+  font-weight: 650;
+}
+
+.app-stage :is(.secondary-button, .round-action, .circle-button, .top-action button, .google-button,
+  .auth-method, .auth-mode, .auth-role, .detail-input, .detail-metric) {
+  color: var(--ink);
+  background: var(--clinic-raised);
+  border-color: var(--line);
+  box-shadow: none;
+}
+
+.app-stage :is(.google-button, .secondary-button) {
+  border-color: var(--clinic-control-line);
+}
+
+.app-stage :is(.text-button, .detail-link, .whatsapp-panel a) {
+  color: var(--blue-dark);
+}
+
+.app-stage :is(input, select, textarea):not([type="checkbox"], [type="radio"], [type="range"], [type="file"]) {
+  color: var(--ink);
+  background-color: var(--surface);
+  border-color: var(--clinic-control-line);
+}
+
+.app-stage :is(input, textarea)::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+
+.app-stage :is(input[type="checkbox"], input[type="radio"], input[type="range"]) {
+  accent-color: var(--blue);
+}
+
+.app-stage :is(.chat-input, .chat-panel .bubble.bot, .recovery-panel) {
+  color: var(--ink);
+  background: var(--clinic-raised);
+  border-color: var(--line);
+}
+
+.app-stage :is(.chat-context-card, .chat-panel .bubble.user, .chat-quick-prompts button,
+  .segmented button:not(.active), .bottom-nav button.active, .bottom-nav button[aria-current="page"]) {
+  color: var(--blue-dark);
+  background: var(--soft-blue);
+  border-color: var(--line);
+}
+
+/* Lift the tab bar above the scroll area while leaving space for its final row. */
+.app-screen:has(> .bottom-nav) {
+  --tab-bar-height: 60px;
+  --tab-bar-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+}
+
+.app-stage .app-screen:has(> .bottom-nav) > .scroll-area {
+  padding-bottom: calc(var(--tab-bar-height) + var(--tab-bar-bottom) + 12px);
+  scroll-padding-bottom: calc(var(--tab-bar-height) + var(--tab-bar-bottom) + 12px);
+}
+
+.app-stage .bottom-nav {
+  position: absolute;
+  z-index: 6;
+  inset-inline: max(14px, env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px));
+  bottom: var(--tab-bar-bottom);
+  height: var(--tab-bar-height);
+  margin: 0;
+  padding: 5px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--clinic-overlay-fill);
+  box-shadow: var(--shadow-lift);
+  transition: none;
+}
+
+@supports (backdrop-filter: blur(12px)) {
+  .app-stage .bottom-nav {
+    background: color-mix(in srgb, var(--surface) 85%, transparent);
+    backdrop-filter: blur(12px);
+  }
+}
+
+.app-stage .bottom-nav button {
+  min-height: 48px;
+  border-radius: 999px;
+  font-size: .75rem;
+  font-weight: 580;
+}
+.app-stage .bottom-nav button:not(.active) { color: var(--muted); }
+.app-stage .bottom-nav button.active { font-weight: 650; }
+
+.app-stage :is(.live-view-card .status-pill, .auth-message, .booking-summary, .appointment-card .status-chip) {
+  color: var(--blue-dark);
+  background: var(--soft-blue);
+  border-color: var(--line);
+}
+
+.app-stage :is(.payment-status-card.paid, .consult-payment-gate.paid, .vt-sent, .patient-row em.low) {
+  color: var(--green);
+  background: var(--soft-green);
+  border-color: var(--green);
+}
+
+.app-stage :is(.payment-status-card.payment_link, .payment-status-card.fee_pending, .payment-status-card.needs_config,
+  .consult-payment-gate.payment_link, .consult-payment-gate.fee_pending, .consult-payment-gate.needs_config, .medical-note, .safety-strip, .patient-row em.medium, .vt-warn-amber) {
+  color: var(--amber);
+  background: var(--warning);
+  border-color: var(--amber);
+}
+
+.app-stage :is(.payment-status-card.failed, .consult-payment-gate.failed, .patient-row em.high, .vt-warn-red, .urgent-care-banner) {
+  color: var(--rose);
+  background: var(--soft-rose);
+  border-color: var(--rose);
+}
+
+.app-stage :is(.payment-status-card.paid, .consult-payment-gate.paid, .vt-sent) :is(p, small, span, strong) { color: inherit; }
+.app-stage .urgent-care-banner :is(p, h3, h4, strong, span) { color: inherit; }
+.app-stage .vt-check-on { color: var(--clinic-success-ink); }
+.app-stage .vt .vt-search input { background: transparent; }
+
+.app-stage :is(button, a, input, select, textarea):focus-visible {
+  outline: 2px solid var(--blue-dark);
+  outline-offset: 2px;
+}
+.app-stage .chat-input input:focus-visible { outline: none; }
+
+
+.app-stage .urgent-care-banner {
+  border: 1px solid var(--rose);
+  border-radius: var(--clinic-card-radius);
+  box-shadow: none;
+}
+
+.app-stage .urgent-care-actions .urgent-btn-call {
+  background: var(--surface);
+  color: var(--rose);
+  border: 1px solid var(--rose);
+  box-shadow: none;
+}
+
+.app-stage .urgent-care-actions .urgent-btn-whatsapp {
+  background: var(--green);
+  color: var(--clinic-success-ink);
+}
+
+.app-stage .urgent-care-actions .urgent-btn-dismiss {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+}
+
+.app-stage .chat-input input {
+  background: transparent;
+  border-color: transparent;
+}
+
+.app-stage :is(.chat-input, .detail-metric, .vt-tabs, .vt-footer-fixed) {
+  background: var(--clinic-overlay-fill);
+}
+
+.app-stage .profile-menu {
+  background: var(--clinic-overlay-fill);
+  border-radius: var(--clinic-card-radius);
+}
+
+.app-stage :is(.appointment-card, .doctor-duty-cta, .patient-shortcuts) {
+  font-variant-numeric: tabular-nums;
+}
+
+.app-stage .app-header {
+  gap: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.app-stage .app-header > div:first-child { min-width: 0; }
+.app-stage .patient-shortcut { padding: 12px 10px; }
+.app-stage .vt-tabs button.on { color: var(--blue-dark); }
+.app-stage .vt-row.vt-row-on { background: var(--soft-green); border-color: var(--green); }
+
+.app-stage :is(.payment-status-card, .consult-payment-gate) :is(p, small) { color: inherit; }
+
+.app-stage :is(.avatar-button, .app-mark, .chat-context-card > span) {
+  color: var(--clinic-action-ink);
+  background: var(--blue);
+  border-color: var(--blue);
+  box-shadow: none;
+}
+
+.app-stage :is(.live-view-card .split-actions > *, .clinic-switcher button) {
+  border-radius: var(--clinic-control-radius);
+  font-weight: 650;
+}
+
+.app-stage .clinic-detail-list span {
+  color: var(--muted);
+}
+
+.app-stage .payment-status-card.booking-only {
+  color: var(--ink);
+  background: var(--clinic-raised);
+  border-color: var(--line);
+}
+
+.app-stage :is(.doctor-duty-cta, .live-view-card h3) {
+  line-height: 1.24;
+}
+
+.app-stage .doctor-duty-cta { transition: transform 160ms ease; }
+
+.app-stage .chat-context-card small { color: var(--muted); }
+
+/* Doctor overview cards use category color without relying on color for meaning. */
+.app-stage .doctor-stats .doctor-stat {
+  --stat-tint: #E0EDF9;
+  --stat-accent: #255C82;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  min-height: 104px;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 5px;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--stat-accent) 26%, var(--line));
+  border-radius: var(--clinic-card-radius);
+  background: linear-gradient(140deg, color-mix(in srgb, var(--stat-tint) 90%, transparent),
+    color-mix(in srgb, var(--stat-tint) 35%, var(--clinic-panel-fill)));
+  box-shadow: var(--shadow-soft);
+}
+
+.app-stage .doctor-stat::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: -28px -22px auto auto;
+  width: 94px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--stat-accent) 7%, transparent);
+  pointer-events: none;
+}
+
+.app-stage .doctor-stat.green { --stat-tint: var(--soft-green); --stat-accent: var(--green); }
+.app-stage .doctor-stat.rose { --stat-tint: var(--soft-rose); --stat-accent: var(--rose); }
+.app-stage .doctor-stat.lavender { --stat-tint: var(--soft-lavender); --stat-accent: #5D4982; }
+
+.app-stage.dark-theme .doctor-stat.blue { --stat-tint: #273D4B; --stat-accent: #B5D9F2; }
+.app-stage.dark-theme .doctor-stat.lavender { --stat-accent: #DACAF4; }
+
+.app-stage .doctor-stat svg {
+  box-sizing: content-box;
+  padding: 6px;
+  border-radius: 10px;
+  color: var(--stat-accent);
+  background: color-mix(in srgb, var(--stat-accent) 10%, var(--stat-tint));
+}
+
+.app-stage .doctor-stat span {
+  color: var(--stat-accent);
+  font-size: .8125rem;
+  font-weight: 620;
+  line-height: 1.2;
+}
+
+.app-stage .doctor-stat strong {
+  margin: 1px 0 0;
+  color: var(--ink);
+  font-size: 1.65rem;
+  font-weight: 660;
+  line-height: 1;
+}
+
+
+.app-stage .doctor-header {
+  align-items: center;
+  flex: none;
+  margin-bottom: 12px;
+  padding-bottom: 13px;
+}
+
+.app-stage .doctor-header h2 {
+  margin: 3px 0 0;
+  font-size: clamp(1.38rem, 5.3vw, 1.65rem);
+  font-weight: 680;
+}
+
+.doctor-header-date {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: var(--clinic-caption);
+  line-height: 1.3;
+}
+
+.app-stage .bottom-nav {
+  --tab-gap: 4px;
+  column-gap: var(--tab-gap);
+}
+
+.app-stage .bottom-nav .floating-tab-selection {
+  position: absolute;
+  inset: 5px;
+  width: calc((100% - 10px - (var(--tabs) - 1) * var(--tab-gap)) / var(--tabs));
+  border-radius: 999px;
+  background: var(--soft-blue);
+  translate: calc(var(--selected-tab) * (100% + var(--tab-gap))) 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: translate 230ms cubic-bezier(.23,1,.32,1), opacity 145ms ease-out;
+}
+
+.app-stage .bottom-nav .floating-tab-selection[data-visible="true"] { opacity: 1; }
+.app-stage .bottom-nav button { background: transparent; position: relative; }
+.app-stage .bottom-nav button.active { background: transparent; }
+.app-stage .screen > .scroll-area { touch-action: pan-y pinch-zoom; }
+.app-stage :is(.app-header, .top-action) { touch-action: pan-x pinch-zoom; }
+
+@media (prefers-reduced-motion: reduce) {
+  .clinic-mesh-canvas,
+  .app-stage .bottom-nav .floating-tab-selection { transition: none; }
+}

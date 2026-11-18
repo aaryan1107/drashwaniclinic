@@ -1,0 +1,142 @@
+# Common examination findings, written by us. Format: display | synonym; synonym. Needs doctor review.
+General condition fair | afebrile and comfortable
+General condition poor | ill looking
+Conscious and oriented | alert
+Pallor present | anemic looking
+Icterus present | jaundice
+Cyanosis present | bluish discoloration
+Clubbing present | finger clubbing
+Edema present | pitting edema
+Pedal edema bilateral | bilateral ankle swelling
+Dehydration mild | dry tongue
+Dehydration moderate | sunken eyes; reduced skin turgor
+Lymph nodes not palpable | no lymphadenopathy
+Cervical lymph nodes enlarged | neck nodes
+Thyroid not enlarged | normal thyroid
+Goitre present | thyroid enlargement
+Jugular venous pressure raised | raised JVP
+Throat congested | pharyngeal congestion
+Tonsils enlarged | tonsillar hypertrophy
+Tonsillar exudate | white spots on tonsils
+Oral thrush | white patches in mouth
+Mouth ulcers present | oral ulcers
+Dental caries | cavities
+Gingivitis | gum inflammation
+Tongue coated | furred tongue
+Nasal mucosa congested | boggy nasal mucosa
+Deviated nasal septum | DNS
+Ear canal wax | cerumen
+Tympanic membrane congested | red ear drum
+Tympanic membrane perforation | ruptured ear drum
+Conjunctival pallor | pale conjunctiva
+Conjunctival congestion | red eyes
+Pupils equal and reactive | PERL
+Visual acuity reduced | poor vision on chart
+Heart sounds normal | S1 S2 normal
+Systolic murmur heard | murmur
+Irregular heart rhythm | irregular pulse
+Tachycardia | fast pulse
+Bradycardia | slow pulse
+Pulse volume low | thready pulse
+Blood pressure elevated | high BP
+Blood pressure low | hypotension
+Peripheral pulses well felt | pulses palpable
+Peripheral pulses diminished | weak foot pulses
+Chest clear | normal breath sounds; NAD chest
+Vesicular breath sounds | normal air entry
+Bilateral air entry equal | equal air entry
+Wheeze present | rhonchi
+Crepitations present | crackles
+Crepitations bilateral basal | basal crackles
+Reduced air entry | diminished breath sounds
+Bronchial breathing | consolidation sign
+Prolonged expiration | expiratory phase prolonged
+Tachypnea | fast breathing
+Chest indrawing | subcostal recession
+Abdomen soft | non tender abdomen
+Abdomen tender | tenderness present
+Epigastric tenderness | tenderness upper abdomen
+Right iliac fossa tenderness | RIF tenderness
+Right hypochondrium tenderness | liver area tenderness
+Guarding present | muscle guarding
+Rebound tenderness present | rebound
+Abdomen distended | distension
+Hepatomegaly | liver enlarged
+Splenomegaly | spleen enlarged
+Bowel sounds present | normal bowel sounds
+Bowel sounds sluggish | reduced bowel sounds
+Ascites present | shifting dullness
+Hernia present | inguinal hernia
+Suprapubic tenderness | bladder area tenderness
+Renal angle tenderness | loin tenderness
+Per rectal examination normal | PR normal
+Piles present | hemorrhoids on examination
+Skin dry | xerosis
+Skin rash present | erythematous rash
+Maculopapular rash | rash with flat and raised spots
+Urticarial wheals | hives on examination
+Eczematous lesions | dermatitis
+Fungal skin lesions | ring shaped lesions; tinea
+Scabies burrows | scabies lesions
+Pustules present | pus spots
+Hyperpigmented patches | dark patches
+Acanthosis nigricans | dark velvety neck
+Skin turgor normal | normal turgor
+Foot examination normal | normal diabetic foot
+Foot ulcer present | ulcer on foot
+Loss of monofilament sensation | reduced foot sensation
+Foot deformity | charcot foot
+Joint swelling present | swollen joint
+Joint tenderness | painful joint
+Reduced range of movement | restricted movement
+Knee crepitus | grating of knee
+Knee effusion | fluid in knee
+Straight leg raise positive | SLR positive
+Straight leg raise negative | SLR negative
+Lumbar spine tenderness | tender back
+Paraspinal muscle spasm | back spasm
+Muscle tenderness | tender muscles
+Muscle power normal | power 5/5
+Muscle power reduced | weakness on testing
+Tone normal | normal muscle tone
+Tone increased | spasticity
+Deep tendon reflexes normal | reflexes normal
+Deep tendon reflexes brisk | hyperreflexia
+Deep tendon reflexes reduced | hyporeflexia
+Plantar response flexor | normal plantar
+Plantar response extensor | Babinski positive
+Sensation intact | normal sensation
+Sensation reduced distally | stocking glove loss
+Gait normal | walks normally
+Gait unsteady | ataxic gait
+Romberg test positive | Romberg positive
+Neck stiffness present | neck rigidity
+Cranial nerves intact | CN normal
+Facial asymmetry | facial palsy
+Speech slurred | dysarthria
+Tremor present | hand tremor
+Orientation intact | oriented to time place person
+Mood low | depressed affect
+Anxious appearance | anxious
+Breast examination normal | no breast lump
+Breast lump palpable | lump in breast
+Per speculum normal | PS normal
+Cervical discharge present | vaginal discharge
+Uterus size normal | normal bimanual
+Gravid uterus fundal height appropriate | fundal height as per dates
+Fetal heart sound present | FHS present
+Scrotum normal | testes normal
+Hydrocele present | scrotal fluid swelling
+Phimosis | tight foreskin
+Growth normal for age | weight for age normal
+Underweight | low BMI
+Overweight | high BMI
+Obesity | very high BMI
+Central obesity | increased waist
+Anterior fontanelle normal | fontanelle normal
+Developmental milestones normal | age appropriate milestones
+Wound clean | no discharge
+Wound infected | pus discharge
+Burn superficial | first degree burn
+Fracture suspected | bony tenderness
+Swelling localized | local swelling
