@@ -1,0 +1,60 @@
+/* Patient Book tab. Settled cards: flat, borderless, depth from tinted rooms (see docs/brand/BRANDKIT.md). */
+.bk { display: grid; gap: 18px; padding-bottom: 104px; color: var(--ink); }
+.bk-intro { margin: 0; color: var(--muted); font-size: .9375rem; line-height: 1.5; }
+.bk-eyebrow { margin: 0; font-size: 12px; font-weight: 620; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); }
+.bk-step { display: grid; gap: 10px; }
+
+.bk-clinic { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: start; padding: 16px; border-radius: var(--clinic-card-radius, 14px); background: var(--room-sky, var(--surface)); }
+.bk-clinic-icon { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; background: var(--surface); color: var(--blue); }
+.bk-clinic > div { display: grid; gap: 4px; min-width: 0; }
+.bk-clinic strong { font-size: 1.0625rem; font-weight: 650; line-height: 1.3; }
+.bk-clinic small { display: flex; align-items: flex-start; gap: 6px; color: var(--muted); font-size: .875rem; line-height: 1.4; }
+.bk-clinic small svg { flex: none; margin-top: 2px; }
+
+/* Days scroll sideways so all seven stay on one row. */
+.bk-days { display: grid; grid-auto-flow: column; grid-auto-columns: 72px; gap: 8px; overflow-x: auto; scroll-snap-type: x proximity; margin-inline: -2px; padding: 2px; scrollbar-width: none; }
+.bk-days::-webkit-scrollbar { display: none; }
+.bk-day { scroll-snap-align: start; min-height: 84px; display: grid; align-content: center; justify-items: center; gap: 2px; padding: 8px 4px; border: 0; border-radius: var(--clinic-control-radius, 12px); background: var(--surface); color: var(--ink); font: inherit; cursor: pointer; transition: transform 120ms ease, background-color 180ms ease; }
+.bk-day span { font-size: .8125rem; font-weight: 600; color: var(--muted); }
+.bk-day strong { font-size: 1.375rem; font-weight: 680; font-variant-numeric: tabular-nums; line-height: 1.15; }
+.bk-day small { font-size: .75rem; color: var(--muted); }
+.bk-day:disabled { opacity: .45; cursor: not-allowed; }
+
+.bk-slot-group { display: grid; gap: 6px; }
+.bk-slot-label { font-size: .8125rem; font-weight: 600; color: var(--muted); }
+.bk-slots { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.bk-slot { min-height: 48px; border: 0; border-radius: var(--clinic-control-radius, 12px); background: var(--surface); color: var(--ink); font: inherit; font-size: .9375rem; font-weight: 600; font-variant-numeric: tabular-nums; cursor: pointer; transition: transform 120ms ease, background-color 180ms ease; }
+
+.bk-reasons { display: flex; flex-wrap: wrap; gap: 8px; }
+.bk-reason { min-height: 44px; padding: 0 14px; border: 0; border-radius: 999px; background: var(--surface); color: var(--ink); font: inherit; font-size: .9375rem; font-weight: 560; cursor: pointer; transition: transform 120ms ease, background-color 180ms ease; }
+
+.bk :is(.bk-day, .bk-slot, .bk-reason).is-on { background: var(--blue); color: var(--clinic-action-ink); }
+.bk :is(.bk-day, .bk-slot, .bk-reason).is-on :is(span, small) { color: inherit; }
+.bk :is(.bk-day, .bk-slot, .bk-reason):active:not(:disabled) { transform: scale(.97); }
+.bk :is(.bk-day, .bk-slot, .bk-reason):focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+
+.bk-summary, .bk-done { display: grid; gap: 12px; padding: 16px; border-radius: var(--clinic-card-radius, 14px); background: var(--room-mint, var(--soft-green)); }
+.bk-facts { margin: 0; display: grid; gap: 8px; }
+.bk-facts > div { display: flex; justify-content: space-between; gap: 12px; font-size: .9375rem; }
+.bk-facts dt { color: var(--muted); }
+.bk-facts dd { margin: 0; font-weight: 620; text-align: right; font-variant-numeric: tabular-nums; }
+.bk-fee { padding-top: 10px; border-top: 1px solid color-mix(in srgb, var(--ink) 12%, transparent); }
+.bk-fee dd { font-size: 1.0625rem; }
+.bk-mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: .8125rem; word-break: break-all; }
+
+.bk-done.is-pending { background: var(--room-amber, var(--warning)); }
+.bk-done h3 { margin: 0; font-size: 1.25rem; font-weight: 680; letter-spacing: -.01em; }
+.bk-done p { margin: 0; color: var(--muted); font-size: .9375rem; line-height: 1.45; }
+.bk-done-icon { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: var(--green); color: var(--clinic-success-ink); }
+.bk-done.is-pending .bk-done-icon { background: var(--amber); color: var(--surface); }
+
+.bk-alert { margin: 0; display: flex; gap: 8px; align-items: flex-start; padding: 12px 14px; border-radius: var(--clinic-control-radius, 12px); background: var(--soft-rose); color: var(--rose); font-size: .9375rem; line-height: 1.4; }
+.bk-alert svg { flex: none; margin-top: 2px; }
+.bk-alert.is-quiet { background: var(--clinic-raised); color: var(--ink); }
+.bk-empty { margin: 0; padding: 14px; border-radius: var(--clinic-control-radius, 12px); background: var(--surface); color: var(--muted); font-size: .9375rem; }
+.bk-note { margin: -6px 0 0; color: var(--muted); font-size: .8125rem; line-height: 1.45; text-align: center; }
+
+@media (prefers-reduced-motion: reduce) {
+  .bk :is(.bk-day, .bk-slot, .bk-reason) { transition: none; }
+  .bk :is(.bk-day, .bk-slot, .bk-reason):active:not(:disabled) { transform: none; }
+}

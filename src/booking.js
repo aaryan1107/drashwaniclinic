@@ -1,0 +1,72 @@
+// Pure helpers for the patient Book tab: a clinic visit paid for at booking.
+export const VISIT_FEE_RUPEES = 700;
+
+export const BOOKING_REASONS = [
+  "Diabetes follow-up",
+  "Thyroid",
+  "Blood pressure",
+  "Weight management",
+  "Fatty liver",
+  "Report review",
+  "Prescription renewal",
+  "Medicine side effects"
+];
+
+// Payment marker stored on consultation_payments.clinic so a visit payment never unlocks
+// the WhatsApp consultation flow, which reads the same table.
+export const VISIT_PAYMENT_PURPOSE = "clinic_visit";
+
+const minutesOf = (slot) => {
+  const match = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i.exec(String(slot).trim());
+  if (!match) return null;
+  let hours = Number(match[1]) % 12;
+  if (match[3].toUpperCase() === "PM") hours += 12;
+  return hours * 60 + Number(match[2]);
+};
+
+// Splits "8:00 AM"-style slots into Morning / Afternoon / Evening, keeping their order.
+export function groupSlots(slots) {
+  const groups = [["Morning", []], ["Afternoon", []], ["Evening", []]];
+  for (const slot of slots) {
+    const minutes = minutesOf(slot);
+    const index = minutes === null || minutes < 12 * 60 ? 0 : minutes < 17 * 60 ? 1 : 2;
+    groups[index][1].push(slot);
+  }
+  return groups.filter(([, items]) => items.length).map(([label, items]) => ({ label, slots: items }));
+}
+
+const asDate = (dateValue) => new Date(`${dateValue}T00:00:00`);
+
+export function dayLabel(dateValue, todayValue) {
+  const days = Math.round((asDate(dateValue) - asDate(todayValue)) / 86400000);
+  if (days === 0) return "Today";
+  if (days === 1) return "Tomorrow";
+  return asDate(dateValue).toLocaleDateString("en-IN", { weekday: "short" });
+}
+
+// "Fri, 20 Nov"
+export function longDate(dateValue) {
+  const date = asDate(dateValue);
+  if (Number.isNaN(date.getTime())) return dateValue;
+  return date.toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" });
+}
+
+// Row for public.appointment_requests once Razorpay has taken (or authorised) the fee.
+// paid: the verify function reported the payment captured. Otherwise it is still confirming.
+export function bookingRow({ appointment, user, clinic, paymentId, paid }) {
+  return {
+    patient_id: user.id,
+    patient_name: user.name || "Clinic patient",
+    patient_phone: user.phone || null,
+    clinic_id: clinic.id,
+    clinic_name: clinic.name,
+    mode: "Clinic visit",
+    visit_type: "in_clinic",
+    appointment_date: appointment.date,
+    appointment_time: appointment.time,
+    reason: appointment.reason,
+    payment_status: paid ? "PAID_CONFIRMED" : "PAYMENT_PENDING",
+    payment_reference: paymentId,
+    status: paid ? "Booked - fee paid" : "Booked - payment confirming"
+  };
+}
