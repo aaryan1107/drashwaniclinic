@@ -81,7 +81,6 @@ export function WelcomeHero() {
       </svg>
 
       <div className="wh-copy">
-        <span className="wh-eyebrow">Your doctor</span>
         <h1 id="clinic-doctor-name">Dr Ashwani <span>Kansal</span></h1>
         <p className="wh-role">Consultant Diabetologist and Physician</p>
         <p className="wh-creds">MBBS · DFID · M.MED · PGCAT</p>
@@ -111,7 +110,7 @@ function ConditionCard({ Icon, label, back, tone, index, open, onToggle }) {
           animate={reduce ? {} : { rotateY: flipped ? 180 : 0 }} transition={FLIP_SPRING}>
           <motion.span className="fc-face fc-front" aria-hidden="true" initial={false}
             animate={reduce ? { opacity: flipped ? 0 : 1 } : {}}>
-            <span className="welcome-care-icon"><Icon size={19} strokeWidth={1.8} /></span>
+            <span className="welcome-care-icon"><Icon size={22} strokeWidth={1.7} /></span>
             <span>{label}</span>
           </motion.span>
           <motion.span className="fc-face fc-back" aria-hidden="true" initial={false}
@@ -126,10 +125,7 @@ export function ConditionCards({ conditions }) {
   const [openLabel, setOpenLabel] = useState(null);
   return (
     <section className="welcome-care fc" aria-labelledby="fc-heading">
-      <div className="fc-head">
-        <h2 id="fc-heading">What we treat</h2>
-        <span>Tap a card</span>
-      </div>
+      <h2 id="fc-heading" className="fc-head">What we treat</h2>
       <ul>
         {conditions.map(([Icon, label, back], index) => (
           <ConditionCard key={label} Icon={Icon} label={label} back={back} tone={index % 3} index={index}
