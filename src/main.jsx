@@ -593,12 +593,15 @@ const createConsultationOrder = async ({ amountRupees, patient, clinic }) => {
   });
 
   if (!response.ok) {
-    throw new Error("Could not create Razorpay order.");
+    const failure = await response.json().catch(() => ({}));
+    throw new Error(response.status === 401
+      ? "Your session has expired. Sign in again to pay for your consultation."
+      : failure.error || "Could not create Razorpay order.");
   }
   return response.json();
 };
 
-const verifyConsultationPayment = async ({ order, response, patient, clinic }) => {
+const verifyConsultationPayment = async ({ order, response }) => {
   const accessToken = await getSupabaseAccessToken();
   const verifyResponse = await fetch(`${RAZORPAY_API_BASE}/verify-consultation-payment`, {
     method: "POST",
@@ -610,9 +613,7 @@ const verifyConsultationPayment = async ({ order, response, patient, clinic }) =
       order_id: order.order_id,
       razorpay_order_id: response.razorpay_order_id,
       razorpay_payment_id: response.razorpay_payment_id,
-      razorpay_signature: response.razorpay_signature,
-      patient,
-      clinic
+      razorpay_signature: response.razorpay_signature
     })
   });
 
@@ -1056,6 +1057,7 @@ function App() {
         clinic: activeClinic
       });
 
+      let checkoutReportedResult = false;
       const checkout = new window.Razorpay({
         key: order.razorpay_key_id || RAZORPAY_KEY_ID,
         amount: order.amount,
@@ -1070,13 +1072,14 @@ function App() {
         },
         theme: { color: "#176763" },
         handler: async (response) => {
+          checkoutReportedResult = true;
           setConsultPayment((current) => ({
             ...current,
             status: "verifying",
             message: "Verifying payment..."
           }));
           try {
-            const verification = await verifyConsultationPayment({ order, response, patient, clinic: activeClinic });
+            const verification = await verifyConsultationPayment({ order, response });
             if (verification.payment_status !== "captured") {
               setConsultPayment((current) => ({
                 ...current,
@@ -1115,6 +1118,7 @@ function App() {
         },
         modal: {
           ondismiss: () => {
+            if (checkoutReportedResult) return;
             setConsultPayment((current) => ({
               ...current,
               status: "not_started",
@@ -1125,6 +1129,7 @@ function App() {
       });
       if (typeof checkout.on === "function") {
         checkout.on("payment.failed", (response) => {
+          checkoutReportedResult = true;
           setConsultPayment({
             status: "failed",
             message: response?.error?.description || "Razorpay payment failed. No WhatsApp consultation was unlocked.",

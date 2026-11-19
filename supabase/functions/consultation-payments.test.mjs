@@ -19,7 +19,7 @@ const send = (body, extra = {}) => handle(new Request("https://functions.example
   body: JSON.stringify(body),
 }));
 const verification = {
-  order_id: "order_1", razorpay_payment_id: "pay_1",
+  order_id: "order_1", razorpay_order_id: "order_1", razorpay_payment_id: "pay_1",
   razorpay_signature: hmac(env.RAZORPAY_KEY_SECRET, "order_1|pay_1"),
 };
 
@@ -27,10 +27,16 @@ let user = "owner";
 let writes = [];
 let writeResult = [];
 let status = 200;
+let providerOrderStatus = 200;
+let providerOrderBody;
 globalThis.fetch = async (input, options) => {
   const url = new URL(input);
   if (url.pathname === "/auth/v1/user") return Response.json({ id: user });
-  if (url.pathname.startsWith("/v1/orders")) return Response.json(order);
+  if (url.pathname === "/v1/orders") {
+    providerOrderBody = JSON.parse(options.body);
+    return Response.json(order, { status: providerOrderStatus });
+  }
+  if (url.pathname.startsWith("/v1/orders/")) return Response.json(order);
   if (url.pathname.startsWith("/v1/payments")) return Response.json(payment);
   assert.equal(url.pathname, "/rest/v1/consultation_payments");
   writes.push({ url, method: options.method, body: JSON.parse(options.body) });
@@ -38,15 +44,25 @@ globalThis.fetch = async (input, options) => {
 };
 
 await import("./create-consultation-order/index.ts");
+assert.equal((await send({ amount: 99 })).status, 400);
+assert.equal((await send({ amount: 100 })).status, 400);
 assert.equal((await send({ amount: 70000, currency: "USD" })).status, 400);
+assert.equal((await send({ amount: 70000, receipt: "x".repeat(41) })).status, 400);
+assert.equal((await send({ amount: 70000 }, { Authorization: "" })).status, 401);
+providerOrderStatus = 503;
+assert.equal((await send({ amount: 70000 })).status, 500);
+providerOrderStatus = 200;
 status = 503;
 assert.equal((await send({ amount: 70000 })).status, 503);
 status = 200;
-assert.equal((await send({ amount: 70000 })).status, 200);
+assert.equal((await send({ amount: 70000, receipt: "clinic-test-1" })).status, 200);
+assert.equal(providerOrderBody.receipt, "clinic-test-1");
 assert.equal(writes.at(-1).body.patient.user_id, "owner");
 
 await import("./verify-consultation-payment/index.ts");
 writes = [];
+assert.equal((await send({ ...verification, razorpay_order_id: undefined })).status, 400);
+assert.equal((await send({ ...verification, razorpay_order_id: "order_other" })).status, 400);
 user = "other";
 assert.equal((await send(verification)).status, 403);
 user = "owner";
