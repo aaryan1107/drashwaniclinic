@@ -28,3 +28,9 @@ keystore-credentials*.txt
 medical-free-chatbot/venv/
 supabase/.temp/
 security-scans/
+
+# Local tool output
+.codex-artifacts/
+.trigger-tree/
+.firebase/
+android/capacitor-cordova-android-plugins/build/

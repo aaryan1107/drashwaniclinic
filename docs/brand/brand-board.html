@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Dr Ashwani Family Clinic: Brand Board</title>
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300..800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root { --paper:#F6F8F3; --card:#FFFFFD; --ink:#172D2A; --muted:#4C6660; --teal:#176763; --mint:#E1F4DF; --sage:#CFE7D3; --sky:#DDE9EC; --bar-h:#E0F0EC; --bar-v:#9FDCC0; }
+  body { margin:0; background:#101716; font-family:"Geist",system-ui,sans-serif; color:var(--ink); }
+  .eyebrow { font-size:11px; font-weight:620; letter-spacing:.09em; text-transform:uppercase; color:var(--muted); }
+  .num { font-variant-numeric: tabular-nums; }
+  .mark { position:relative; display:inline-block; aspect-ratio:1; border-radius:22%; background:var(--tile,var(--teal)); box-shadow: inset 0 0 0 var(--ring,0px) var(--line,transparent); }
+  .mark::before, .mark::after { content:""; position:absolute; left:50%; top:50%; border-radius:999px; transform:translate(-50%,-50%); }
+  .mark::before { width:56%; height:19%; background:var(--h,var(--bar-h)); }
+  .mark::after { width:19%; height:56%; background:var(--v,var(--bar-v)); }
+</style>
+</head>
+<body>
+<div class="min-h-screen p-8 grid gap-4" style="grid-template-columns:repeat(3,minmax(0,1fr)); grid-auto-rows:300px;">
+
+  <!-- 1. Logo cover -->
+  <section class="rounded-[14px] p-8 flex flex-col justify-between" style="background:var(--paper)">
+    <p class="eyebrow">01 · Identity</p>
+    <div class="flex items-center gap-4">
+      <span class="mark" style="width:72px"></span>
+      <div class="grid leading-none gap-1">
+        <b style="font-size:30px;font-weight:680;letter-spacing:-.02em">Dr Ashwani</b>
+        <span class="eyebrow">Family Clinic</span>
+      </div>
+    </div>
+    <p class="text-[13px]" style="color:var(--muted)">Family physician · metabolic care · Delhi NCR</p>
+  </section>
+
+  <!-- 2. Construction -->
+  <section class="rounded-[14px] p-8 flex flex-col justify-between" style="background:var(--card)">
+    <p class="eyebrow">02 · Construction</p>
+    <div class="flex items-center gap-8">
+      <div class="relative" style="width:150px;height:150px;background-image:linear-gradient(#d1dfdb 1px,transparent 1px),linear-gradient(90deg,#d1dfdb 1px,transparent 1px);background-size:15px 15px;">
+        <span class="mark absolute inset-0" style="width:150px;opacity:.92"></span>
+      </div>
+      <ul class="text-[13px] grid gap-2 num" style="color:var(--muted)">
+        <li><b style="color:var(--ink)">Patient bar</b> 0.56 × 0.19</li>
+        <li><b style="color:var(--ink)">Doctor bar</b> 0.19 × 0.56, on top</li>
+        <li><b style="color:var(--ink)">Tile corner</b> 0.22</li>
+        <li><b style="color:var(--ink)">Clear space</b> 0.25</li>
+      </ul>
+    </div>
+    <p class="text-[13px]" style="color:var(--muted)">Two tones, two people: the doctor holds the patient.</p>
+  </section>
+
+  <!-- 3. App icon + phone -->
+  <section class="rounded-[14px] p-8 flex items-end justify-between overflow-hidden" style="background:var(--sky)">
+    <div class="grid gap-3">
+      <p class="eyebrow">03 · App icon</p>
+      <div class="flex gap-3 items-end">
+        <span class="mark" style="width:64px"></span>
+        <span class="mark" style="width:44px;border-radius:999px"></span>
+        <span class="mark" style="width:28px"></span>
+      </div>
+    </div>
+    <div class="rounded-[22px] p-3 w-[170px] -mb-16 grid gap-2" style="background:var(--paper);box-shadow:0 0 0 6px #172D2A">
+      <div class="flex items-center gap-2"><span class="mark" style="width:22px"></span><b class="text-[11px]">Dr Ashwani</b></div>
+      <div class="rounded-[10px] p-2.5" style="background:var(--mint)"><p class="eyebrow" style="font-size:8px">Next visit</p><b class="text-[12px] num">Thu 4 Dec · 10:30</b></div>
+      <div class="rounded-[10px] p-2.5" style="background:var(--card)"><p class="eyebrow" style="font-size:8px">Fasting sugar</p><b class="text-[12px] num">112 mg/dL</b></div>
+      <div class="rounded-[8px] h-7" style="background:var(--teal)"></div>
+    </div>
+  </section>
+
+  <!-- 4. Line -->
+  <section class="rounded-[14px] p-8 flex flex-col justify-between" style="background:var(--teal);color:#EEF7F0">
+    <p class="eyebrow" style="color:#B7DED3">04 · Promise</p>
+    <h2 style="font-size:46px;font-weight:600;letter-spacing:-.035em;line-height:1">Care that<br/>follows up.</h2>
+    <p class="text-[13px]" style="color:#B7DED3">Calm · exact · warm · unhurried</p>
+  </section>
+
+  <!-- 5. Colour -->
+  <section class="rounded-[14px] p-8 flex flex-col justify-between" style="background:var(--card)">
+    <p class="eyebrow">05 · Colour</p>
+    <div class="grid grid-cols-6 gap-2 h-28">
+      <div class="rounded-[10px]" style="background:#176763"></div>
+      <div class="rounded-[10px]" style="background:#172D2A"></div>
+      <div class="rounded-[10px] ring-1 ring-black/5" style="background:#F6F8F3"></div>
+      <div class="rounded-[10px]" style="background:#E1F4DF"></div>
+      <div class="rounded-[10px]" style="background:#CFE7D3"></div>
+      <div class="rounded-[10px]" style="background:#DDE9EC"></div>
+    </div>
+    <div class="grid grid-cols-6 gap-2 text-[10px] num" style="color:var(--muted);font-family:'Geist Mono',monospace">
+      <span>Teal<br/>176763</span><span>Ink<br/>172D2A</span><span>Paper<br/>F6F8F3</span><span>Mint<br/>E1F4DF</span><span>Sage<br/>CFE7D3</span><span>Sky<br/>DDE9EC</span>
+    </div>
+  </section>
+
+  <!-- 6. Type -->
+  <section class="rounded-[14px] p-8 flex flex-col justify-between" style="background:var(--paper)">
+    <p class="eyebrow">06 · Type · Geist</p>
+    <div>
+      <p style="font-size:64px;font-weight:620;letter-spacing:-.04em;line-height:1">Aa 128</p>
+      <p class="mt-2 text-[15px]" style="color:var(--muted)">24 title · 17 section · 16 body · 13 caption</p>
+    </div>
+    <p class="eyebrow">Prescription-label caps · 0.09em</p>
+  </section>
+
+  <!-- 7. Rooms (cards) -->
+  <section class="rounded-[14px] p-6 grid grid-cols-2 gap-2.5" style="background:var(--paper)">
+    <div class="rounded-[14px] p-4 flex flex-col justify-between" style="background:var(--mint)"><p class="eyebrow">Care</p><b class="text-[15px]">Next steps</b></div>
+    <div class="rounded-[14px] p-4 flex flex-col justify-between" style="background:var(--sage)"><p class="eyebrow">Highlight</p><b class="text-[15px]">Doctor live</b></div>
+    <div class="rounded-[14px] p-4 flex flex-col justify-between" style="background:var(--sky)"><p class="eyebrow">Info</p><b class="text-[15px]">Clinic hours</b></div>
+    <div class="rounded-[14px] p-4 flex flex-col justify-between" style="background:#F7EED9"><p class="eyebrow" style="color:#84530C">Waiting</p><b class="text-[15px]">Fee pending</b></div>
+  </section>
+
+  <!-- 8. Buttons -->
+  <section class="rounded-[14px] p-8 flex flex-col justify-between" style="background:var(--card)">
+    <p class="eyebrow">08 · Actions · 12px radius</p>
+    <div class="grid gap-2.5">
+      <button id="board-primary" class="h-[52px] rounded-[12px] font-semibold text-white" style="background:var(--teal)">Book a visit</button>
+      <div class="grid grid-cols-2 gap-2.5">
+        <button id="board-secondary" class="h-12 rounded-[12px] font-semibold" style="background:#EDF3EC;box-shadow:inset 0 0 0 1px #809A92">Save draft</button>
+        <button id="board-danger" class="h-12 rounded-[12px] font-semibold" style="background:#FBE8EC;color:#A1243A">Cancel</button>
+      </div>
+    </div>
+    <div class="flex gap-2">
+      <span class="rounded-full px-3 py-1 text-[12px] font-semibold" style="background:var(--mint);color:#176763">Paid</span>
+      <span class="rounded-full px-3 py-1 text-[12px] font-semibold" style="background:#F7EED9;color:#84530C">Review</span>
+      <span class="rounded-full px-3 py-1 text-[12px] font-semibold" style="background:#FBE8EC;color:#A1243A">Urgent</span>
+    </div>
+  </section>
+
+  <!-- 9. Themes -->
+  <section class="rounded-[14px] p-8 flex flex-col justify-between" style="background:#191D1D;color:#EFF5F2">
+    <p class="eyebrow" style="color:#B7C8C2">09 · One mark, three themes</p>
+    <div class="flex gap-5 items-center">
+      <span class="mark" style="width:62px"></span>
+      <span class="mark" style="width:62px;--tile:#2B4540;--ring:1px;--line:#7B968C;--h:#EFF5F2;--v:#B7DED3"></span>
+      <span class="mark" style="width:62px;--tile:#21453C;--ring:1px;--line:#5E8C79;--h:#EEF7F0;--v:#ACE1BF"></span>
+    </div>
+    <div class="flex gap-5 text-[12px]" style="color:#B7C8C2"><span class="w-[62px]">Light</span><span class="w-[62px]">Charcoal</span><span class="w-[62px]">Pine</span></div>
+  </section>
+
+</div>
+</body>
+</html>

@@ -1,13 +1,18 @@
 import { App as CapacitorApp } from "@capacitor/app";
+import { clearCareReminders, DoctorCarePlan, PatientCarePlan } from "./CarePlan.jsx";
+import { DoctorPrescriptions, PatientPrescriptions, ReceptionPrescriptions } from "./Prescription.jsx";
 import { Browser } from "@capacitor/browser";
 import { Capacitor } from "@capacitor/core";
 import { Popover } from "@base-ui/react/popover";
-import React, { useMemo, useState, useEffect, useRef } from "react";
+import React, { lazy, Suspense, useContext, useMemo, useState, useEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
+const Visit = lazy(() => import("./Visit.jsx"));
+const AppointmentSheet = lazy(() => import("./AppointmentSheet.jsx"));
 import {
   Activity,
   AlertTriangle,
   Bell,
+  Brain,
   BookOpen,
   Bot,
   CalendarCheck,
@@ -16,6 +21,7 @@ import {
   ChevronRight,
   ClipboardList,
   Clock,
+  Droplet,
   ExternalLink,
   FileHeart,
   FileText,
@@ -27,7 +33,9 @@ import {
   LogOut,
   MapPin,
   MessageCircle,
-  Moon,
+  Eclipse,
+  Leaf,
+  Palette as AppearanceIcon,
   NotebookPen,
   Palette,
   Phone,
@@ -40,7 +48,6 @@ import {
   Sun,
   Upload,
   UserRound,
-  UserPlus,
   Users,
   Video,
   Weight
@@ -54,8 +61,14 @@ import {
   isPhoneIdentifier,
   normalizeClinicIdentifier
 } from "./auth";
-import "@fontsource-variable/outfit";
+import "@fontsource-variable/geist";
+import "./tailwind.css";
 import "./styles.css";
+import "./clinic-appearance.css";
+import "./clinic-theme.css";
+import "./clinic-brand.css";
+import { useClinicNavigation } from "./useClinicNavigation";
+import ClinicMesh, { ClinicMotion } from "./ClinicMesh";
 
 const RAZORPAY_KEY_ID = import.meta.env.VITE_RAZORPAY_KEY_ID || "";
 const RAZORPAY_API_BASE = import.meta.env.VITE_RAZORPAY_API_BASE || "/api";
@@ -70,7 +83,7 @@ const razorpayScriptUrl = "https://checkout.razorpay.com/v1/checkout.js";
 // consultation_payments.payment_status values that unlock WhatsApp consultation.
 // PAID_CONFIRMED / AUTHORIZED are written by the verify Edge Function (Razorpay checkout).
 // MANUALLY_VERIFIED is written by the doctor after receiving a hosted payment-link payment.
-const CONSULT_PAID_STATUSES = ["PAID_CONFIRMED", "AUTHORIZED", "MANUALLY_VERIFIED"];
+const CONSULT_PAID_STATUSES = ["PAID_CONFIRMED", "MANUALLY_VERIFIED"];
 const CONSULT_LINK_PENDING_STATUS = "PAYMENT_LINK_OPENED";
 const CONSULT_IN_FLIGHT_STATUSES = ["creating_order", "verifying"];
 
@@ -110,6 +123,15 @@ async function fetchConsultPayment(userId) {
       paidAt: formatPaidAt(paid.verified_at || paid.created_at),
       paymentUrl: ""
     };
+  }
+
+  // Only the latest attempt decides pending/failed, so an old attempt can never lock the Pay button.
+  const latest = rows[0]?.payment_status;
+  if (latest === "FAILED") {
+    return { ...makeDefaultConsultPayment(), status: "failed", message: "Your last payment did not go through. If money was deducted, Razorpay returns it automatically. You can try again." };
+  }
+  if (["AUTHORIZED", "CAPTURE_PENDING"].includes(latest)) {
+    return { status: "capture_pending", message: "Payment authorized. Waiting for Razorpay to confirm capture.", paymentId: "", paidAt: "", paymentUrl: "" };
   }
 
   if (rows.some((row) => row.payment_status === CONSULT_LINK_PENDING_STATUS)) {
@@ -235,6 +257,7 @@ const educationPostToRow = (post) => ({
 
 const recordRowToPatient = (row) => ({
   id: row.id,
+  ownerId: row.owner_id,
   name: row.name,
   age: row.age || 0,
   gender: row.gender || "Patient",
@@ -412,7 +435,7 @@ const isPhoneProviderDisabled = (error) => {
 
 const friendlyAuthError = (error) => {
   if (isPhoneProviderDisabled(error)) {
-    return "Phone OTP is not enabled in Supabase yet. Enable Auth > Providers > Phone and connect an SMS provider, then Send code will work.";
+    return "SMS sign-in is temporarily unavailable. Use your password or continue with Google.";
   }
   return error?.message || "Authentication failed. Please try again.";
 };
@@ -595,25 +618,72 @@ const verifyConsultationPayment = async ({ order, response, patient, clinic }) =
 
   if (!verifyResponse.ok) {
     const failure = await verifyResponse.json().catch(() => ({}));
+    if (verifyResponse.status === 409 && failure.payment_status === "authorized") return failure;
     throw new Error(failure.error || "Payment completed, but verification failed.");
   }
   return verifyResponse.json();
 };
 
+const clinicThemes = [
+  ["light", "Light", Sun],
+  ["charcoal", "Charcoal", Eclipse],
+  ["pine", "Pine", Leaf]
+];
+
+function getClinicTheme() {
+  const saved = document.documentElement.dataset.clinicBootTheme;
+  return clinicThemes.some(([id]) => id === saved)
+    ? saved
+    : window.matchMedia("(prefers-color-scheme: dark)").matches ? "charcoal" : "light";
+}
+
 function App() {
   const [screen, setScreen] = useState("intro");
   const [authMode, setAuthMode] = useState("signin");
-  const [authRole, setAuthRole] = useState("patient");
   const [googleProfile, setGoogleProfile] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
   const [authMessage, setAuthMessage] = useState("");
   const directAuth = useRef(false);
+  const recoveringPassword = useRef(false);
   const handledAuthUser = useRef(null);
-  const [theme, setTheme] = useState(() => window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  const [theme, setTheme] = useState(getClinicTheme);
+  const [meshPaused, setMeshPaused] = useState(() => localStorage.getItem("clinic-mesh-motion") === "paused");
+  function toggleMeshMotion() {
+    const next = !meshPaused;
+    localStorage.setItem("clinic-mesh-motion", next ? "paused" : "playing");
+    setMeshPaused(next);
+  }
+  const changeTheme = (next) => {
+    setTheme(next);
+    document.documentElement.dataset.clinicBootTheme = next;
+    try {
+      localStorage.setItem("clinicAppearance", next);
+    } catch {
+      // Keep the selected appearance for this session.
+    }
+  };
   const [activeTab, setActiveTab] = useState("home");
   const [doctorTab, setDoctorTab] = useState("today");
   const [patientRecords, setPatientRecords] = useState(patients);
   const [selectedPatientId, setSelectedPatientId] = useState(patients[0]?.id ?? null);
+  const navigation = useClinicNavigation({
+    scope: authMode === "reset" && screen === "auth" ? "recovery" : currentUser?.id || "guest",
+    route: {
+      screen,
+      ...(screen === "auth" ? { authMode } : {}),
+      ...(screen === "patient" ? { tab: activeTab } : {}),
+      ...(screen === "doctor" ? { tab: doctorTab, ...(doctorTab === "patientDetail" ? { selectedPatientId } : {}) } : {})
+    },
+    restoreRoute: (route) => {
+      setScreen(route.screen);
+      if (route.screen === "auth") { setAuthMode(route.authMode); setAuthMessage(""); }
+      if (route.screen === "patient") setActiveTab(route.tab);
+      if (route.screen === "doctor") {
+        if (route.selectedPatientId) setSelectedPatientId(route.selectedPatientId);
+        setDoctorTab(route.tab);
+      }
+    }
+  });
   const [availability, setAvailability] = useState({
     status: "Off Duty",
     clinicId: "clinic-2",
@@ -893,6 +963,7 @@ function App() {
   };
 
   const startConsultationPayment = async () => {
+    if (["paid", "capture_pending", ...CONSULT_IN_FLIGHT_STATUSES].includes(consultPayment.status)) return;
     const amountRupees = normalizeRupees(consultationFee.amount);
     const openPaymentLink = async (message) => {
       // Open the page first so the browser treats this as a user gesture, then record it.
@@ -997,7 +1068,7 @@ function App() {
           clinic: activeClinic.name,
           purpose: "doctor_consultation"
         },
-        theme: { color: "#3478f6" },
+        theme: { color: "#176763" },
         handler: async (response) => {
           setConsultPayment((current) => ({
             ...current,
@@ -1005,7 +1076,16 @@ function App() {
             message: "Verifying payment..."
           }));
           try {
-            await verifyConsultationPayment({ order, response, patient, clinic: activeClinic });
+            const verification = await verifyConsultationPayment({ order, response, patient, clinic: activeClinic });
+            if (verification.payment_status !== "captured") {
+              setConsultPayment((current) => ({
+                ...current,
+                status: "capture_pending",
+                message: "Payment authorized. Waiting for Razorpay to confirm capture.",
+                paymentId: response.razorpay_payment_id
+              }));
+              return;
+            }
             setConsultPayment({
               status: "paid",
               message: "Payment verified. WhatsApp consultation is unlocked.",
@@ -1067,6 +1147,15 @@ function App() {
   };
 
   useEffect(() => {
+    const boot = document.getElementById("clinic-boot");
+    const frame = requestAnimationFrame(() => {
+      boot?.setAttribute("aria-hidden", "true");
+      boot?.classList.add("is-ready");
+    });
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
+  useEffect(() => {
     loadClinicBackendData();
   }, []);
 
@@ -1091,28 +1180,26 @@ function App() {
     }
   };
 
-  const upsertClinicProfile = async (user, requestedRole = authRole, extra = {}) => {
+  const upsertClinicProfile = async (user, extra = {}) => {
     if (!user?.id) return null;
     const metadata = user.user_metadata || {};
     const email = user.email || extra.email || null;
     const { data: existing, error: profileError } = await supabase
       .from("clinic_profiles")
-      .select("role, medical_profile, phone")
+      .select("medical_profile, phone")
       .eq("id", user.id)
       .maybeSingle();
     if (profileError) throw profileError;
 
-    const wantsDoctor = requestedRole === "doctor" || existing?.role === "doctor" || user.app_metadata?.role === "doctor";
-    let role = "patient";
+    const { data: approved, error: roleError } = await supabase.rpc("clinic_is_doctor");
+    if (roleError) throw roleError;
+    let role = approved === true ? "doctor" : "patient";
 
-    if (wantsDoctor) {
-      const { data: approved, error } = await supabase.rpc("clinic_is_doctor");
-      if (error) throw error;
-      if (!approved && requestedRole === "doctor") {
-        await supabase.auth.signOut();
-        throw new Error("This account is not approved for doctor access.");
-      }
-      if (approved) role = "doctor";
+    // Front-desk staff are allowlisted in clinic_staff. A failed check (for example before the
+    // migration is deployed) leaves the account a normal patient, never grants extra access.
+    if (role === "patient") {
+      const { data: isStaff, error: staffError } = await supabase.rpc("clinic_is_staff");
+      if (!staffError && isStaff === true) role = "receptionist";
     }
 
     const profile = {
@@ -1134,8 +1221,8 @@ function App() {
     return { ...profile, hasMedicalProfile: Object.keys(existing?.medical_profile || {}).length > 0 };
   };
 
-  const applySupabaseUser = async (user, requestedRole = authRole, extra = {}) => {
-    const dbProfile = await upsertClinicProfile(user, requestedRole, extra);
+  const applySupabaseUser = async (user, extra = {}) => {
+    const dbProfile = await upsertClinicProfile(user, extra);
     if (!dbProfile) return;
     handledAuthUser.current = user.id;
 
@@ -1164,6 +1251,20 @@ function App() {
       return;
     }
 
+    if (dbProfile.role === "receptionist") {
+      setCurrentUser({
+        id: dbProfile.id,
+        role: "receptionist",
+        name: dbProfile.full_name || "Front desk",
+        email: dbProfile.email,
+        phone: dbProfile.phone,
+        avatar: dbProfile.avatar_url,
+        provider: dbProfile.provider
+      });
+      setScreen("reception");
+      return;
+    }
+
     setCurrentUser({
       id: dbProfile.id,
       role: "patient",
@@ -1177,10 +1278,8 @@ function App() {
   };
 
   const showGoogleError = (message) => {
-    const role = window.localStorage.getItem("clinicAuthRole");
     window.localStorage.removeItem("clinicAuthRole");
     window.localStorage.removeItem("clinicAuthNeedsMedicalProfile");
-    setAuthRole(role === "doctor" ? "doctor" : "patient");
     setScreen("auth");
     setAuthMessage(message);
   };
@@ -1194,25 +1293,40 @@ function App() {
     }
 
     const { data: subscription } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_OUT") handledAuthUser.current = null;
+      if (event === "PASSWORD_RECOVERY" && session?.user) {
+        recoveringPassword.current = true;
+        window.localStorage.removeItem("clinicPasswordRecovery");
+        window.localStorage.removeItem("clinicAuthNeedsMedicalProfile");
+        setAuthMessage("");
+        setAuthMode("reset");
+        setScreen("auth");
+        return;
+      }
+      if (event === "SIGNED_OUT") {
+        recoveringPassword.current = false;
+        handledAuthUser.current = null;
+        setCurrentUser(null);
+        setScreen("auth");
+      }
+      if (!session && (event === "INITIAL_SESSION" || event === "SIGNED_OUT")) {
+        clearCareReminders().catch(() => {});
+      }
       if ((event !== "INITIAL_SESSION" && event !== "SIGNED_IN") || !session?.user || directAuth.current) return;
       if (handledAuthUser.current === session.user.id) return;
       handledAuthUser.current = session.user.id;
 
-      const requestedRole = window.localStorage.getItem("clinicAuthRole") || "patient";
       const needsMedicalProfile = window.localStorage.getItem("clinicAuthNeedsMedicalProfile") === "1";
       window.localStorage.removeItem("clinicAuthRole");
       window.localStorage.removeItem("clinicAuthNeedsMedicalProfile");
 
       // Supabase holds its auth lock while notifying listeners.
       window.setTimeout(async () => {
-        if (!mounted) return;
+        if (!mounted || recoveringPassword.current) return;
         try {
-          await applySupabaseUser(session.user, requestedRole, { skipMedicalProfile: !needsMedicalProfile });
+          await applySupabaseUser(session.user, { skipMedicalProfile: !needsMedicalProfile });
         } catch (error) {
           if (!mounted) return;
           handledAuthUser.current = null;
-          setAuthRole(requestedRole === "doctor" ? "doctor" : "patient");
           setScreen("auth");
           setAuthMessage(friendlyAuthError(error));
         }
@@ -1232,12 +1346,15 @@ function App() {
     const finishGoogleSignIn = async ({ url }) => {
       const callback = readOAuthCallback(url, NATIVE_AUTH_CALLBACK);
       if (!active || !callback || processedUrl === url ||
-          window.localStorage.getItem("clinicAuthNeedsMedicalProfile") === null) return;
+          (window.localStorage.getItem("clinicAuthNeedsMedicalProfile") === null &&
+           window.localStorage.getItem("clinicPasswordRecovery") === null)) return;
       processedUrl = url;
+      const isRecovery = window.localStorage.getItem("clinicPasswordRecovery") !== null;
+      window.localStorage.removeItem("clinicPasswordRecovery");
       void Browser.close().catch(() => {});
 
       if (callback.error || !callback.code) {
-        showGoogleError("Google sign-in could not be completed. Please try again.");
+        showGoogleError(isRecovery ? "The password reset link could not be opened. Request a new link." : "Google sign-in could not be completed. Please try again.");
         return;
       }
       try {
@@ -1264,8 +1381,8 @@ function App() {
     setAuthMessage("");
     try {
       const native = Capacitor.isNativePlatform();
-      window.localStorage.setItem("clinicAuthRole", authRole);
-      window.localStorage.setItem("clinicAuthNeedsMedicalProfile", authRole === "patient" ? "1" : "0");
+      window.localStorage.removeItem("clinicPasswordRecovery");
+      window.localStorage.setItem("clinicAuthNeedsMedicalProfile", "1");
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
@@ -1284,7 +1401,7 @@ function App() {
     }
   };
 
-  const handleEmailAuth = async ({ mode, role, email, phone, password, fullName, identifierType = "email" }) => {
+  const handleEmailAuth = async ({ mode, email, phone, password, fullName, identifierType = "email" }) => {
     setAuthMessage("");
     const normalizedIdentifier = normalizeClinicIdentifier(email || phone);
     const normalizedPhone = normalizePhone(phone || normalizedIdentifier);
@@ -1303,11 +1420,8 @@ function App() {
             email: normalizeClinicIdentifier(email),
             password,
             options: {
-              data: {
-                full_name: fullName,
-                phone,
-                role
-              }
+              emailRedirectTo: Capacitor.isNativePlatform() ? NATIVE_AUTH_CALLBACK : window.location.origin + "/",
+              data: { full_name: fullName, phone }
             }
           })
         : supabase.auth.signInWithPassword(
@@ -1316,12 +1430,13 @@ function App() {
 
       const { data, error } = await authCall;
       if (error) throw error;
-      if (!data.user) {
+      if (!data.session) {
+        if (mode === "signup") window.localStorage.setItem("clinicAuthNeedsMedicalProfile", "1");
         setAuthMessage("Check your email to confirm the account, then sign in.");
         return;
       }
 
-      await applySupabaseUser(data.user, role, {
+      await applySupabaseUser(data.user, {
         fullName,
         phone: normalizedPhone || phone,
         provider: "email",
@@ -1334,29 +1449,27 @@ function App() {
     }
   };
 
-  const handleSendPhoneOtp = async ({ role, phone }) => {
+  const handleSendPhoneOtp = async ({ phone }) => {
     setAuthMessage("");
     const normalizedPhone = normalizePhone(phone);
-    if (!normalizedPhone) {
-      setAuthMessage("Please enter phone number in +91 format.");
-      return;
+    if (!/^\+\d{8,15}$/.test(normalizedPhone)) {
+      setAuthMessage("Enter your phone number with its country code, such as +91.");
+      return false;
     }
-    window.localStorage.setItem("clinicAuthRole", role);
-    const { error } = await supabase.auth.signInWithOtp({ phone: normalizedPhone });
+    const { error } = await supabase.auth.signInWithOtp({
+      phone: normalizedPhone,
+      options: { shouldCreateUser: false }
+    });
     setAuthMessage(error ? friendlyAuthError(error) : "Code sent to phone.");
+    return !error;
   };
 
-  const handleVerifyPhoneOtp = async ({ role, phone, token }) => {
+  const handleVerifyPhoneOtp = async ({ phone, token }) => {
     setAuthMessage("");
     const normalizedPhone = normalizePhone(phone);
 
     if (!normalizedPhone || !token) {
       setAuthMessage("Please enter phone number and OTP.");
-      return;
-    }
-
-    if (role === "doctor") {
-      setAuthMessage("Doctor OTP login is disabled. Please use approved Google/email login.");
       return;
     }
 
@@ -1368,7 +1481,7 @@ function App() {
         type: "sms"
       });
       if (error) throw error;
-      await applySupabaseUser(data.user, role, {
+      await applySupabaseUser(data.user, {
         phone: normalizedPhone,
         provider: "phone",
         skipMedicalProfile: false
@@ -1378,6 +1491,34 @@ function App() {
     } finally {
       directAuth.current = false;
     }
+  };
+
+  const sendPasswordReset = async (email) => {
+    setAuthMessage("");
+    const native = Capacitor.isNativePlatform();
+    window.localStorage.removeItem("clinicAuthNeedsMedicalProfile");
+    if (native) window.localStorage.setItem("clinicPasswordRecovery", "1");
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: native ? NATIVE_AUTH_CALLBACK : window.location.origin + "/"
+    });
+    if (error) window.localStorage.removeItem("clinicPasswordRecovery");
+    setAuthMessage(error ? friendlyAuthError(error) : "If the email is registered, you’ll receive a password reset link.");
+  };
+
+  const saveNewPassword = async (password) => {
+    setAuthMessage("");
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) {
+      setAuthMessage(friendlyAuthError(error));
+      return;
+    }
+    const { error: signOutError } = await supabase.auth.signOut({ scope: "local" });
+    if (signOutError) {
+      setAuthMessage("Your password was updated. Close and reopen the app before signing in again.");
+      return;
+    }
+    setAuthMode("signin");
+    setAuthMessage("Password updated. Sign in with your new password.");
   };
 
   const activeClinic = clinics.find((clinic) => clinic.id === availability.clinicId) || clinics[0];
@@ -1468,8 +1609,8 @@ function App() {
     return "Appointment request sent to the clinic backend.";
   };
 
-  const openAuthFromIntro = (role = "patient") => {
-    setAuthRole(role);
+  const openAuthFromIntro = () => {
+    setAuthMessage("");
     setAuthMode("signin");
     setScreen("auth");
   };
@@ -1516,7 +1657,7 @@ function App() {
           if (cancelled) return;
           setConsultPayment((current) => {
             if (CONSULT_IN_FLIGHT_STATUSES.includes(current.status)) return current;
-            return next || makeDefaultConsultPayment();
+            return next || (current.status === "capture_pending" ? current : makeDefaultConsultPayment());
           });
         })
         .catch((error) => console.warn("Consultation payment status load failed:", error.message));
@@ -1527,11 +1668,13 @@ function App() {
       if (document.visibilityState === "visible") restore();
     };
     document.addEventListener("visibilitychange", onVisible);
+    const poll = consultPayment.status === "capture_pending" ? setInterval(onVisible, 8000) : null;
     return () => {
+      clearInterval(poll);
       cancelled = true;
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [currentUser?.id, currentUser?.role]);
+  }, [currentUser?.id, currentUser?.role, consultPayment.status === "capture_pending"]);
 
   // Writes the "payment page opened" row the doctor confirms against. One pending row per patient.
   const recordPaymentLinkOpened = async () => {
@@ -1630,32 +1773,36 @@ function App() {
     setCurrentUser(null);
     setGoogleProfile(null);
     setConsultPayment(makeDefaultConsultPayment());
-    setAuthRole("patient");
     setAuthMode("signin");
     setScreen("auth");
   };
 
   return (
-    <main className={`app-stage ${theme === "dark" ? "dark-theme" : ""}`}>
-      <div className="phone-shell">
+    <ClinicMotion.Provider value={{ paused: meshPaused, toggle: toggleMeshMotion }}>
+    <main className={`app-stage ${theme === "light" ? "" : "dark-theme"}`} data-clinic-theme={theme}>
+      <div className="phone-shell" ref={navigation.shell} onTouchStart={navigation.onTouchStart}
+        onTouchEnd={navigation.onTouchEnd} onTouchCancel={navigation.onTouchCancel} onScrollCapture={navigation.onScrollCapture}>
+        <ClinicMesh theme={theme} paused={meshPaused} />
         {screen === "intro" && (
           <IntroScreen
-            onPatient={() => openAuthFromIntro("patient")}
-            onDoctor={() => openAuthFromIntro("doctor")}
+            theme={theme}
+            setTheme={changeTheme}
+            onContinue={openAuthFromIntro}
           />
         )}
         {screen === "auth" && (
           <AuthScreen
-            onBack={() => setScreen("intro")}
+            onBack={authMode === "reset" ? signOut : () => { if (!navigation.goBack()) setScreen("intro"); }}
             authMode={authMode}
-            setAuthMode={setAuthMode}
-            authRole={authRole}
-            setAuthRole={setAuthRole}
+            setAuthMode={(next) => { setAuthMessage(""); setAuthMode(next); }}
             authMessage={authMessage}
             onEmailAuth={handleEmailAuth}
             onSendPhoneOtp={handleSendPhoneOtp}
             onVerifyPhoneOtp={handleVerifyPhoneOtp}
             onGoogleSignIn={handleGoogleSignIn}
+            onPasswordReset={sendPasswordReset}
+            onSavePassword={saveNewPassword}
+            onError={(error) => setAuthMessage(friendlyAuthError(error))}
           />
         )}
         {screen === "patientMedicalInfo" && (
@@ -1672,7 +1819,7 @@ function App() {
             setActiveTab={setActiveTab}
             currentUser={currentUser}
             theme={theme}
-            setTheme={setTheme}
+            setTheme={changeTheme}
             onSignOut={signOut}
             availability={availability}
             activeClinic={activeClinic}
@@ -1701,7 +1848,7 @@ function App() {
             setDoctorTab={setDoctorTab}
             currentUser={currentUser}
             theme={theme}
-            setTheme={setTheme}
+            setTheme={changeTheme}
             onSignOut={signOut}
             availability={availability}
             setAvailability={updateLiveAvailability}
@@ -1715,277 +1862,269 @@ function App() {
             consultationFee={consultationFee}
           />
         )}
+        {screen === "reception" && (
+          <ReceptionApp currentUser={currentUser} theme={theme} setTheme={changeTheme} onSignOut={signOut} />
+        )}
       </div>
     </main>
+    </ClinicMotion.Provider>
   );
 }
 
-function IntroScreen({ onPatient, onDoctor }) {
+// Front desk: read-only prescription lookup and printing. Staff cannot issue, edit or void.
+function ReceptionApp({ currentUser, theme, setTheme, onSignOut }) {
   return (
-    <section className="screen intro-screen">
-      <div className="intro-hero">
-        <img src="/doctor-ashwani-cutout.png" alt="Dr. Ashwani Kansal" fetchPriority="high" />
-        <div className="intro-hero-card">
-          <span className="intro-clinic-mark"><HeartPulse size={22} /></span>
-          <strong>Dr. Ashwani’s<br />Family Clinic</strong>
+    <section className="screen app-screen">
+      <div className="app-header">
+        <div>
+          <span className="kicker">Front desk</span>
+          <h2>Prescriptions</h2>
         </div>
+        <ProfileButton user={currentUser} role="receptionist" theme={theme} setTheme={setTheme} onSignOut={onSignOut} />
+      </div>
+      <div className="scroll-area">
+        <ReceptionPrescriptions clinics={clinics} />
+      </div>
+    </section>
+  );
+}
+
+const clinicSpecialties = [
+  [Droplet, "Diabetes"],
+  [Activity, "Thyroid"],
+  [Weight, "Obesity care"],
+  [HeartPulse, "High blood pressure"],
+  [Brain, "OCD"],
+  [MessageCircle, "Anxiety"]
+];
+
+function ThemeChoices({ theme, setTheme }) {
+  const motion = useContext(ClinicMotion);
+  return (
+    <div className="appearance-choices" role="group" aria-label="App appearance">
+      {clinicThemes.map(([id, label, Icon]) => (
+        <Popover.Close key={id} onClick={() => setTheme(id)} aria-pressed={theme === id}>
+          <Icon size={17} />
+          <span>{label}</span>
+          {theme === id && <Check size={16} className="appearance-check" aria-hidden="true" />}
+        </Popover.Close>
+      ))}
+      <button type="button" className="appearance-motion" onClick={motion.toggle}>
+        {motion.paused ? "Resume background motion" : "Pause background motion"}
+      </button>
+    </div>
+  );
+}
+
+const patientFeaturePreviews = [
+  [CalendarCheck, "Book visits", "Request a visit and check when the clinic confirms it."],
+  [Pill, "Prescriptions", "Read the medicines and instructions your doctor has shared."],
+  [Activity, "Health readings", "Record blood sugar, blood pressure, weight, and HbA1c."],
+  [Bell, "Care reminders", "Enable reminders on your phone for medicines and follow-ups."],
+  [Video, "Online consults", "Check availability and start the clinic’s online consultation process."],
+  [BookOpen, "Health library", "Read education posts shared by the clinic."],
+  [MapPin, "Clinic status", "See whether the doctor is available and where the clinic is open."],
+  [Bot, "Clinic assistant", "Find help with booking and using the app."]
+];
+
+function PatientFeaturePreview({ feature: [Icon, label, description], portalContainer }) {
+  return (
+    <li>
+      <Popover.Root>
+        <Popover.Trigger className="welcome-feature-trigger grid min-w-0 items-center text-left">
+          <span className="welcome-feature-icon"><Icon size={16} aria-hidden="true" /></span>
+          <span>{label}</span>
+          <ChevronRight size={14} className="welcome-feature-arrow" aria-hidden="true" />
+        </Popover.Trigger>
+        <Popover.Portal container={portalContainer}>
+          <Popover.Positioner align="center" side="top" sideOffset={8} viewportPadding={14} className="welcome-theme-positioner">
+            <Popover.Popup className="welcome-feature-popover">
+              <Popover.Title>{label}</Popover.Title>
+              <Popover.Description>{description}</Popover.Description>
+            </Popover.Popup>
+          </Popover.Positioner>
+        </Popover.Portal>
+      </Popover.Root>
+    </li>
+  );
+}
+
+function IntroScreen({ onContinue, theme, setTheme }) {
+  const welcomeOverlaysRef = useRef(null);
+  const ThemeIcon = clinicThemes.find(([id]) => id === theme)?.[2] || AppearanceIcon;
+
+  return (
+    <section className="screen intro-screen clinic-welcome" aria-labelledby="clinic-doctor-name">
+      <header className="welcome-bar">
+        <div className="welcome-identity">
+          <span className="clinic-mark" aria-hidden="true" />
+          <span className="clinic-wordmark"><b>Dr Ashwani</b><small>Family Clinic</small></span>
+        </div>
+        <div className="welcome-appearance-slot">
+          <Popover.Root modal={false}>
+            <Popover.Trigger className="welcome-appearance" aria-label="App appearance">
+              <ThemeIcon size={20} aria-hidden="true" />
+            </Popover.Trigger>
+            <Popover.Portal container={welcomeOverlaysRef}>
+              <Popover.Positioner positionMethod="fixed" side="bottom" align="end" sideOffset={8}
+                viewportPadding={12} className="welcome-theme-positioner">
+                <Popover.Popup className="profile-menu welcome-theme-menu">
+                  <Popover.Title className="welcome-theme-title">Appearance</Popover.Title>
+                  <ThemeChoices theme={theme} setTheme={setTheme} />
+                </Popover.Popup>
+              </Popover.Positioner>
+            </Popover.Portal>
+          </Popover.Root>
+        </div>
+      </header>
+
+      <div className="welcome-doctor">
+        <div className="welcome-doctor-copy">
+          <h1 id="clinic-doctor-name">Dr. Ashwani <span>Kansal</span></h1>
+          <p className="welcome-role">Consultant Diabetologist<br />and Physician</p>
+          <p className="welcome-credentials">MBBS, DFID, M.MED, PGCAT</p>
+        </div>
+        <img className="welcome-portrait" src="/doctor-ashwani-welcome.webp" alt="" fetchPriority="high" />
       </div>
 
-      <div className="intro-copy">
-        <span className="kicker">Consultant Diabetologist and Physician</span>
-        <h1>Dr. Ashwani Kansal</h1>
-        <p>MBBS, DFID, M.MED, PGCAT</p>
-        <p>Appointments and follow-up care for diabetes, obesity, thyroid conditions, hypertension, OCD and anxiety.</p>
-      </div>
+      <section className="welcome-care" aria-label="Conditions treated">
+        <ul>
+          {clinicSpecialties.map(([Icon, label], index) => (
+            <li key={label} data-care-tone={index % 3}>
+              <span className="welcome-care-icon"><Icon size={19} strokeWidth={1.8} aria-hidden="true" /></span>
+              <span>{label}</span>
+            </li>
+          ))}
+        </ul>
+      </section>
 
-      <div className="intro-actions">
-        <button className="primary-button" onClick={onPatient}>
-          <CalendarCheck size={20} />
-          Continue as patient
+      <section className="welcome-features" aria-labelledby="clinic-app-heading">
+        <h2 id="clinic-app-heading">In the patient app</h2>
+        <ul>
+          {patientFeaturePreviews.map((feature) => (
+            <PatientFeaturePreview key={feature[1]} feature={feature} portalContainer={welcomeOverlaysRef} />
+          ))}
+        </ul>
+      </section>
+
+      <div className="welcome-actions">
+        <button type="button" className="primary-button w-full" onClick={onContinue}>
+          Continue <ChevronRight size={19} aria-hidden="true" />
         </button>
-        <button className="secondary-button" onClick={onDoctor}>Doctor sign in</button>
       </div>
+      <div className="welcome-overlays" ref={welcomeOverlaysRef} />
     </section>
   );
 }
 
 function AuthScreen({
-  onBack,
-  authMode,
-  setAuthMode,
-  authRole,
-  setAuthRole,
-  authMessage,
-  onEmailAuth,
-  onSendPhoneOtp,
-  onVerifyPhoneOtp,
-  onGoogleSignIn
+  onBack, authMode, setAuthMode, authMessage, onEmailAuth, onSendPhoneOtp,
+  onVerifyPhoneOtp, onGoogleSignIn, onPasswordReset, onSavePassword, onError
 }) {
+  const [form, setForm] = useState({ fullName: "", phone: "", email: "", password: "", otp: "" });
+  const [codeSent, setCodeSent] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const isSignup = authMode === "signup";
+  const isCode = authMode === "code";
+  const isRecovery = authMode === "recover";
+  const isReset = authMode === "reset";
+  const passwordMode = authMode === "signin" || isSignup;
+  const title = isSignup ? "Create an account" : isReset ? "Set a new password" :
+    isRecovery ? "Reset your password" : isCode ? "Sign in with a code" : "Sign in to the clinic";
+
+  function updateField(key, value) {
+    setForm((current) => ({ ...current, [key]: value }));
+    if (key === "phone") setCodeSent(false);
+  }
+
+  function changeMode(next) {
+    setForm((current) => ({ ...current, password: "", otp: "" }));
+    setCodeSent(false);
+    setAuthMode(next);
+  }
+
+  async function runAuth(action) {
+    setBusy(true);
+    try {
+      await action();
+    } catch (error) {
+      onError(error);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function submit(event) {
+    event.preventDefault();
+    if (isRecovery) return runAuth(() => onPasswordReset(form.email));
+    if (isReset) return runAuth(() => onSavePassword(form.password));
+    if (isCode) return runAuth(async () => {
+      if (codeSent) await onVerifyPhoneOtp({ phone: form.phone, token: form.otp });
+      else if (await onSendPhoneOtp({ phone: form.phone })) setCodeSent(true);
+    });
+
+    if (isSignup) return runAuth(() => onEmailAuth({ mode: "signup", ...form }));
+    const phoneLogin = isPhoneIdentifier(form.email);
+    return runAuth(() => onEmailAuth({
+      mode: "signin", email: phoneLogin ? "" : form.email, phone: phoneLogin ? form.email : "",
+      identifierType: phoneLogin ? "phone" : "email", password: form.password
+    }));
+  }
+
   return (
-    <section className="screen auth-screen">
+    <section className="screen auth-screen clinic-auth">
       <TopAction title="Clinic access" onBack={onBack} />
-      <div className="auth-brand">
-        <div className="app-mark"><HeartPulse size={30} /></div>
-        <span className="kicker">Dr. Ashwani Kansal Family Clinic</span>
-        <h1>Sign in to the clinic</h1>
-        <p>Connect with Dr. Ashwani Kansal for appointments, follow-ups, reports, and live clinic availability.</p>
+      <div className="clinic-auth-heading">
+        <span className="clinic-mark" aria-hidden="true" />
+        <h1>{title}</h1>
       </div>
-
       <div className="auth-card">
-        <div className="segmented auth-role">
-          <button className={authRole === "patient" ? "active" : ""} aria-pressed={authRole === "patient"} onClick={() => setAuthRole("patient")}>
-            Patient
-          </button>
-          <button className={authRole === "doctor" ? "active" : ""} aria-pressed={authRole === "doctor"} onClick={() => setAuthRole("doctor")}>
-            Doctor
-          </button>
-        </div>
+        <form className="auth-form clinic-account-form" onSubmit={submit}>
+          {passwordMode && <>
+            <div className="segmented auth-mode" role="group" aria-label="Account action">
+              <button type="button" disabled={busy} className={!isSignup ? "active" : ""} aria-pressed={!isSignup} onClick={() => changeMode("signin")}>Sign in</button>
+              <button type="button" disabled={busy} className={isSignup ? "active" : ""} aria-pressed={isSignup} onClick={() => changeMode("signup")}>Sign up</button>
+            </div>
+            <button type="button" className="google-button" disabled={busy} onClick={() => runAuth(onGoogleSignIn)}>
+              <GoogleLogo /> Continue with Google
+            </button>
+            <div className="divider"><span />or<span /></div>
+          </>}
 
-        {authRole === "patient" ? (
-          <PatientAuthForm
-            authMode={authMode}
-            setAuthMode={setAuthMode}
-            authMessage={authMessage}
-            onEmailAuth={onEmailAuth}
-            onSendPhoneOtp={onSendPhoneOtp}
-            onVerifyPhoneOtp={onVerifyPhoneOtp}
-            onGoogleSignIn={onGoogleSignIn}
-          />
-        ) : (
-          <DoctorAuthForm
-            authMessage={authMessage}
-            onEmailAuth={onEmailAuth}
-            onSendPhoneOtp={onSendPhoneOtp}
-            onVerifyPhoneOtp={onVerifyPhoneOtp}
-            onGoogleSignIn={onGoogleSignIn}
-          />
-        )}
-      </div>
+          {isSignup && <label>Full name
+            <input autoComplete="name" required value={form.fullName} onChange={(e) => updateField("fullName", e.target.value)} />
+          </label>}
+          {(isSignup || isCode) && <label>Phone number{isSignup && " (optional)"}
+            <input type="tel" autoComplete="tel" required={isCode} placeholder="+91 98765 43210"
+              value={form.phone} onChange={(e) => updateField("phone", e.target.value)} />
+          </label>}
+          {(passwordMode || isRecovery) && <label>{isSignup || isRecovery ? "Email address" : "Email or phone"}
+            <input type={isSignup || isRecovery ? "email" : "text"} autoComplete={isSignup || isRecovery ? "email" : "username"}
+              autoCapitalize="none" spellCheck={false} required value={form.email} onChange={(e) => updateField("email", e.target.value)} />
+          </label>}
+          {(passwordMode || isReset) && <label>{isReset ? "New password" : "Password"}
+            <input key={isReset ? "reset" : "auth"} type="password" autoComplete={isSignup || isReset ? "new-password" : "current-password"}
+              minLength={isSignup || isReset ? 6 : undefined} required value={form.password} onChange={(e) => updateField("password", e.target.value)} />
+          </label>}
+          {isCode && codeSent && <label>SMS code
+            <input inputMode="numeric" autoComplete="one-time-code" required pattern="[0-9]{6}" maxLength={6}
+              value={form.otp} onChange={(e) => updateField("otp", e.target.value)} />
+          </label>}
 
-      <div className="medical-note">
-        <ShieldCheck size={18} />
-        <p>Patient medical information is stored for clinic follow-up and doctor review after consent.</p>
+          <button type="submit" className="primary-button" disabled={busy}>
+            {busy ? "Please wait…" : isSignup ? "Create account" : isRecovery ? "Send reset link" :
+              isReset ? "Save password" : isCode ? (codeSent ? "Verify code" : "Send code") : "Sign in"}
+          </button>
+
+          {authMode === "signin" && <div className="grid grid-cols-2 gap-2 clinic-auth-links">
+            <button type="button" className="text-button" disabled={busy} onClick={() => changeMode("recover")}>Forgot password?</button>
+            <button type="button" className="text-button" disabled={busy} onClick={() => changeMode("code")}>Use an SMS code</button>
+          </div>}
+          {(isRecovery || isCode) && <button type="button" className="text-button" disabled={busy} onClick={() => changeMode("signin")}>Back to sign in</button>}
+          {authMessage && <div className="auth-message" role="status">{authMessage}</div>}
+        </form>
       </div>
     </section>
-  );
-}
-
-function PatientAuthForm({
-  authMode,
-  setAuthMode,
-  authMessage,
-  onEmailAuth,
-  onSendPhoneOtp,
-  onVerifyPhoneOtp,
-  onGoogleSignIn
-}) {
-  const isSignup = authMode === "signup";
-  const [form, setForm] = useState({
-    fullName: "",
-    phone: "",
-    email: "",
-    password: "",
-    otp: ""
-  });
-  const [recoveryOpen, setRecoveryOpen] = useState(false);
-  const updateForm = (key, value) => setForm((data) => ({ ...data, [key]: value }));
-  const submitEmail = () => onEmailAuth({
-    mode: isSignup ? "signup" : "signin",
-    role: "patient",
-    ...form
-  });
-  const submitSignin = () => {
-    const loginValue = normalizeClinicIdentifier(form.email);
-    const isPhoneLogin = isPhoneIdentifier(loginValue);
-
-    onEmailAuth({
-      mode: "signin",
-      role: "patient",
-      identifierType: isPhoneLogin ? "phone" : "email",
-      email: isPhoneLogin ? "" : loginValue,
-      phone: isPhoneLogin ? loginValue : "",
-      password: form.password
-    });
-  };
-  const openRecovery = () => {
-    setRecoveryOpen(true);
-  };
-
-  return (
-    <div className="auth-form">
-      <div className="segmented auth-mode">
-        <button className={!isSignup ? "active" : ""} onClick={() => setAuthMode("signin")}>Sign In</button>
-        <button className={isSignup ? "active" : ""} onClick={() => setAuthMode("signup")}>Sign Up</button>
-      </div>
-
-      <button className="google-button" onClick={onGoogleSignIn}>
-        <GoogleLogo />
-        Continue with Google
-      </button>
-
-      <div className="divider"><span />or<span /></div>
-
-      {isSignup ? (
-        <>
-          <label>Full name<input value={form.fullName} onChange={(event) => updateForm("fullName", event.target.value)} placeholder="Patient full name" /></label>
-          <label>Mobile number<input value={form.phone} onChange={(event) => updateForm("phone", event.target.value)} placeholder="+91 98765 43210" /></label>
-          <label>Email<input value={form.email} onChange={(event) => updateForm("email", event.target.value)} placeholder="patient@email.com" /></label>
-          <label>Password<input value={form.password} onChange={(event) => updateForm("password", event.target.value)} placeholder="Create password" type="password" /></label>
-          <button className="primary-button" onClick={submitEmail}>
-            <UserPlus size={18} /> Create account
-          </button>
-        </>
-      ) : (
-        <>
-          <label>
-            Email / Phone
-            <input
-              value = {form.email}
-              onChange={(event) => updateForm("email", event.target.value)}
-              placeholder="patient@email.com / +91 98765 43210"
-              />
-          </label>
-          <label>
-            Password
-            <input value={form.password} onChange={(event) => updateForm("password", event.target.value)} placeholder="Enter password" type="password" />
-          </label>
-          {recoveryOpen && (
-            <div className="recovery-panel">
-              <small>Forgot password? Use the phone number above to receive a one-time code.</small>
-              <button type="button" className="secondary-button" onClick={() => onSendPhoneOtp({ role: "patient", phone: form.email })}>
-                Send Code
-              </button>
-              <div className="field-with-action">
-                <input value={form.otp} onChange={(event) => updateForm("otp", event.target.value)} placeholder="Enter OTP" />
-                <button type="button" onClick={() => onVerifyPhoneOtp({ role: "patient", phone: form.email, token: form.otp })}>
-                  Verify
-                </button>
-              </div>
-            </div>
-          )}
-          <button className="primary-button" onClick={submitSignin}>
-            <Check size={18} /> Sign in
-          </button>
-          <button className="text-button" onClick={openRecovery}>
-            Forgot password? Send code
-          </button>
-          <button className="text-button" onClick={() => setAuthMode("signup")}>
-            New patient? Create account
-          </button>
-        </>
-      )}
-      {authMessage && <div className="auth-message">{authMessage}</div>}
-    </div>
-  );
-}
-
-function DoctorAuthForm({
-  authMessage,
-  onEmailAuth,
-  onSendPhoneOtp,
-  onVerifyPhoneOtp,
-  onGoogleSignIn
-}) {
-  const [form, setForm] = useState({
-    email: "",
-    password: "",
-    otp: ""
-  });
-  const [recoveryOpen, setRecoveryOpen] = useState(false);
-  const updateForm = (key, value) => setForm((data) => ({ ...data, [key]: value }));
-  const submitDoctorSignin = () => {
-    const loginValue = normalizeClinicIdentifier(form.email);
-    const isPhoneLogin = isPhoneIdentifier(loginValue);
-
-    onEmailAuth({
-      mode: "signin",
-      role: "doctor",
-      identifierType: isPhoneLogin ? "phone" : "email",
-      email: isPhoneLogin ? "" : loginValue,
-      phone: isPhoneLogin ? loginValue : "",
-      password: form.password
-    });
-  };
-  const openRecovery = () => {
-    setRecoveryOpen(true);
-  };
-
-  return (
-    <div className="auth-form doctor-auth-form">
-      <button className="google-button" onClick={onGoogleSignIn}>
-        <GoogleLogo />
-        Continue with Google
-      </button>
-      <div className="divider"><span />or<span /></div>
-      <label>
-        Email / Phone
-        <input
-          value={form.email}
-          onChange={(event) => updateForm("email", event.target.value)}
-          placeholder="doctor@clinic.com / +91 doctor number"
-        />
-      </label>
-      <label>Password<input value={form.password} onChange={(event) => updateForm("password", event.target.value)} placeholder="Enter password" type="password" /></label>
-      {recoveryOpen && (
-        <div className="recovery-panel">
-          <small>Forgot password? Use the phone number above to receive a one-time code.</small>
-          <button type="button" className="secondary-button" onClick={() => onSendPhoneOtp({ role: "doctor", phone: form.email })}>
-            Send Code
-          </button>
-          <div className="field-with-action">
-            <input value={form.otp} onChange={(event) => updateForm("otp", event.target.value)} placeholder="Enter OTP" />
-            <button type="button" onClick={() => onVerifyPhoneOtp({ role: "doctor", phone: form.email, token: form.otp })}>
-              Verify
-            </button>
-          </div>
-        </div>
-      )}
-      <button className="primary-button" onClick={submitDoctorSignin}>
-        <Check size={18} /> Sign in
-      </button>
-      <button className="text-button" onClick={openRecovery}>Forgot password? Send code</button>
-      {authMessage && <div className="auth-message">{authMessage}</div>}
-    </div>
   );
 }
 
@@ -2083,6 +2222,12 @@ function PatientMedicalInfo({ source, googleProfile, onBack, onDone }) {
   );
 }
 
+function privacyPage(path) {
+  const url = Capacitor.isNativePlatform() ? `https://drashwaniclinic.pages.dev/${path}` : `/${path}`;
+  if (Capacitor.isNativePlatform()) return Browser.open({ url });
+  window.location.assign(url);
+}
+
 function ProfileButton({ user, role, theme, setTheme, onSignOut }) {
   const profileRef = useRef(null);
   const fallbackName = role === "doctor" ? "Dr. Ashwani Kansal" : "Patient";
@@ -2107,10 +2252,9 @@ function ProfileButton({ user, role, theme, setTheme, onSignOut }) {
                   <small>{user?.email || user?.provider || "Clinic account"}</small>
                 </div>
               </div>
-              <Popover.Close onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
-                {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}
-                {theme === "dark" ? "Light mode" : "Dark mode"}
-              </Popover.Close>
+              <ThemeChoices theme={theme} setTheme={setTheme} />
+              <Popover.Close onClick={() => void privacyPage("privacy.html")}>Privacy policy</Popover.Close>
+              <Popover.Close onClick={() => void privacyPage("account-deletion.html")}>Request account deletion</Popover.Close>
               <Popover.Close onClick={onSignOut}>
                 <LogOut size={17} />
                 Sign out
@@ -2145,61 +2289,74 @@ function PatientApp({
   onPayConsult,
   onUpdatePatientRecord
 }) {
-  const activePatientProfile = patientRecords.find((patient) => patient.id === currentUser?.id) || null;
+  const userId = currentUser?.id;
+  const activePatientProfile = userId
+    ? patientRecords.find((patient) => patient.id === userId) || patientRecords.find((patient) => patient.ownerId === userId)
+    : null;
 
   return (
     <section className="screen app-screen">
       <div className="app-header">
         <div>
-          <span className="kicker">Patient App</span>
-          <h2>{activeTab === "home" ? "How are you feeling today?" : patientTabTitles[activeTab]}</h2>
+          <span className="kicker">Dr. Ashwani Family Clinic</span>
+          <h2>{activeTab === "home" ? "Your care" : patientTabTitles[activeTab]}</h2>
         </div>
         <ProfileButton user={currentUser} role="patient" theme={theme} setTheme={setTheme} onSignOut={onSignOut} />
       </div>
 
-      <div className="scroll-area" key={activeTab}>
-        {activeTab === "home" && (
-          <PatientHome
-            availability={availability}
-            activeClinic={activeClinic}
-            appointment={appointment}
-            setActiveTab={setActiveTab}
-            patientReadings={patientReadings}
-            consultationFee={consultationFee}
-            consultPayment={consultPayment}
-            onPayConsult={onPayConsult}
-          />
+      <div className="scroll-area">
+        {currentUser?.id && (
+          <div hidden={activeTab !== "care"}>
+            <button className="secondary-button care-back" onClick={() => setActiveTab("home")}><ChevronLeft size={18} /> Home</button>
+            <PatientCarePlan key={JSON.stringify([currentUser.id, activePatientProfile?.id])} patient={activePatientProfile}
+              userId={currentUser.id} onBook={() => setActiveTab("book")} />
+            <PatientPrescriptions key={activePatientProfile?.id || "none"} patient={activePatientProfile} clinics={clinics} />
+          </div>
         )}
-        {activeTab === "updates" && (
-          <HealthUpdates
-            readings={patientReadings}
-            setReadings={setPatientReadings}
-            onSubmitReadings={onSubmitReadings}
-          />
-        )}
-        {activeTab === "book" && (
-          <BookAppointment
-            appointment={appointment}
-            setAppointment={setAppointment}
-            onSubmitAppointment={onSubmitAppointment}
-            activeClinic={activeClinic}
-            availability={availability}
-            consultationFee={consultationFee}
-            consultPayment={consultPayment}
-            onPayConsult={onPayConsult}
-          />
-        )}
-        {activeTab === "chat" && (
-          <PatientChat
-            availability={availability}
-            activeClinic={activeClinic}
-            patientProfile={activePatientProfile}
-            memoryOwnerId={currentUser?.id}
-            setActiveTab={setActiveTab}
-            onUpdatePatientRecord={onUpdatePatientRecord}
-          />
-        )}
-        {activeTab === "library" && <EducationLibrary posts={educationPosts} />}
+        <React.Fragment key={activeTab}>
+          {activeTab === "home" && (
+            <PatientHome
+              availability={availability}
+              activeClinic={activeClinic}
+              appointment={appointment}
+              setActiveTab={setActiveTab}
+              patientReadings={patientReadings}
+              consultationFee={consultationFee}
+              consultPayment={consultPayment}
+              onPayConsult={onPayConsult}
+            />
+          )}
+          {activeTab === "updates" && (
+            <HealthUpdates
+              readings={patientReadings}
+              setReadings={setPatientReadings}
+              onSubmitReadings={onSubmitReadings}
+            />
+          )}
+          {activeTab === "book" && (
+            <BookAppointment
+              appointment={appointment}
+              setAppointment={setAppointment}
+              onSubmitAppointment={onSubmitAppointment}
+              activeClinic={activeClinic}
+              availability={availability}
+              consultationFee={consultationFee}
+              consultPayment={consultPayment}
+              onPayConsult={onPayConsult}
+            />
+          )}
+          {activeTab === "chat" && (
+            <PatientChat
+              availability={availability}
+              activeClinic={activeClinic}
+              patientProfile={activePatientProfile}
+              memoryOwnerId={currentUser?.id}
+              setActiveTab={setActiveTab}
+              onUpdatePatientRecord={onUpdatePatientRecord}
+            />
+          )}
+          {activeTab === "library" && <EducationLibrary posts={educationPosts} />}
+        </React.Fragment>
       </div>
 
       <PatientNav activeTab={activeTab} setActiveTab={setActiveTab} />
@@ -2208,6 +2365,7 @@ function PatientApp({
 }
 
 const patientTabTitles = {
+  care: "Prescription and follow-up",
   updates: "Update readings",
   book: "Book appointment",
   chat: "Clinic assistant",
@@ -2243,6 +2401,24 @@ function PatientHome({
         onBook={() => setActiveTab("book")}
       />
 
+      <section className="patient-shortcuts" aria-labelledby="patient-shortcuts-heading">
+        <h3 id="patient-shortcuts-heading">Quick actions</h3>
+        <div className="grid grid-cols-2 gap-2">
+          {[
+            [Pill, "Prescriptions", "Medicines and follow-ups", "care"],
+            [Activity, "Health readings", "Log readings and reports", "updates"],
+            [CalendarCheck, "Appointments", "Request or review a visit", "book"],
+            [Bot, "Clinic assistant", "Get help using the app", "chat"]
+          ].map(([Icon, label, description, tab]) => (
+            <button key={tab} type="button" className="patient-shortcut grid items-start text-left" onClick={() => setActiveTab(tab)}>
+              <Icon size={18} aria-hidden="true" />
+              <span><strong>{label}</strong><small>{description}</small></span>
+              <ChevronRight size={14} aria-hidden="true" />
+            </button>
+          ))}
+        </div>
+      </section>
+
       <div className="metric-grid">
         <MetricTile label="Fasting" value={patientReadings.fasting || "--"} suffix="mg/dL" tone="rose" />
         <MetricTile label="BP" value={patientReadings.bp || "--"} suffix="mmHg" tone="blue" />
@@ -2257,21 +2433,6 @@ function PatientHome({
         <p>{appointment.status}</p>
       </div>
 
-      <div className="quick-actions">
-        {[
-          [Activity, "Sugar", "updates"],
-          [HeartPulse, "BP", "updates"],
-          [Weight, "Weight", "updates"],
-          [Upload, "Report", "updates"],
-          [CalendarCheck, "Book", "book"],
-          [Bot, "Chat", "chat"]
-        ].map(([Icon, label, tab]) => (
-          <button key={label} onClick={() => setActiveTab(tab)}>
-            <span><Icon size={19} /></span>
-            {label}
-          </button>
-        ))}
-      </div>
     </>
   );
 }
@@ -2320,7 +2481,7 @@ function LiveAvailabilityViewer({ availability, activeClinic, consultationFee, c
       ) : (
         <div className="payment-status-card booking-only">
           <strong>Booking only right now</strong>
-          <p>Doctor is off duty, so you can request the next slot first. Payment should only appear once live consultation is active.</p>
+          <p>Online consultations are unavailable right now. You can still request a clinic visit.</p>
         </div>
       )}
       <div className="split-actions">
@@ -2339,8 +2500,8 @@ function LiveAvailabilityViewer({ availability, activeClinic, consultationFee, c
             {consultButtonLabel}
           </a>
         ) : (
-          <button onClick={canStartConsultPayment ? onPayConsult : onBook}>
-            {consultButtonLabel}
+          <button disabled={canStartConsultPayment && ["capture_pending", ...CONSULT_IN_FLIGHT_STATUSES].includes(consultPayment.status)} onClick={canStartConsultPayment ? onPayConsult : onBook}>
+            {consultPayment.status === "capture_pending" && canStartConsultPayment ? "Waiting for payment confirmation" : consultButtonLabel}
           </button>
         )}
       </div>
@@ -2561,7 +2722,7 @@ function BookAppointment({
               </a>
             )}
           </div>
-          {consultPayment.status !== "paid" && (feeAmount > 0 || hasRazorpayPaymentLink) && (
+          {!["paid", "verifying", "capture_pending"].includes(consultPayment.status) && (feeAmount > 0 || hasRazorpayPaymentLink) && (
             <button onClick={onPayConsult}>{feeAmount ? `Pay Rs ${feeAmount}` : "Open Razorpay"}</button>
           )}
         </div>
@@ -3389,9 +3550,9 @@ function DoctorApp({
 
   return (
     <section className="screen app-screen doctor-mode">
-      <div className="app-header">
+      <header className="app-header doctor-header">
         <div>
-          <span className="kicker">Doctor App</span>
+          <span className="kicker">Doctor workspace</span>
           <h2>
             {doctorTab === "today"
               ? "Today at clinic"
@@ -3403,9 +3564,14 @@ function DoctorApp({
                     ? "Education posts"
                     : "Patient management"}
           </h2>
+          {doctorTab === "today" && <p className="doctor-header-date">
+            {new Intl.DateTimeFormat("en-IN", {
+              weekday: "long", day: "numeric", month: "long", timeZone: "Asia/Kolkata"
+            }).format(new Date())}
+          </p>}
         </div>
         <ProfileButton user={currentUser} role="doctor" theme={theme} setTheme={setTheme} onSignOut={onSignOut} />
-      </div>
+      </header>
 
       <div className="scroll-area" key={doctorTab}>
         {doctorTab === "today" && <DoctorToday stats={stats} alerts={alerts} setDoctorTab={setDoctorTab} />}
@@ -3427,7 +3593,10 @@ function DoctorApp({
         )}
         {doctorTab === "patientDetail" && (
           <DoctorPatientDetail
+            key={JSON.stringify([currentUser.id, selectedPatient.id])}
+            doctorId={currentUser.id}
             patient={selectedPatient}
+            activeClinic={activeClinic}
             onBack={() => setDoctorTab("patients")}
             updatePatient={(patch) => updatePatientRecord(selectedPatient.id, patch)}
           />
@@ -3522,11 +3691,13 @@ function DoctorToday({ stats, alerts = [], setDoctorTab }) {
           </div>
         ))}
       </div>
-      <button className="doctor-duty-cta" onClick={() => setDoctorTab("availability")}>
-        <span><MapPin size={24} /></span>
-        <strong>Update live clinic availability</strong>
-        <small>This is visible on patient app instantly.</small>
-        <ChevronRight size={22} />
+      <button type="button" className="doctor-duty-cta" onClick={() => setDoctorTab("availability")}>
+        <span className="doctor-duty-icon"><MapPin size={21} aria-hidden="true" /></span>
+        <span className="doctor-duty-copy">
+          <strong>Update clinic availability</strong>
+          <small>Changes appear in the patient app.</small>
+        </span>
+        <ChevronRight size={19} aria-hidden="true" />
       </button>
       {alerts.length > 0 ? (
         alerts.map((alert) => (
@@ -3720,7 +3891,7 @@ function DoctorPatients({ patients, onOpenPatient }) {
           <span>
             <strong>{patient.name}</strong>
             <small>
-              {(patient.gender || "?")[0]} - {patient.age}y - {patient.mobile} - {patient.conditions?.[0] || "—"}
+              {[[patient.gender, patient.age ? `${patient.age} y` : ""].filter(Boolean).join(", "), patient.conditions?.[0], patient.mobile].filter(Boolean).join(" · ") || "Details not recorded"}
             </small>
           </span>
           <em className={String(patient.risk || "low").toLowerCase()}>{patient.risk || "Low"}</em>
@@ -3733,8 +3904,12 @@ function DoctorPatients({ patients, onOpenPatient }) {
   );
 }
 
-function DoctorPatientDetail({ patient, onBack, updatePatient }) {
+function DoctorPatientDetail({ doctorId, patient, activeClinic, onBack, updatePatient }) {
   const [doctorNotice, setDoctorNotice] = useState("");
+  // Bumped when a prescription is published to the care plan so the care plan editor reloads it.
+  const [carePlanKey, setCarePlanKey] = useState(0);
+  const [visitOpen, setVisitOpen] = useState(false);
+  const [apptOpen, setApptOpen] = useState(false);
   const [vitalDraft, setVitalDraft] = useState(patient.vitals);
   const [notesDraft, setNotesDraft] = useState(patient.notes);
   const [followUpDraft, setFollowUpDraft] = useState(patient.followUp);
@@ -3766,6 +3941,23 @@ function DoctorPatientDetail({ patient, onBack, updatePatient }) {
     showNotice(`Follow-up updated to ${followUpDraft}.`);
   };
 
+  if (apptOpen && !visitOpen) {
+    return (
+      <Suspense fallback={<div className="vt-empty" role="status">Opening appointment…</div>}>
+        <AppointmentSheet patient={patient} clinic={activeClinic} onBack={() => setApptOpen(false)}
+          onWriteRx={() => { setApptOpen(false); setVisitOpen(true); }} />
+      </Suspense>
+    );
+  }
+
+  if (visitOpen) {
+    return (
+      <Suspense fallback={<div className="vt-empty" role="status">Opening visit…</div>}>
+        <Visit doctorId={doctorId} patient={patient} clinic={activeClinic} onBack={() => setVisitOpen(false)} />
+      </Suspense>
+    );
+  }
+
   return (
     <div className="patient-detail-view">
       <div className="patient-detail-top">
@@ -3775,6 +3967,11 @@ function DoctorPatientDetail({ patient, onBack, updatePatient }) {
           <strong>{patient.name}</strong>
           <span>{patient.age}Y / {patient.gender} / {patient.mobile}</span>
         </div>
+      </div>
+
+      <div className="vt-start-row">
+        <button type="button" className="primary-button vt-start" onClick={() => setVisitOpen(true)}>Start visit</button>
+        <button type="button" className="secondary-button vt-start" onClick={() => setApptOpen(true)}>Appointment</button>
       </div>
 
       <div className="patient-action-row">
@@ -3853,13 +4050,18 @@ function DoctorPatientDetail({ patient, onBack, updatePatient }) {
         />
       </DoctorSection>
 
-      <DoctorSection icon={Pill} title="Prescribe" action="Save" onAction={() => showNotice("Use Add item inside this section, then Save list.")}>
+      <DoctorPrescriptions key={patient.id} patient={patient} clinics={clinics} activeClinic={activeClinic}
+        onCarePlanPublished={() => setCarePlanKey((n) => n + 1)} />
+
+      <DoctorCarePlan key={`${patient.id}-${carePlanKey}`} patientId={patient.id} />
+
+      <DoctorSection icon={Pill} title="Earlier prescription notes" action="Save" onAction={() => showNotice("Use Add item inside this section, then Save list.")}>
         <EditableList
           items={patient.medicines}
           placeholder="Add medicine, diet, walk or monitoring instruction"
           onSave={(items) => {
             updatePatient({ medicines: items });
-            showNotice("Prescription list updated.");
+            showNotice("Earlier prescription notes updated.");
           }}
         />
       </DoctorSection>
@@ -3871,12 +4073,12 @@ function DoctorPatientDetail({ patient, onBack, updatePatient }) {
         </label>
       </DoctorSection>
 
-      <DoctorSection icon={Clock} title="Follow Up" action="Save" onAction={saveFollowUp}>
+      <DoctorSection icon={Clock} title="Earlier follow-up note" action="Save" onAction={saveFollowUp}>
         <label className="full-width-field">
           Next follow-up
           <input value={followUpDraft} onChange={(event) => setFollowUpDraft(event.target.value)} />
         </label>
-        <p className="detail-copy">Next follow-up due on {followUpDraft}. Send reminder if patient has not responded.</p>
+        <p className="detail-copy">Use Prescription and follow-up above to set the patient’s reminder date.</p>
       </DoctorSection>
 
       <DoctorSection icon={History} title="Past Visits" action="View" onAction={() => showNotice("Past visit timeline is visible below with prescriptions, diagnosis and lifestyle advice.")}>
@@ -3900,14 +4102,6 @@ function DoctorPatientDetail({ patient, onBack, updatePatient }) {
         ))}
       </div>
 
-      <div className="rx-bar">
-        <a className="secondary-button" href={whatsappUrl(patient, `Clinic update from Dr. Ashwani Kansal: please review your app updates and complete your follow-up due on ${patient.followUp}.`)} target="_blank" rel="noreferrer">
-          <Plus size={18} /> Push Updates
-        </a>
-        <a className="primary-button rx-link" href={whatsappUrl(patient, `Prescription from Dr. Ashwani Kansal: ${patient.medicines.join("; ")}`)} target="_blank" rel="noreferrer">
-          <Send size={18} /> Send Rx
-        </a>
-      </div>
     </div>
   );
 }
@@ -4001,41 +4195,44 @@ function doctorWhatsappUrl(message) {
   return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
 }
 
-function PatientNav({ activeTab, setActiveTab }) {
+const patientTabs = [
+  ["home", Home, "Home"],
+  ["updates", Activity, "Updates"],
+  ["book", CalendarCheck, "Book"],
+  ["chat", Bot, "Chat"],
+  ["library", BookOpen, "Learn"]
+];
+
+const doctorTabs = [
+  ["today", Home, "Today"],
+  ["availability", MapPin, "Live"],
+  ["patients", Users, "Patients"],
+  ["education", BookOpen, "Learn"]
+];
+
+function FloatingTabs({ items, current, onSelect, label, doctor = false }) {
+  const index = items.findIndex(([key]) => key === current);
   return (
-    <nav className="bottom-nav" aria-label="Patient navigation">
-      {[
-        ["home", Home, "Home"],
-        ["updates", Activity, "Updates"],
-        ["book", CalendarCheck, "Book"],
-        ["chat", Bot, "Chat"],
-        ["library", BookOpen, "Learn"]
-      ].map(([key, Icon, label]) => (
-        <button key={key} className={activeTab === key ? "active" : ""} aria-current={activeTab === key ? "page" : undefined} onClick={() => setActiveTab(key)}>
-          <Icon size={18} />
-          <span>{label}</span>
+    <nav className={`bottom-nav${doctor ? " doctor-nav" : ""}`} aria-label={label}
+      style={{ "--tabs": items.length, "--selected-tab": Math.max(0, index) }}>
+      <span className="floating-tab-selection" data-visible={index >= 0} aria-hidden="true" />
+      {items.map(([key, Icon, text]) => (
+        <button key={key} type="button" className={current === key ? "active" : ""}
+          aria-current={current === key ? "page" : undefined} onClick={() => onSelect(key)}>
+          <Icon size={18} aria-hidden="true" />
+          <span>{text}</span>
         </button>
       ))}
     </nav>
   );
 }
 
+function PatientNav({ activeTab, setActiveTab }) {
+  return <FloatingTabs items={patientTabs} current={activeTab} onSelect={setActiveTab} label="Patient navigation" />;
+}
+
 function DoctorNav({ doctorTab, setDoctorTab }) {
-  return (
-    <nav className="bottom-nav doctor-nav" aria-label="Doctor navigation">
-      {[
-        ["today", Home, "Today"],
-        ["availability", MapPin, "Live"],
-        ["patients", Users, "Patients"],
-        ["education", BookOpen, "Learn"]
-      ].map(([key, Icon, label]) => (
-        <button key={key} className={doctorTab === key ? "active" : ""} aria-current={doctorTab === key ? "page" : undefined} onClick={() => setDoctorTab(key)}>
-          <Icon size={18} />
-          <span>{label}</span>
-        </button>
-      ))}
-    </nav>
-  );
+  return <FloatingTabs items={doctorTabs} current={doctorTab} onSelect={setDoctorTab} label="Doctor navigation" doctor />;
 }
 
 function TopAction({ title, onBack }) {

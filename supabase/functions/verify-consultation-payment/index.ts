@@ -39,43 +39,29 @@ Deno.serve(async (request) => {
       return json({ error: "Invalid Razorpay signature." }, 400);
     }
 
-    const paymentResponse = await fetch(`https://api.razorpay.com/v1/payments/${paymentId}`, {
-      headers: {
-        "Authorization": `Basic ${btoa(`${keyId}:${keySecret}`)}`
-      }
-    });
+    const headers = { Authorization: `Basic ${btoa(`${keyId}:${keySecret}`)}` };
+    const orderResponse = await fetch(`https://api.razorpay.com/v1/orders/${encodeURIComponent(orderId)}`, { headers });
+    if (!orderResponse.ok) return json({ error: "Unable to fetch consultation order." }, 502);
+    const order = await orderResponse.json();
+    if (order.notes?.purpose !== "doctor_consultation" || order.notes?.patient_id !== authUser.id) {
+      return json({ error: "This order does not belong to your clinic account." }, 403);
+    }
+
+    const paymentResponse = await fetch(`https://api.razorpay.com/v1/payments/${encodeURIComponent(paymentId)}`, { headers });
+    if (!paymentResponse.ok) return json({ error: "Unable to fetch Razorpay payment." }, 502);
     const payment = await paymentResponse.json();
-
-    if (!paymentResponse.ok) {
-      return json({ error: "Unable to fetch Razorpay payment.", details: payment }, 502);
+    if (payment.order_id !== orderId || payment.amount !== 70000 || payment.currency !== "INR") {
+      return json({ error: "Payment does not match the consultation order." }, 400);
     }
-
-    if (payment.order_id !== orderId) {
-      return json({ error: "Payment order mismatch." }, 400);
+    if (payment.status === "authorized") {
+      return json({ payment_status: "authorized", error: "Payment authorized. Waiting for Razorpay to confirm capture." }, 409);
     }
+    if (payment.status !== "captured") return json({ error: "Payment has not been captured." }, 409);
 
-    if (payment.amount !== 70000) {
-      return json({ error: "Payment amount mismatch. Online consultation fee is fixed at Rs 700." }, 400);
-    }
-
-    if (!["captured", "authorized"].includes(payment.status)) {
-      return json({ error: `Payment is not completed. Current status: ${payment.status}` }, 400);
-    }
-
-    const saved = await storeVerifiedPayment({
-      razorpay_order_id: orderId,
+    const saved = await storeVerifiedPayment(orderId, authUser.id, {
       razorpay_payment_id: paymentId,
-      amount: payment.amount,
-      currency: payment.currency,
       payment_method: payment.method || "",
-      payment_status: payment.status === "captured" ? "PAID_CONFIRMED" : "AUTHORIZED",
-      patient: {
-        ...(body.patient || {}),
-        user_id: authUser.id,
-        email: authUser.email || body.patient?.email || "",
-        contact: authUser.phone || body.patient?.contact || ""
-      },
-      clinic: body.clinic || {},
+      payment_status: "PAID_CONFIRMED",
       verified_at: new Date().toISOString()
     });
 
@@ -137,25 +123,26 @@ function timingSafeEqual(left: string, right: string) {
   return mismatch === 0;
 }
 
-// Upserts on razorpay_order_id so the paid row exists even if the order draft write failed.
-// Returns false when the row could not be saved, so the caller can refuse to report success.
-async function storeVerifiedPayment(row: Record<string, unknown>): Promise<boolean> {
+async function storeVerifiedPayment(orderId: string, userId: string, patch: Record<string, unknown>) {
   const supabaseUrl = Deno.env.get("PROJECT_URL");
   const serviceKey = Deno.env.get("SERVICE_ROLE_KEY");
   if (!supabaseUrl || !serviceKey) return false;
-
-  const response = await fetch(`${supabaseUrl}/rest/v1/consultation_payments?on_conflict=razorpay_order_id`, {
-    method: "POST",
+  const query = new URLSearchParams({
+    razorpay_order_id: `eq.${orderId}`,
+    "patient->>user_id": `eq.${userId}`,
+    payment_status: "in.(ORDER_CREATED,AUTHORIZED,CAPTURE_PENDING,FAILED,PAID_CONFIRMED)"
+  });
+  const response = await fetch(`${supabaseUrl}/rest/v1/consultation_payments?${query}`, {
+    method: "PATCH",
     headers: {
-      "apikey": serviceKey,
-      "Authorization": `Bearer ${serviceKey}`,
+      apikey: serviceKey,
+      Authorization: `Bearer ${serviceKey}`,
       "Content-Type": "application/json",
-      "Prefer": "resolution=merge-duplicates,return=minimal"
+      Prefer: "return=representation"
     },
-    body: JSON.stringify(row)
-  }).catch(() => null);
-
-  return Boolean(response?.ok);
+    body: JSON.stringify(patch)
+  });
+  return response.ok && (await response.json()).length === 1;
 }
 
 function json(payload: unknown, status = 200) {

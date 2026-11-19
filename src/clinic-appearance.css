@@ -1,0 +1,528 @@
+.dark-theme .auth-mode,
+.dark-theme .auth-method,
+.dark-theme .split-actions button:not(:first-child),
+.dark-theme .split-actions a:not(:first-child),
+.dark-theme .segmented button:not(.active),
+.dark-theme .date-row button:not(.active),
+.dark-theme .slot-wrap button:not(.active),
+.dark-theme .theme-swatch,
+.dark-theme .bubble.bot {
+  background: var(--clinic-raised);
+}
+
+.dark-theme .bottom-nav button:not(.active) {
+  color: var(--muted);
+}
+
+.dark-theme .primary-button,
+.dark-theme .chat-input button,
+.dark-theme .bubble.user,
+.dark-theme .segmented button.active,
+.dark-theme .date-row button.active,
+.dark-theme .slot-wrap button.active {
+  color: var(--clinic-action-ink);
+}
+
+.clinic-welcome.intro-screen {
+  --welcome-copy: var(--muted);
+  --welcome-card: var(--clinic-panel-fill);
+  --welcome-card-line: var(--line);
+  --welcome-portrait-height: clamp(146px, 24dvh, 204px);
+  gap: clamp(12px, 2dvh, 18px);
+  padding: 10px max(20px, env(safe-area-inset-left), env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom));
+  color: var(--ink);
+  background: transparent;
+}
+
+[data-clinic-theme="pine"] .clinic-welcome {
+  --welcome-card: color-mix(in srgb, #1b2924 75%, transparent);
+  --welcome-card-line: #557266;
+}
+
+/* Each theme uses the same portrait and card layout with its own atmosphere. */
+.clinic-welcome {
+  isolation: isolate;
+}
+
+.clinic-welcome::before,
+.clinic-welcome::after {
+  display: none;
+}
+
+.clinic-welcome > * {
+  flex: none;
+  min-width: 0;
+}
+
+.welcome-bar,
+.welcome-identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.welcome-bar {
+  justify-content: space-between;
+}
+
+.welcome-identity {
+  font-size: 1rem;
+  font-weight: 620;
+  line-height: 1.25;
+}
+
+.welcome-appearance {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 48px;
+  height: 48px;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+}
+
+.welcome-overlays {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.welcome-theme-positioner {
+  pointer-events: auto;
+}
+
+.welcome-theme-menu {
+  width: 212px;
+  background: var(--clinic-overlay-fill);
+  color: var(--ink);
+}
+
+.welcome-theme-title {
+  margin: 6px 10px;
+  font-size: 0.875rem;
+  font-weight: 650;
+}
+
+.appearance-choices {
+  display: grid;
+  gap: 2px;
+}
+
+.profile-menu .appearance-choices button[aria-pressed="true"] {
+  color: var(--blue-dark);
+  background: var(--soft-blue);
+}
+
+.appearance-check {
+  margin-inline-start: auto;
+}
+
+.profile-menu .appearance-motion {
+  margin-top: 2px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: .8125rem;
+}
+
+.welcome-doctor {
+  display: grid;
+  grid-template-columns: minmax(0, 1.42fr) minmax(0, 1fr);
+  align-items: end;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  min-height: var(--welcome-portrait-height);
+  border: 1px solid var(--welcome-card-line);
+  border-radius: 24px;
+  background: var(--welcome-card);
+  animation: rise-in 230ms cubic-bezier(.2,.75,.25,1) both;
+}
+
+.welcome-doctor-copy {
+  align-self: center;
+  padding: 18px 0 18px 18px;
+}
+
+.welcome-doctor h1 {
+  margin: 0 0 10px;
+  color: var(--ink);
+  font-size: clamp(1.6rem, 6.8vw, 2.1rem);
+  font-weight: 660;
+  letter-spacing: normal;
+  line-height: 1.06;
+}
+
+.welcome-doctor h1 span {
+  display: block;
+}
+
+.welcome-doctor p {
+  margin: 0;
+  color: var(--welcome-copy);
+  line-height: 1.38;
+}
+
+.welcome-role {
+  font-size: 0.94rem;
+}
+
+.welcome-doctor .welcome-credentials {
+  margin-top: 9px;
+  font-size: 0.78rem;
+}
+
+.welcome-portrait {
+  display: block;
+  width: 100%;
+  height: var(--welcome-portrait-height);
+  object-fit: contain;
+  object-position: bottom right;
+}
+
+.welcome-actions .primary-button {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 50px;
+  border-radius: 15px;
+  background: var(--blue);
+  color: var(--clinic-action-ink, #fff);
+  box-shadow: none;
+}
+
+.welcome-actions .primary-button svg {
+  position: absolute;
+  inset-inline-end: 16px;
+}
+
+.welcome-features h2 {
+  margin: 0 0 8px;
+  color: var(--ink);
+  font-size: 1.1rem;
+  font-weight: 650;
+}
+
+.welcome-care ul,
+.welcome-features ul {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.welcome-care ul {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.welcome-features ul {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.welcome-care li {
+  --care-tint: #e1edfa;
+  --care-accent: #285f99;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+  min-height: 63px;
+  min-width: 0;
+  padding: 6px 3px;
+  border: 1px solid var(--welcome-card-line);
+  border-radius: 15px;
+  background: linear-gradient(150deg, color-mix(in srgb, var(--care-tint) 88%, transparent), var(--welcome-card) 84%);
+  font-size: .86rem;
+  font-weight: 600;
+  line-height: 1.14;
+  text-align: center;
+}
+
+.welcome-care li[data-care-tone="1"] { --care-tint: #deeee5; --care-accent: #236951; }
+.welcome-care li[data-care-tone="2"] { --care-tint: #ede7f7; --care-accent: #665287; }
+.dark-theme .welcome-care li { --care-tint: #293f4d; --care-accent: #b6dcf5; }
+.dark-theme .welcome-care li[data-care-tone="1"] { --care-tint: #2d443a; --care-accent: #aedcc4; }
+.dark-theme .welcome-care li[data-care-tone="2"] { --care-tint: #383445; --care-accent: #d6c8ec; }
+
+.welcome-care-icon,
+.welcome-feature-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  color: var(--care-accent, var(--blue-dark));
+}
+
+.welcome-care-icon {
+  width: 29px;
+  height: 29px;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--care-tint) 62%, var(--welcome-card));
+}
+
+.welcome-feature-trigger {
+  grid-template-columns: 24px minmax(0, 1fr) 12px;
+  gap: 6px;
+  width: 100%;
+  min-height: 44px;
+  padding: 5px 7px;
+  border: 1px solid var(--welcome-card-line);
+  border-radius: 12px;
+  background: var(--welcome-card);
+  color: var(--ink);
+  font-size: .86rem;
+  font-weight: 550;
+  line-height: 1.13;
+  transition: background-color 150ms ease, border-color 150ms ease;
+}
+
+.welcome-feature-trigger:active,
+.welcome-feature-trigger[data-popup-open] {
+  background: var(--soft-blue);
+  border-color: var(--blue-dark);
+}
+
+.welcome-feature-arrow {
+  color: var(--welcome-copy);
+}
+
+.welcome-feature-popover {
+  width: min(230px, calc(100vw - 28px));
+  padding: 12px;
+  border: 1px solid var(--welcome-card-line, var(--line));
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-lift);
+}
+
+.welcome-feature-popover h2,
+.welcome-feature-popover p {
+  margin: 0;
+}
+
+.welcome-feature-popover p {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: .9rem;
+  line-height: 1.35;
+}
+
+.clinic-auth-heading {
+  display: grid;
+  gap: 9px;
+  padding-inline: 2px;
+}
+
+.clinic-auth-heading h1 {
+  margin: 0;
+  font-size: clamp(1.5rem, 6vw, 1.85rem);
+  line-height: 1.1;
+  font-weight: 650;
+}
+
+.clinic-account-form .auth-mode button,
+.clinic-account-form .google-button,
+.clinic-account-form .text-button {
+  min-height: 44px;
+}
+
+.clinic-account-form .auth-mode button:disabled,
+.clinic-account-form button:disabled {
+  cursor: wait;
+  opacity: .72;
+}
+
+@media (max-height: 700px) and (orientation: portrait) {
+  .clinic-welcome.intro-screen {
+    gap: 7px;
+    --welcome-portrait-height: clamp(126px, 22dvh, 154px);
+    padding-inline: max(14px, env(safe-area-inset-left), env(safe-area-inset-right));
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
+  }
+
+  .welcome-doctor-copy { padding: 8px 0 8px 13px; }
+  .welcome-doctor { grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); }
+  .welcome-doctor h1 { margin-bottom: 6px; font-size: clamp(1.4rem, 6vw, 1.75rem); }
+  .welcome-role { font-size: .82rem; }
+  .welcome-doctor .welcome-credentials { margin-top: 5px; font-size: .71rem; }
+  .welcome-care ul, .welcome-features ul { gap: 4px; }
+  .welcome-care li { min-height: 44px; gap: 2px; padding-block: 3px; font-size: .75rem; }
+  .welcome-care-icon { width: 21px; height: 21px; }
+  .welcome-care-icon svg { width: 15px; height: 15px; }
+  .welcome-features h2 { margin-bottom: 5px; font-size: 1rem; }
+  .welcome-feature-trigger { min-height: 44px; font-size: .76rem; padding: 3px 5px; gap: 3px; }
+  .welcome-actions .primary-button { min-height: 48px; }
+}
+
+@media (max-height: 615px) and (orientation: portrait) {
+  .clinic-welcome.intro-screen { gap: 6px; }
+  .welcome-features ul { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .welcome-feature-trigger {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+    gap: 2px;
+    padding: 4px 2px;
+    text-align: center;
+    font-size: .73rem;
+  }
+  .welcome-feature-arrow { display: none; }
+}
+
+@media (orientation: landscape) and (max-height: 500px) and (min-width: 640px) {
+  .phone-shell:has(.clinic-welcome) { width: min(100%, 800px); }
+
+  .clinic-welcome.intro-screen {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas: "bar bar" "doctor care" "doctor features" "actions actions";
+    align-content: start;
+    gap: 6px 16px;
+    padding-top: 5px;
+    padding-bottom: max(4px, env(safe-area-inset-bottom));
+    --welcome-portrait-height: 178px;
+  }
+
+  .welcome-bar { grid-area: bar; }
+  .welcome-doctor { grid-area: doctor; }
+  .welcome-actions { grid-area: actions; }
+  .welcome-care { grid-area: care; }
+  .welcome-features { grid-area: features; }
+  .welcome-care li { min-height: 42px; gap: 2px; padding: 3px; font-size: .75rem; }
+  .welcome-care-icon { width: 21px; height: 21px; }
+  .welcome-care-icon svg { width: 15px; height: 15px; }
+  .welcome-features ul { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; }
+  .welcome-feature-trigger { grid-template-columns: 1fr; justify-items: center; gap: 2px; padding: 4px 2px; text-align: center; font-size: .72rem; }
+  .welcome-feature-arrow { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .welcome-doctor { animation: none; }
+  .profile-menu .appearance-motion { display: none; }
+}
+
+.dark-theme :is(input, select, textarea, .auth-role, .detail-input, .detail-metric, .whatsapp-panel a) {
+  background: var(--app);
+  border-color: var(--line);
+}
+
+.dark-theme :is(.uploaded-file-chip, .editor-title-row > span, .doctor-section-head span, .quick-actions span, .row-icon, .patient-avatar) {
+  background: var(--soft-blue);
+  border-color: var(--line);
+}
+
+@media (max-width: 440px) and (orientation: portrait) {
+  .phone-shell:has(.clinic-welcome) {
+    padding-top: 0;
+  }
+
+  /* Same top inset as every other screen (shell 28px + screen 18px), so the top bar does not jump. */
+  .clinic-welcome.intro-screen {
+    padding-top: calc(18px + max(28px, env(safe-area-inset-top)));
+  }
+}
+
+@media (max-width: 440px) and (orientation: portrait) and (max-height: 610px) {
+  .clinic-welcome.intro-screen {
+    padding-top: calc(6px + max(12px, env(safe-area-inset-top)));
+  }
+}
+
+.patient-shortcuts h3 {
+  margin: 0 0 8px;
+  font-size: 1.1rem;
+  font-weight: 650;
+}
+
+.patient-shortcut {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 6px;
+  min-height: 70px;
+  padding: 10px 8px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.patient-shortcut:active {
+  background: var(--soft-blue);
+}
+
+.patient-shortcut svg {
+  color: var(--blue-dark);
+}
+
+.patient-shortcut strong,
+.patient-shortcut small {
+  display: block;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.patient-shortcut strong {
+  font-weight: 620;
+  font-size: .88rem;
+}
+
+.patient-shortcut small {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: .76rem;
+}
+
+.welcome-feature-popover h2 {
+  font-size: 1rem;
+  font-weight: 650;
+  line-height: 1.2;
+}
+
+.welcome-bar {
+  position: sticky;
+  top: env(safe-area-inset-top, 0px);
+  z-index: 8;
+}
+
+.welcome-appearance-slot {
+  flex: 0 0 48px;
+  width: 48px;
+  height: 48px;
+}
+
+.welcome-appearance {
+  position: relative;
+  z-index: 1;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 9%);
+  transition: background-color 150ms ease-out, border-color 150ms ease-out;
+}
+
+.welcome-appearance[data-popup-open] {
+  background: var(--soft-blue);
+  border-color: var(--blue-dark);
+}
+
+.welcome-theme-menu {
+  transform-origin: top right;
+  transition: opacity 150ms ease-out, transform 150ms ease-out;
+}
+
+.welcome-theme-menu[data-starting-style],
+.welcome-theme-menu[data-ending-style] {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .welcome-care,
+  .welcome-features,
+  .welcome-actions {
+    animation: rise-in 240ms cubic-bezier(.2,.75,.25,1) both;
+  }
+
+  .welcome-care { animation-delay: 25ms; }
+  .welcome-features { animation-delay: 50ms; }
+  .welcome-actions { animation-delay: 65ms; }
+}

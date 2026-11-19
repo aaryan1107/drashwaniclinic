@@ -1,0 +1,186 @@
+# Common Indian OPD lab tests and panels, written by us. Format: P|T | display | synonyms. P = panel. Needs doctor review. Not yet mapped to LOINC (TODO).
+P | Complete blood count (CBC) | CBC; hemogram; blood counts
+T | Hemoglobin | Hb
+T | Total leucocyte count | TLC; WBC count
+T | Differential leucocyte count | DLC
+T | Platelet count | platelets
+T | Packed cell volume | PCV; hematocrit
+T | Erythrocyte sedimentation rate | ESR
+T | Peripheral blood smear | PBF; blood film
+T | Reticulocyte count | retic count
+T | Absolute eosinophil count | AEC
+P | Liver function test (LFT) | liver profile
+T | Bilirubin total and direct | serum bilirubin
+T | SGOT (AST) | aspartate transaminase
+T | SGPT (ALT) | alanine transaminase
+T | Alkaline phosphatase | ALP
+T | Gamma GT | GGT
+T | Serum albumin | albumin
+T | Total protein | serum protein
+P | Kidney function test (KFT) | renal profile; RFT
+T | Blood urea | urea
+T | Serum creatinine | creatinine
+T | Blood urea nitrogen | BUN
+T | Serum uric acid | uric acid
+T | Estimated GFR | eGFR
+P | Lipid profile | lipid panel; cholesterol profile
+T | Total cholesterol | cholesterol
+T | HDL cholesterol | HDL
+T | LDL cholesterol | LDL
+T | VLDL cholesterol | VLDL
+T | Triglycerides | TG
+T | Lipoprotein (a) | Lp(a)
+P | Thyroid profile (T3 T4 TSH) | thyroid function test; TFT
+T | TSH | thyroid stimulating hormone
+T | Free T4 | FT4
+T | Free T3 | FT3
+T | Total T3 | T3
+T | Total T4 | T4
+T | Anti-TPO antibodies | anti thyroid peroxidase
+T | Fasting blood sugar | FBS; fasting glucose; FBG
+T | Post prandial blood sugar | PPBS; PP glucose
+T | Random blood sugar | RBS
+T | HbA1c | glycosylated hemoglobin; glycated hemoglobin
+P | Oral glucose tolerance test | OGTT; GTT
+T | Glucose challenge test | GCT 50 g
+T | Fasting insulin | insulin fasting
+T | C-peptide | c peptide
+T | Urine microalbumin | urine albumin; microalbuminuria
+T | Urine albumin creatinine ratio | UACR; ACR
+P | Urine routine and microscopy | urine R/M; urine examination
+T | Urine culture and sensitivity | urine C/S
+T | Urine ketones | ketone bodies
+T | Urine sugar | urine glucose
+T | Urine pregnancy test | UPT
+T | 24 hour urine protein | 24h urinary protein
+T | Spot urine protein creatinine ratio | UPCR
+T | Stool routine examination | stool R/M
+T | Stool occult blood | FOBT
+T | Stool culture | stool C/S
+T | Stool for ova and cyst | stool O&C
+T | Stool for H. pylori antigen | H pylori stool antigen
+T | Vitamin D (25-OH) | vitamin D3; 25 hydroxy vitamin D
+T | Vitamin B12 | cobalamin; B12
+T | Folate | folic acid level
+T | Serum iron | iron
+T | Total iron binding capacity | TIBC
+T | Serum ferritin | ferritin
+P | Iron studies | iron profile
+T | Serum calcium | calcium
+T | Serum phosphorus | phosphate
+T | Serum magnesium | magnesium
+T | Serum sodium | sodium
+T | Serum potassium | potassium
+P | Serum electrolytes | Na K Cl; electrolytes
+T | Serum chloride | chloride
+T | Serum bicarbonate | bicarbonate
+T | Intact PTH | parathyroid hormone; PTH
+T | Serum amylase | amylase
+T | Serum lipase | lipase
+T | CPK total | creatine kinase
+T | CK-MB | creatine kinase MB
+T | Troponin I | trop I
+T | Troponin T | trop T
+T | NT-proBNP | BNP
+T | LDH | lactate dehydrogenase
+T | C-reactive protein | CRP
+T | High sensitivity CRP | hsCRP
+T | Procalcitonin | PCT
+T | D-dimer | d dimer
+T | Prothrombin time with INR | PT INR
+T | aPTT | activated partial thromboplastin time
+T | Bleeding time and clotting time | BT CT
+T | Fibrinogen | fibrinogen level
+T | Blood group and Rh typing | blood group
+T | Coombs test direct | DCT
+T | Malaria antigen test | MP card; rapid malaria
+T | Malaria parasite smear | MP smear
+T | Dengue NS1 antigen | NS1
+T | Dengue IgM and IgG | dengue serology
+T | Widal test | typhoid widal
+T | Typhidot IgM | typhoid IgM
+T | Blood culture and sensitivity | blood C/S
+T | Scrub typhus IgM | scrub typhus
+T | Leptospira IgM | leptospirosis serology
+T | Chikungunya IgM | chikungunya serology
+T | HIV 1 and 2 antibodies | HIV test
+T | HBsAg | hepatitis B surface antigen
+T | Anti-HCV antibodies | hepatitis C
+T | Hepatitis A IgM | HAV IgM
+T | Anti-HBs antibodies | hepatitis B immunity
+T | VDRL | syphilis screening
+T | TPHA | treponema pallidum hemagglutination
+T | Mantoux test | tuberculin skin test; TST
+T | Sputum for AFB | sputum smear AFB
+T | CBNAAT (GeneXpert) | TB CBNAAT
+T | Sputum culture and sensitivity | sputum C/S
+T | Throat swab culture | throat swab C/S
+T | Nasal swab COVID-19 RT-PCR | COVID PCR
+T | Rapid antigen test COVID-19 | COVID RAT
+T | Rheumatoid factor | RA factor; RF
+T | Anti-CCP antibodies | CCP
+T | ANA | antinuclear antibody
+T | Anti-dsDNA | dsDNA
+T | ASO titre | antistreptolysin O
+T | HLA-B27 | HLA B27
+T | Serum IgE total | IgE
+T | Prolactin | PRL
+T | Serum FSH | follicle stimulating hormone
+T | Serum LH | luteinising hormone
+T | Serum estradiol | E2
+T | Serum progesterone | progesterone
+T | Serum testosterone | total testosterone
+T | AMH | anti mullerian hormone
+T | Serum cortisol morning | cortisol
+T | Beta hCG quantitative | beta HCG; serum pregnancy test
+P | Antenatal profile | ANC profile
+T | PSA total | prostate specific antigen
+T | CA 125 | ovarian marker
+T | CEA | carcinoembryonic antigen
+T | AFP | alpha fetoprotein
+T | CA 19-9 | pancreatic marker
+T | Semen analysis | seminal fluid analysis
+T | Pap smear | cervical cytology
+T | FNAC | fine needle aspiration cytology
+T | Biopsy histopathology | HPE
+P | Diabetes panel | diabetic profile
+P | Fever panel | fever profile; fever workup
+P | Anemia panel | anemia profile
+P | Cardiac risk panel | cardiac profile
+P | Full body health checkup | master health check
+P | Pre-operative panel | pre op profile
+P | Vitamin panel | vitamin D B12 folate
+P | Arthritis panel | arthritis profile
+P | PCOS panel | PCOD profile
+P | Hepatitis panel | hepatitis profile
+T | ECG | electrocardiogram
+T | 2D Echocardiography | echo
+T | Treadmill test | TMT; stress test
+T | Holter monitoring | 24 hour ECG
+T | Chest X-ray PA view | CXR; chest xray
+T | X-ray abdomen | KUB; abdomen xray
+T | X-ray knee | knee xray
+T | X-ray lumbosacral spine | LS spine xray
+T | X-ray cervical spine | C spine xray
+T | X-ray paranasal sinuses | PNS xray
+T | X-ray foot | foot xray
+T | Ultrasound abdomen and pelvis | USG abdomen; USG whole abdomen
+T | Ultrasound KUB | USG KUB
+T | Ultrasound obstetric | USG obstetric
+T | Ultrasound thyroid | USG neck
+T | Ultrasound pelvis | transvaginal sonography; TVS
+T | Doppler lower limb | venous doppler
+T | Carotid doppler | carotid duplex
+T | CT scan brain | CT head
+T | CT chest HRCT | HRCT thorax
+T | MRI brain | MRI head
+T | MRI lumbosacral spine | MRI LS spine
+T | MRI knee | knee MRI
+T | DEXA scan | bone density
+T | Spirometry | PFT; pulmonary function test
+T | Nerve conduction study | NCV
+T | EEG | electroencephalogram
+T | Audiometry | pure tone audiometry
+T | Fundus examination | retina check
+T | Upper GI endoscopy | OGD scopy
+T | Colonoscopy | lower GI scopy
