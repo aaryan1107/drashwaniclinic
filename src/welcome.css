@@ -53,24 +53,13 @@
 
 .wh-copy {
   position: absolute;
-  top: 6%;
+  top: 9%;
   left: max(20px, env(safe-area-inset-left));
   width: 54%;
   display: grid;
   gap: 8px;
   color: var(--wh-ink);
   animation: rise-in 300ms cubic-bezier(.2,.75,.25,1) both;
-}
-.wh-eyebrow {
-  justify-self: start;
-  padding: 4px 10px;
-  border-radius: 99px;
-  background: var(--wh-chip);
-  color: var(--blue);
-  font-size: .72rem;
-  font-weight: 650;
-  letter-spacing: .06em;
-  text-transform: uppercase;
 }
 .wh-copy h1 {
   margin: 0;
@@ -83,16 +72,13 @@
 .wh-copy h1 span { display: block; }
 .wh-role { margin: 0; color: var(--wh-copy); font-size: .9rem; line-height: 1.35; }
 .wh-creds {
-  justify-self: start;
-  margin: 2px 0 0;
-  padding: 4px 8px;
-  border-radius: 8px;
-  background: var(--wh-chip);
+  margin: 0;
   color: var(--wh-copy);
-  font-size: .66rem;
-  font-weight: 620;
-  letter-spacing: .02em;
+  font-size: .72rem;
+  font-weight: 600;
+  letter-spacing: .04em;
   white-space: nowrap;
+  opacity: .85;
 }
 
 /* The sheet continues the SVG's bottom edge down to the bottom of the screen. */
@@ -109,9 +95,7 @@
 
 /* Condition flip cards. */
 .fc { display: grid; gap: 10px; }
-.fc-head { display: flex; align-items: baseline; justify-content: space-between; }
-.fc-head h2 { margin: 0; color: var(--ink); font-size: 1.05rem; font-weight: 680; letter-spacing: -.01em; }
-.fc-head span { color: var(--muted); font-size: .8125rem; }
+.fc-head { margin: 0; color: var(--ink); font-size: 1.05rem; font-weight: 680; letter-spacing: -.01em; }
 .fc ul { perspective: 900px; gap: 8px !important; }
 .welcome-care.fc li { display: block; min-height: 0; padding: 0; border: 0; background: none; }
 .fc-card {
@@ -160,7 +144,7 @@
   text-wrap: balance;
 }
 .dark-theme .fc-back { color: #0f1e26; background: linear-gradient(150deg, var(--care-accent), color-mix(in srgb, var(--care-accent) 78%, #fff)); }
-.fc .welcome-care-icon { min-height: 0; width: 32px; height: 32px; border-radius: 10px; background: color-mix(in srgb, var(--care-accent) 14%, transparent); }
+.fc .welcome-care-icon { min-height: 0; width: auto; height: auto; border-radius: 0; background: none; color: var(--care-accent); }
 
 @media (prefers-reduced-motion: reduce) {
   .wh-art image, .wh-copy { animation: none; }
