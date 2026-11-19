@@ -1556,7 +1556,7 @@ function App() {
   const payAndBookVisit = async (visit) => {
     if (!currentUser?.id) return { state: "error", message: "Please sign in before booking a visit." };
     if (!isRazorpayConfigured) {
-      return { state: "error", message: `Online payment is not set up yet. Please call the clinic on ${CLINIC_HOTLINE_NUMBER} to book.` };
+      return { state: "error", message: `Online payment is not set up yet. Please book at the clinic reception for now.` };
     }
 
     const patient = {
@@ -1907,7 +1907,7 @@ const clinicSpecialties = [
   [Droplet, "Diabetes"],
   [Activity, "Thyroid"],
   [Weight, "Obesity care"],
-  [HeartPulse, "High blood pressure"],
+  [HeartPulse, "Hypertension"],
   [Brain, "OCD"],
   [MessageCircle, "Anxiety"]
 ];
@@ -1931,14 +1931,14 @@ function ThemeChoices({ theme, setTheme }) {
 }
 
 const patientFeaturePreviews = [
-  [CalendarCheck, "Book visits", "Request a visit and check when the clinic confirms it."],
+  [CalendarCheck, "Book visits", "Pick a day and time, then pay the ₹700 fee to book your slot."],
   [Pill, "Prescriptions", "Read the medicines and instructions your doctor has shared."],
-  [Activity, "Health readings", "Record blood sugar, blood pressure, weight, and HbA1c."],
+  [Activity, "Readings", "Record blood sugar, blood pressure, weight, and HbA1c."],
   [Bell, "Care reminders", "Enable reminders on your phone for medicines and follow-ups."],
-  [Video, "Online consults", "Check availability and start the clinic’s online consultation process."],
+  [Video, "Online consult", "Check availability and start the clinic’s online consultation process."],
   [BookOpen, "Health library", "Read education posts shared by the clinic."],
   [MapPin, "Clinic status", "See whether the doctor is available and where the clinic is open."],
-  [Bot, "Clinic assistant", "Find help with booking and using the app."]
+  [Bot, "Assistant", "Find help with booking and using the app."]
 ];
 
 function PatientFeaturePreview({ feature: [Icon, label, description], portalContainer }) {
@@ -1994,7 +1994,7 @@ function IntroScreen({ onContinue, theme, setTheme }) {
 
       <div className="welcome-doctor">
         <div className="welcome-doctor-copy">
-          <h1 id="clinic-doctor-name">Dr. Ashwani <span>Kansal</span></h1>
+          <h1 id="clinic-doctor-name">Dr Ashwani <span>Kansal</span></h1>
           <p className="welcome-role">Consultant Diabetologist<br />and Physician</p>
           <p className="welcome-credentials">MBBS, DFID, M.MED, PGCAT</p>
         </div>
@@ -2314,7 +2314,7 @@ function PatientApp({
     <section className="screen app-screen">
       <div className="app-header">
         <div>
-          <span className="kicker">Dr. Ashwani Family Clinic</span>
+          <span className="kicker">Dr Ashwani Family Clinic</span>
           <h2>{activeTab === "home" ? "Your care" : patientTabTitles[activeTab]}</h2>
         </div>
         <ProfileButton user={currentUser} role="patient" theme={theme} setTheme={setTheme} onSignOut={onSignOut} />
