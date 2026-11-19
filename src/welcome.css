@@ -1,0 +1,211 @@
+/* Welcome: floating portrait on the page background, a curved content sheet underneath.
+   Tokens per theme; the sheet colour is shared by the SVG edge and the .welcome-sheet below it. */
+.clinic-welcome {
+  --wh-sheet: #fbfcf9;
+  --wh-halo: #cfe9dd;
+  --wh-band-a1: #176763;
+  --wh-band-a2: #5fb5a3;
+  --wh-band-b1: #a9d8cb;
+  --wh-band-b2: #dcefe7;
+  --wh-ink: var(--ink);
+  --wh-copy: var(--muted);
+  --wh-chip: rgb(255 255 255 / 70%);
+}
+[data-clinic-theme="charcoal"] .clinic-welcome {
+  --wh-sheet: #24292a;
+  --wh-halo: #3c4f4c;
+  --wh-band-a1: #2f8a80;
+  --wh-band-a2: #8fd2c4;
+  --wh-band-b1: #3d4a4b;
+  --wh-band-b2: #5f7472;
+  --wh-chip: rgb(255 255 255 / 8%);
+}
+[data-clinic-theme="pine"] .clinic-welcome {
+  --wh-sheet: #172723;
+  --wh-halo: #2c6a5b;
+  --wh-band-a1: #3fa58c;
+  --wh-band-a2: #a8dfcd;
+  --wh-band-b1: #1f6a72;
+  --wh-band-b2: #4d9fa4;
+  --wh-chip: rgb(255 255 255 / 9%);
+}
+
+.clinic-welcome.intro-screen { padding-bottom: 0; }
+
+.wh {
+  position: relative;
+  aspect-ratio: 375 / 318;
+  margin-inline: calc(-1 * max(20px, env(safe-area-inset-left)));
+  margin-top: -4px;
+}
+.wh-art { position: absolute; inset: 0; width: 100%; height: 100%; display: block; overflow: visible; }
+.wh-art image { animation: wh-rise 520ms cubic-bezier(.2,.75,.25,1) both; }
+.wh-sheet { fill: var(--wh-sheet); }
+.wh-sheen {
+  fill: none;
+  stroke: url(#wh-sheen);
+  stroke-width: 3;
+  stroke-linecap: round;
+  opacity: .7;
+}
+.wh.is-still .wh-sheen { display: none; }
+@keyframes wh-rise { from { opacity: 0; transform: translateY(14px); } }
+
+.wh-copy {
+  position: absolute;
+  top: 6%;
+  left: max(20px, env(safe-area-inset-left));
+  width: 54%;
+  display: grid;
+  gap: 8px;
+  color: var(--wh-ink);
+  animation: rise-in 300ms cubic-bezier(.2,.75,.25,1) both;
+}
+.wh-eyebrow {
+  justify-self: start;
+  padding: 4px 10px;
+  border-radius: 99px;
+  background: var(--wh-chip);
+  color: var(--blue);
+  font-size: .72rem;
+  font-weight: 650;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.wh-copy h1 {
+  margin: 0;
+  color: var(--wh-ink);
+  font-size: clamp(1.75rem, 8vw, 2.3rem);
+  font-weight: 700;
+  line-height: 1.02;
+  letter-spacing: -.02em;
+}
+.wh-copy h1 span { display: block; }
+.wh-role { margin: 0; color: var(--wh-copy); font-size: .9rem; line-height: 1.35; }
+.wh-creds {
+  justify-self: start;
+  margin: 2px 0 0;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: var(--wh-chip);
+  color: var(--wh-copy);
+  font-size: .66rem;
+  font-weight: 620;
+  letter-spacing: .02em;
+  white-space: nowrap;
+}
+
+/* The sheet continues the SVG's bottom edge down to the bottom of the screen. */
+.welcome-sheet {
+  flex: 1 0 auto !important;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: calc(-1 * clamp(12px, 2dvh, 18px) - 1px) calc(-1 * max(20px, env(safe-area-inset-left))) 0;
+  padding: 12px max(20px, env(safe-area-inset-left)) max(18px, env(safe-area-inset-bottom));
+  background: var(--wh-sheet);
+}
+.welcome-sheet .welcome-actions { margin-top: auto; }
+
+/* Condition flip cards. */
+.fc { display: grid; gap: 10px; }
+.fc-head { display: flex; align-items: baseline; justify-content: space-between; }
+.fc-head h2 { margin: 0; color: var(--ink); font-size: 1.05rem; font-weight: 680; letter-spacing: -.01em; }
+.fc-head span { color: var(--muted); font-size: .8125rem; }
+.fc ul { perspective: 900px; gap: 8px !important; }
+.welcome-care.fc li { display: block; min-height: 0; padding: 0; border: 0; background: none; }
+.fc-card {
+  display: block;
+  width: 100%;
+  height: clamp(78px, 13dvh, 108px);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.fc-card:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; border-radius: 15px; }
+.fc-inner { position: relative; display: block; width: 100%; height: 100%; transform-style: preserve-3d; }
+.fc-face {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 6px;
+  border: 0;
+  border-radius: 14px;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  text-align: center;
+  line-height: 1.14;
+}
+.fc-front {
+  background: var(--care-tint);
+  font-size: .86rem;
+  font-weight: 600;
+}
+.fc-back {
+  transform: rotateY(180deg);
+  background: linear-gradient(150deg, var(--care-accent), color-mix(in srgb, var(--care-accent) 70%, #0d2742));
+  border-color: transparent;
+  color: #fff;
+  font-size: .75rem;
+  font-weight: 560;
+  text-wrap: balance;
+}
+.dark-theme .fc-back { color: #0f1e26; background: linear-gradient(150deg, var(--care-accent), color-mix(in srgb, var(--care-accent) 78%, #fff)); }
+.fc .welcome-care-icon { min-height: 0; width: 32px; height: 32px; border-radius: 10px; background: color-mix(in srgb, var(--care-accent) 14%, transparent); }
+
+@media (prefers-reduced-motion: reduce) {
+  .wh-art image, .wh-copy { animation: none; }
+  .wh-sheen { display: none; }
+  .fc-back { transform: none; }
+  .fc-face { backface-visibility: visible; }
+}
+
+@media (max-height: 700px) and (orientation: portrait) {
+  .fc-card { height: 64px; }
+  .welcome-sheet { gap: 10px; }
+  .fc-front { font-size: .75rem; }
+  .fc-back { font-size: .68rem; }
+}
+
+/* First-run patient tutorial. */
+.tut-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  align-items: end;
+  padding: 16px;
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+  background: color-mix(in srgb, #06121c 55%, transparent);
+}
+.tut {
+  display: grid;
+  gap: 16px;
+  width: 100%;
+  max-width: 440px;
+  margin-inline: auto;
+  padding: 20px;
+  border-radius: 20px;
+  background: var(--surface);
+  color: var(--ink);
+}
+.tut-top { display: flex; justify-content: space-between; align-items: center; }
+.tut-count { color: var(--muted); font-size: .8125rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.tut-skip { min-height: 44px; padding: 0 6px; border: 0; background: none; color: var(--muted); font: inherit; font-size: .9375rem; font-weight: 600; cursor: pointer; }
+.tut-icon { width: 52px; height: 52px; border-radius: 14px; display: grid; place-items: center; background: var(--room-mint, var(--clinic-raised)); color: var(--blue); }
+.tut h2 { margin: 0; font-size: 1.3rem; font-weight: 680; letter-spacing: -.01em; }
+.tut p { margin: 0; color: var(--muted); font-size: .9375rem; line-height: 1.5; }
+.tut-dots { display: flex; gap: 6px; }
+.tut-dots span { width: 8px; height: 8px; border-radius: 99px; background: color-mix(in srgb, var(--ink) 18%, transparent); transition: width 200ms ease, background-color 200ms ease; }
+.tut-dots span.is-on { width: 22px; background: var(--blue); }
+.tut-actions { display: grid; grid-template-columns: auto 1fr; gap: 10px; }
+.tut-actions .secondary-button, .tut-actions .primary-button { min-height: 52px; border-radius: 12px; }

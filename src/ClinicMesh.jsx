@@ -8,7 +8,7 @@ const palettes = {
   pine: ["#174D73", "#1D7290", "#136952", "#63B79B", "#233F54"],
 };
 
-const speed = 0.28;
+const speed = 0.42;
 
 export default function ClinicMesh({ theme, paused }) {
   const host = useRef(null);
