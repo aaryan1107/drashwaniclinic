@@ -54,11 +54,17 @@ on conflict (email) do update set active = true;
 
 ## Required Edge Functions
 
-Deploy both functions with JWT verification enabled:
+Deploy both payment functions with JWT verification enabled:
 
 ```bash
 supabase functions deploy create-consultation-order --project-ref aswxzeklbabtflgmjszz
 supabase functions deploy verify-consultation-payment --project-ref aswxzeklbabtflgmjszz
+```
+
+Deploy the Razorpay webhook **without** JWT verification (Razorpay cannot send a Supabase JWT; the function checks the HMAC signature instead). Apply the `20261119120000_razorpay_webhook_events.sql` migration first: refund events write the new `amount_refunded` / `refunded_at` columns.
+
+```bash
+supabase functions deploy razorpay-webhook --no-verify-jwt --project-ref aswxzeklbabtflgmjszz
 ```
 
 ## Required Supabase Secrets
@@ -68,6 +74,7 @@ Set these in Supabase Edge Function secrets:
 ```bash
 supabase secrets set RAZORPAY_KEY_ID=rzp_live_or_test_key --project-ref aswxzeklbabtflgmjszz
 supabase secrets set RAZORPAY_KEY_SECRET=your_razorpay_secret --project-ref aswxzeklbabtflgmjszz
+supabase secrets set RAZORPAY_WEBHOOK_SECRET=your_webhook_secret --project-ref aswxzeklbabtflgmjszz
 supabase secrets set PROJECT_URL=https://aswxzeklbabtflgmjszz.supabase.co --project-ref aswxzeklbabtflgmjszz
 supabase secrets set SERVICE_ROLE_KEY=your_service_role_key --project-ref aswxzeklbabtflgmjszz
 supabase secrets set OPENAI_API_KEY=your_openai_key --project-ref aswxzeklbabtflgmjszz
@@ -96,6 +103,47 @@ VITE_RAZORPAY_PAYMENT_LINK=https://razorpay.me/@drashwanisfamilyclinicdiagnos
 - Razorpay Checkout verifies through `verify-consultation-payment`.
 - WhatsApp consult unlocks only after verification returns success.
 - If live Checkout keys are missing, the hosted Razorpay payment link can open, but the doctor/admin must manually verify the receipt.
+
+## Razorpay Webhook
+
+The webhook is the backup path when the patient closes the app before `verify-consultation-payment` finishes, and the only path that hears about refunds.
+
+Razorpay Dashboard > Account & Settings > Webhooks > Add new webhook:
+
+- URL: `https://aswxzeklbabtflgmjszz.supabase.co/functions/v1/razorpay-webhook`
+- Secret: the same value as the `RAZORPAY_WEBHOOK_SECRET` Supabase secret.
+- Alert email: the clinic admin inbox, so a failing webhook is noticed.
+- Active events (tick all of these, in both Test and Live mode):
+
+| Event | What the webhook does |
+| --- | --- |
+| `payment.authorized` | Row moves to `CAPTURE_PENDING` |
+| `payment.captured` | Row moves to `PAID_CONFIRMED` (unlocks the consultation) |
+| `payment.failed` | Row moves to `FAILED`, only for that same payment attempt |
+| `order.paid` | Row moves to `PAID_CONFIRMED` |
+| `refund.processed` | Records `amount_refunded`; a full refund moves the row to `REFUNDED` (consultation locked again) |
+| `refund.created` | Audit log only |
+| `refund.failed` | Audit log only |
+| `payment.dispute.created` | Audit log only, for the doctor to follow up |
+| `payment.dispute.won` | Audit log only |
+| `payment.dispute.lost` | Audit log only |
+| `payment.dispute.closed` | Audit log only |
+
+Safety rules the webhook keeps:
+
+- The `x-razorpay-signature` HMAC is checked on the raw body before anything is parsed.
+- State-changing events must be exactly `70000` paise in `INR`, or they are rejected.
+- Statuses only move forward (`ORDER_CREATED` -> `CAPTURE_PENDING` -> `PAID_CONFIRMED` -> `REFUNDED`), so late or replayed events cannot downgrade a payment. `REFUNDED` is final.
+- Each delivery is recorded in `razorpay_webhook_events` by `x-razorpay-event-id`. Razorpay's retries of an event that was already handled are skipped; a delivery that failed to save is retried normally. Only Razorpay IDs, amounts and outcomes are stored, and only doctors can read the table.
+
+Check recent deliveries in the Supabase SQL editor:
+
+```sql
+select received_at, event, outcome, payment_status, razorpay_order_id, razorpay_payment_id
+from public.razorpay_webhook_events
+order by received_at desc
+limit 50;
+```
 
 ## Front-desk staff (read-only prescriptions)
 
