@@ -230,6 +230,8 @@ const availabilityRowToState = (row) => {
   };
 };
 
+const PATIENT_NOTE_LIMIT = 140;
+
 const availabilityStateToRow = (availability) => ({
   id: "live",
   status: availability.status,
@@ -2424,7 +2426,9 @@ function LiveAvailabilityViewer({ availability, activeClinic, consultationFee, c
         <Bell size={18} />
       </div>
       <h3>{isOnDuty ? `${activeClinic.name} - ${activeClinic.short}` : "Doctor is currently off duty"}</h3>
-      <p>{isOnDuty ? availability.message : "You can still request appointment or online consultation."}</p>
+      {availability.message
+        ? <p className="live-note">{availability.message}</p>
+        : <p>{isOnDuty ? "Walk in during clinic hours, or book a slot in the Book tab." : "You can still request an appointment."}</p>}
       <div className="clinic-detail-list">
         <span><Clock size={15} /> {activeClinic.timing}</span>
         {isOnDuty && <span><MapPin size={15} /> {activeClinic.address}</span>}
@@ -3608,12 +3612,25 @@ function DoctorAvailabilityEditor({
   activeClinic
 }) {
   const updateAvailability = (patch) => {
-    setAvailability({
+    return setAvailability({
       ...availability,
       ...patch,
       updatedBy: "Dr. Ashwani",
       updatedAt: "Just now"
     });
+  };
+  const [noteDraft, setNoteDraft] = useState(availability.message || "");
+  const [noteSaving, setNoteSaving] = useState(false);
+  const [noteSaved, setNoteSaved] = useState(false);
+  const savedNote = availability.message || "";
+  const noteChanged = noteDraft.trim() !== savedNote;
+  // Pick up the saved note when it arrives from the database after the editor has mounted.
+  useEffect(() => { setNoteDraft(savedNote); }, [savedNote]);
+  const saveNote = async () => {
+    setNoteSaving(true);
+    await updateAvailability({ message: noteDraft.trim() });
+    setNoteSaving(false);
+    setNoteSaved(true);
   };
 
   return (
@@ -3649,17 +3666,24 @@ function DoctorAvailabilityEditor({
         </button>
       </div>
 
-      <label className="switch-card">
-        <span><Video size={18} /> Online consultation available</span>
-        <input
-          type="checkbox"
-          checked={availability.online}
-          onChange={(event) => updateAvailability({ online: event.target.checked })}
-        />
-      </label>
-
       <div className="form-card">
-        <label>Custom patient message<input value={availability.message} onChange={(event) => updateAvailability({ message: event.target.value })} /></label>
+        <div className="note-field">
+          <label htmlFor="patient-note">Note for patients</label>
+          <textarea id="patient-note" rows={3} maxLength={PATIENT_NOTE_LIMIT} value={noteDraft}
+            placeholder="For example: Running 20 minutes late today."
+            onChange={(event) => { setNoteDraft(event.target.value); setNoteSaved(false); }} />
+          <div className="note-field-foot">
+            <small>{noteDraft.length}/{PATIENT_NOTE_LIMIT}. Patients see this on the Live card.</small>
+            <div className="note-field-actions">
+              {(noteDraft || availability.message) && (
+                <button type="button" className="secondary-button" onClick={() => { setNoteDraft(""); setNoteSaved(false); }}>Clear</button>
+              )}
+              <button type="button" className="primary-button" disabled={!noteChanged || noteSaving} onClick={saveNote}>
+                {noteSaving ? "Saving..." : noteSaved && !noteChanged ? "Saved" : "Save note"}
+              </button>
+            </div>
+          </div>
+        </div>
         <div className="locked-fee-card">
           <span>Online consultation fee</span>
           <strong>Rs {ONLINE_CONSULTATION_FEE}</strong>
