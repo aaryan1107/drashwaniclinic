@@ -14,17 +14,21 @@ Deno.serve(async (request) => {
       return json({ error: "Method not allowed." }, 405);
     }
 
-    const body = await request.json();
-    const orderId = String(body.order_id || body.razorpay_order_id || "");
-    const paymentId = String(body.razorpay_payment_id || "");
-    const signature = String(body.razorpay_signature || "");
+    const body = await request.json().catch(() => null);
+    const checkoutOrderId = body?.razorpay_order_id;
+    const orderId = body?.order_id ?? checkoutOrderId;
+    const paymentId = body?.razorpay_payment_id;
+    const signature = body?.razorpay_signature;
+    if ([checkoutOrderId, orderId, paymentId, signature].some((field) => typeof field !== "string" || !field.trim())) {
+      return json({ error: "Missing Razorpay verification data." }, 400);
+    }
+    if (checkoutOrderId !== orderId) {
+      return json({ error: "Checkout order does not match the consultation order." }, 400);
+    }
+
     const keyId = String(Deno.env.get("RAZORPAY_KEY_ID") || "").trim();
     const keySecret = String(Deno.env.get("RAZORPAY_KEY_SECRET") || "").trim();
     const authUser = await getAuthenticatedUser(request);
-
-    if (!orderId || !paymentId || !signature) {
-      return json({ error: "Missing Razorpay verification data." }, 400);
-    }
 
     if (!authUser) {
       return json({ error: "Please sign in before verifying consultation payment." }, 401);

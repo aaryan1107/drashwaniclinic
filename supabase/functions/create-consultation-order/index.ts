@@ -14,23 +14,34 @@ Deno.serve(async (request) => {
       return json({ error: "Method not allowed." }, 405);
     }
 
-    const body = await request.json();
+    const body = await request.json().catch(() => null);
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return json({ error: "A JSON order request is required." }, 400);
+    }
     const amount = Number(body.amount);
     const currency = String(body.currency || "INR").toUpperCase();
     const keyId = String(Deno.env.get("RAZORPAY_KEY_ID") || "").trim();
     const keySecret = String(Deno.env.get("RAZORPAY_KEY_SECRET") || "").trim();
     const authUser = await getAuthenticatedUser(request);
 
-    if (!keyId || !keySecret) {
-      return json({ error: "Razorpay keys are missing in Supabase secrets." }, 500);
-    }
-
     if (!authUser) {
       return json({ error: "Please sign in before paying for consultation." }, 401);
     }
 
-    if (!Number.isInteger(amount) || amount !== 70000 || currency !== "INR") {
-      return json({ error: "Invalid consultation amount. Online consultation fee is fixed at Rs 700." }, 400);
+    if (!keyId || !keySecret) {
+      return json({ error: "Razorpay keys are missing in Supabase secrets." }, 500);
+    }
+
+    if (!Number.isSafeInteger(amount) || amount < 100) {
+      return json({ error: "Amount must be an integer of at least 100 paise." }, 400);
+    }
+    if (amount !== 70000 || currency !== "INR") {
+      return json({ error: "The online consultation fee is fixed at ₹700 in INR." }, 400);
+    }
+
+    const receipt = body.receipt ?? `consult_${crypto.randomUUID().replaceAll("-", "")}`;
+    if (typeof receipt !== "string" || !receipt.trim() || receipt.length > 40) {
+      return json({ error: "Receipt must be a non-empty string of at most 40 characters." }, 400);
     }
 
     const patient = {
@@ -49,7 +60,7 @@ Deno.serve(async (request) => {
       body: JSON.stringify({
         amount,
         currency,
-        receipt: `consult_${Date.now()}`,
+        receipt,
         notes: {
           purpose: "doctor_consultation",
           clinic: body.clinic?.name || "",
@@ -59,10 +70,10 @@ Deno.serve(async (request) => {
       })
     });
 
-    const order = await orderResponse.json();
     if (!orderResponse.ok) {
-      return json({ error: "Failed to create Razorpay order.", details: order }, 502);
+      return json({ error: "Razorpay could not create the order. Please try again." }, 500);
     }
+    const order = await orderResponse.json();
 
     const saved = await storePaymentDraft({
       razorpay_order_id: order.id,
@@ -80,8 +91,8 @@ Deno.serve(async (request) => {
       amount: order.amount,
       currency: order.currency
     });
-  } catch (error) {
-    return json({ error: error?.message || "Server error while creating consultation order." }, 500);
+  } catch {
+    return json({ error: "Server error while creating consultation order." }, 500);
   }
 });
 
