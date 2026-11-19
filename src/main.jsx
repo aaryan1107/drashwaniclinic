@@ -1963,12 +1963,13 @@ function IntroScreen({ onContinue, theme, setTheme }) {
 
       <WelcomeHero />
 
-      <ConditionCards conditions={clinicSpecialties} />
-
-      <div className="welcome-actions">
-        <button type="button" className="primary-button w-full" onClick={onContinue}>
-          Continue <ChevronRight size={19} aria-hidden="true" />
-        </button>
+      <div className="welcome-sheet">
+        <ConditionCards conditions={clinicSpecialties} />
+        <div className="welcome-actions">
+          <button type="button" className="primary-button w-full" onClick={onContinue}>
+            Continue <ChevronRight size={19} aria-hidden="true" />
+          </button>
+        </div>
       </div>
       <div className="welcome-overlays" ref={welcomeOverlaysRef} />
     </section>

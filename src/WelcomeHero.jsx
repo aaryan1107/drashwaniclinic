@@ -1,16 +1,22 @@
 // Welcome screen hero and condition cards.
-// Hero: a dark blue space holding the name and portrait, cut by three sweeping curves.
-// The two bands between the curves carry slowly flowing gradients, and the curve lines drift.
+// Layout follows the doctor-profile reference in inspo/: the portrait floats on the page background
+// (the live mesh shows through), the name sits on the left, and a content sheet rises underneath
+// with a curved top edge. Two thin bands ride that edge, shifting colour slowly, and a soft light
+// glides along them. Colours come from --wh-* tokens set per theme in welcome.css.
 import { useContext, useEffect, useRef, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { ClinicMotion } from "./ClinicMesh";
 import "./welcome.css";
 
-// Three parallel curves from the left edge sweeping down to the right edge (viewBox 375 x 292).
-const curve = (dy) => `M0 ${150 + dy} C 70 ${222 + dy}, 210 ${262 + dy}, 375 ${256 + dy}`;
-const band = (top, bottom) =>
-  `${curve(top)} L375 ${256 + bottom} C 210 ${262 + bottom}, 70 ${222 + bottom}, 0 ${150 + bottom} Z`;
-const SPACE_ONE = `M0 0 H375 V256 C 210 262, 70 222, 0 150 Z`;
+// viewBox 375 x 318. Curves run from the left edge down and across to the right edge.
+const W = 375;
+const H = 318;
+const curve = (dy) => `M0 ${206 + dy} C 104 ${276 + dy}, 236 ${306 + dy}, ${W} ${292 + dy}`;
+const curveBack = (dy) => `L${W} ${292 + dy} C 236 ${306 + dy}, 104 ${276 + dy}, 0 ${206 + dy} Z`;
+const band = (top, bottom) => `${curve(top)} ${curveBack(bottom)}`;
+const ABOVE = `M0 0 H${W} V292 C 236 306, 104 276, 0 206 Z`;
+const SHEET = `${curve(14)} L${W} ${H} L0 ${H} Z`;
+const stop = (offset, token) => <stop offset={offset} style={{ stopColor: `var(${token})` }} />;
 
 function useMotionAllowed() {
   const motion = useContext(ClinicMotion);
@@ -38,43 +44,47 @@ export function WelcomeHero() {
 
   return (
     <div className={`wh${moving ? "" : " is-still"}`}>
-      <svg ref={svgRef} className="wh-art" viewBox="0 0 375 292" aria-hidden="true" focusable="false">
+      <svg ref={svgRef} className="wh-art" viewBox={`0 0 ${W} ${H}`} aria-hidden="true" focusable="false">
         <defs>
-          <linearGradient id="wh-space" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stopColor="#0d2742" />
-            <stop offset=".6" stopColor="#123a5c" />
-            <stop offset="1" stopColor="#14505a" />
-          </linearGradient>
+          <radialGradient id="wh-halo" cx=".72" cy=".46" r=".42">
+            <stop offset="0" style={{ stopColor: "var(--wh-halo)", stopOpacity: 0.9 }} />
+            <stop offset="1" style={{ stopColor: "var(--wh-halo)", stopOpacity: 0 }} />
+          </radialGradient>
           <linearGradient id="wh-band-a" x1="0" y1="0" x2="375" y2="0" spreadMethod="reflect" gradientUnits="userSpaceOnUse">
-            <stop offset="0" stopColor="#176763" />
-            <stop offset=".45" stopColor="#3fa59a" />
-            <stop offset="1" stopColor="#9bd8cb" />
-            <animateTransform attributeName="gradientTransform" type="translate" from="0 0" to="750 0" dur="9s" repeatCount="indefinite" />
+            {stop(0, "--wh-band-a1")}
+            {stop(1, "--wh-band-a2")}
+            <animateTransform attributeName="gradientTransform" type="translate" from="0 0" to="750 0" dur="14s" repeatCount="indefinite" />
           </linearGradient>
           <linearGradient id="wh-band-b" x1="0" y1="0" x2="375" y2="0" spreadMethod="reflect" gradientUnits="userSpaceOnUse">
-            <stop offset="0" stopColor="#4f8fc6" />
-            <stop offset=".55" stopColor="#1d5287" />
-            <stop offset="1" stopColor="#1f7a72" />
-            <animateTransform attributeName="gradientTransform" type="translate" from="750 0" to="0 0" dur="12s" repeatCount="indefinite" />
+            {stop(0, "--wh-band-b1")}
+            {stop(1, "--wh-band-b2")}
+            <animateTransform attributeName="gradientTransform" type="translate" from="750 0" to="0 0" dur="18s" repeatCount="indefinite" />
           </linearGradient>
-          <clipPath id="wh-space-clip"><path d={SPACE_ONE} /></clipPath>
+          {/* A short soft highlight that travels left to right along the curve. */}
+          <linearGradient id="wh-sheen" x1="-140" y1="0" x2="0" y2="0" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stopColor="#fff" stopOpacity="0" />
+            <stop offset=".5" stopColor="#fff" stopOpacity=".85" />
+            <stop offset="1" stopColor="#fff" stopOpacity="0" />
+            <animateTransform attributeName="gradientTransform" type="translate" values="0 0; 520 0" keyTimes="0; 1"
+              dur="6.5s" calcMode="spline" keySplines=".45 0 .25 1" repeatCount="indefinite" />
+          </linearGradient>
+          <clipPath id="wh-above"><path d={ABOVE} /></clipPath>
         </defs>
 
-        <path d={SPACE_ONE} fill="url(#wh-space)" />
-        <image href="/doctor-ashwani-welcome.webp" x="168" y="8" width="214" height="290"
-          preserveAspectRatio="xMidYMax meet" clipPath="url(#wh-space-clip)" />
-        <path d={band(0, 16)} fill="url(#wh-band-a)" />
-        <path d={band(16, 30)} fill="url(#wh-band-b)" />
-
-        <path className="wh-line" d={curve(0)} />
-        <path className="wh-line is-mid" d={curve(16)} />
-        <path className="wh-line is-low" d={curve(30)} />
+        <circle cx="290" cy="150" r="128" fill="url(#wh-halo)" />
+        <image href="/doctor-ashwani-welcome.webp" x="170" y="4" width="246" height="334"
+          preserveAspectRatio="xMidYMax meet" clipPath="url(#wh-above)" />
+        <path d={band(0, 8)} fill="url(#wh-band-a)" />
+        <path d={band(8, 14)} fill="url(#wh-band-b)" />
+        <path d={SHEET} className="wh-sheet" />
+        <path className="wh-sheen" d={curve(0)} />
       </svg>
 
       <div className="wh-copy">
+        <span className="wh-eyebrow">Your doctor</span>
         <h1 id="clinic-doctor-name">Dr Ashwani <span>Kansal</span></h1>
-        <p className="wh-role">Consultant Diabetologist<br />and Physician</p>
-        <p className="wh-credentials">MBBS, DFID, M.MED, PGCAT</p>
+        <p className="wh-role">Consultant Diabetologist and Physician</p>
+        <p className="wh-creds">MBBS · DFID · M.MED · PGCAT</p>
       </div>
     </div>
   );
@@ -115,7 +125,11 @@ function ConditionCard({ Icon, label, back, tone, index, open, onToggle }) {
 export function ConditionCards({ conditions }) {
   const [openLabel, setOpenLabel] = useState(null);
   return (
-    <section className="welcome-care fc" aria-label="Conditions treated">
+    <section className="welcome-care fc" aria-labelledby="fc-heading">
+      <div className="fc-head">
+        <h2 id="fc-heading">What we treat</h2>
+        <span>Tap a card</span>
+      </div>
       <ul>
         {conditions.map(([Icon, label, back], index) => (
           <ConditionCard key={label} Icon={Icon} label={label} back={back} tone={index % 3} index={index}
