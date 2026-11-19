@@ -239,3 +239,19 @@
 .note-field-actions .primary-button { flex: 1; min-height: 48px; border-radius: 12px; }
 .note-field-actions .secondary-button { min-height: 48px; border-radius: 12px; padding-inline: 16px; }
 .live-note { padding: 10px 12px; border-radius: 12px; background: color-mix(in srgb, var(--ink) 7%, transparent); font-weight: 600; }
+
+/* Condition cards: one clear accent per column (blue, green, amber), tuned per mode. No purple. */
+.app-stage .fc li[data-care-tone="0"] { --care-tint: #C0DDF1; --care-accent: #1F6E9C; }
+.app-stage .fc li[data-care-tone="1"] { --care-tint: #BBE4CB; --care-accent: #1B7A4B; }
+.app-stage .fc li[data-care-tone="2"] { --care-tint: #F0D18C; --care-accent: #94610F; }
+.app-stage .fc .fc-front { color: var(--ink); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--care-accent) 28%, transparent); }
+.app-stage .fc .welcome-care-icon { color: var(--care-accent); }
+
+.app-stage.dark-theme .fc li[data-care-tone="0"] { --care-accent: #6DC0EE; }
+.app-stage.dark-theme .fc li[data-care-tone="1"] { --care-accent: #5ED69B; }
+.app-stage.dark-theme .fc li[data-care-tone="2"] { --care-accent: #F2C063; }
+.app-stage.dark-theme .fc .fc-front {
+  background: linear-gradient(150deg, color-mix(in srgb, var(--care-accent) 26%, var(--wh-sheet)),
+    color-mix(in srgb, var(--care-accent) 8%, var(--wh-sheet)));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--care-accent) 42%, transparent);
+}
