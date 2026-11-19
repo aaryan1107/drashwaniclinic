@@ -193,3 +193,49 @@
 .tut-dots span.is-on { width: 22px; background: var(--blue); }
 .tut-actions { display: grid; grid-template-columns: auto 1fr; gap: 10px; }
 .tut-actions .secondary-button, .tut-actions .primary-button { min-height: 52px; border-radius: 12px; }
+
+/* Doctor overview cards: one saturated accent per card, no purple. Tokens per mode; the lavender class is amber. */
+.app-stage .doctor-stats .doctor-stat {
+  --stat-tint: #D6EAF7; --stat-accent: #1F6E9C;
+  border-color: color-mix(in srgb, var(--stat-accent) 40%, transparent);
+  background: linear-gradient(150deg, var(--stat-tint), color-mix(in srgb, var(--stat-tint) 55%, #fff));
+}
+.app-stage .doctor-stats .doctor-stat.green { --stat-tint: #CFEDD9; --stat-accent: #1B7A4B; }
+.app-stage .doctor-stats .doctor-stat.rose { --stat-tint: #FADBE0; --stat-accent: #B53A55; }
+.app-stage .doctor-stats .doctor-stat.lavender { --stat-tint: #F8E5B9; --stat-accent: #94610F; }
+.app-stage .doctor-stat::after { background: color-mix(in srgb, var(--stat-accent) 14%, transparent); }
+.app-stage .doctor-stat svg { background: color-mix(in srgb, var(--stat-accent) 16%, transparent); }
+
+.app-stage.dark-theme .doctor-stats .doctor-stat {
+  --stat-accent: #6DC0EE;
+  border-color: color-mix(in srgb, var(--stat-accent) 45%, transparent);
+  background: linear-gradient(150deg, color-mix(in srgb, var(--stat-accent) 32%, var(--clinic-panel-fill)),
+    color-mix(in srgb, var(--stat-accent) 11%, var(--clinic-panel-fill)));
+}
+.app-stage.dark-theme .doctor-stats .doctor-stat.green { --stat-accent: #5ED69B; }
+.app-stage.dark-theme .doctor-stats .doctor-stat.rose { --stat-accent: #FF8DA3; }
+.app-stage.dark-theme .doctor-stats .doctor-stat.lavender { --stat-accent: #F2C063; }
+.app-stage.dark-theme .doctor-stat::after { background: color-mix(in srgb, var(--stat-accent) 20%, transparent); }
+.app-stage.dark-theme .doctor-stat svg { background: color-mix(in srgb, var(--stat-accent) 26%, transparent); }
+
+/* Doctor note for patients. */
+.note-field { display: grid; gap: 8px; }
+.note-field label { font-weight: 650; }
+.note-field textarea {
+  width: 100%;
+  min-height: 84px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--ink) 5%, transparent);
+  color: var(--ink);
+  font: inherit;
+  line-height: 1.4;
+  resize: vertical;
+}
+.note-field-foot { display: grid; gap: 10px; }
+.note-field-foot small { color: var(--muted); }
+.note-field-actions { display: flex; gap: 8px; }
+.note-field-actions .primary-button { flex: 1; min-height: 48px; border-radius: 12px; }
+.note-field-actions .secondary-button { min-height: 48px; border-radius: 12px; padding-inline: 16px; }
+.live-note { padding: 10px 12px; border-radius: 12px; background: color-mix(in srgb, var(--ink) 7%, transparent); font-weight: 600; }
