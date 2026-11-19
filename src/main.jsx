@@ -68,6 +68,8 @@ import "./clinic-appearance.css";
 import "./clinic-theme.css";
 import "./clinic-brand.css";
 import { useClinicNavigation } from "./useClinicNavigation";
+import BookVisit from "./BookVisit.jsx";
+import { VISIT_FEE_RUPEES, VISIT_PAYMENT_PURPOSE, bookingRow } from "./booking.js";
 import ClinicMesh, { ClinicMotion } from "./ClinicMesh";
 
 const RAZORPAY_KEY_ID = import.meta.env.VITE_RAZORPAY_KEY_ID || "";
@@ -108,6 +110,8 @@ async function fetchConsultPayment(userId) {
     .from("consultation_payments")
     .select("razorpay_payment_id, payment_status, verified_at, created_at")
     .filter("patient->>user_id", "eq", userId)
+    // Clinic-visit fees are paid per booking and must not unlock WhatsApp consultation.
+    .or(`clinic->>purpose.is.null,clinic->>purpose.neq.${VISIT_PAYMENT_PURPOSE}`)
     .order("created_at", { ascending: false })
     .limit(10);
 
@@ -504,18 +508,6 @@ const getSlotsFromClinicTiming = (clinic, dateValue, intervalMinutes = 30) => {
   return slots.slice(0, 12);
 };
 
-const getAppointmentDateTime = (appointment, activeClinic) => {
-  const start = parseClinicTime(appointment.time, appointment.date)
-    || parseClinicTime(activeClinic.timing.split(/\s*-\s*/)[0] || "", appointment.date)
-    || new Date(`${appointment.date}T10:00:00`);
-  const end = new Date(start.getTime() + 30 * 60000);
-  return { start, end };
-};
-
-const toGoogleCalendarDate = (date) => {
-  return date.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
-};
-
 const findNextBookableDate = (clinic) => {
   const days = getAppointmentDays();
   return days.find((day) => getSlotsFromClinicTiming(clinic, day.dateValue).length > 0)?.dateValue
@@ -523,28 +515,6 @@ const findNextBookableDate = (clinic) => {
     || getTodayDateValue();
 };
 
-const googleCalendarUrl = (appointment, activeClinic) => {
-  const { start, end } = getAppointmentDateTime(appointment, activeClinic);
-  const isOnline = appointment.mode === "Online consultation";
-  const whatsappContact = `WhatsApp Dr. Ashwani: ${DOCTOR_WHATSAPP_NUMBER}`;
-  const title = `Dr. Ashwani Kansal - ${appointment.reason}`;
-  const details = [
-    `Consultation mode: ${appointment.mode}`,
-    `Status: ${appointment.status}`,
-    isOnline ? whatsappContact : `Clinic: ${activeClinic.name}`,
-    "Please keep latest reports, sugar/BP readings and current medicines ready."
-  ].join("\n");
-  const location = isOnline ? whatsappContact : `${activeClinic.name}, ${activeClinic.address}`;
-  const params = new URLSearchParams({
-    action: "TEMPLATE",
-    text: title,
-    dates: `${toGoogleCalendarDate(start)}/${toGoogleCalendarDate(end)}`,
-    ctz: "Asia/Kolkata",
-    details,
-    location
-  });
-  return `https://calendar.google.com/calendar/render?${params.toString()}`;
-};
 
 const loadRazorpayCheckout = () => new Promise((resolve, reject) => {
   if (window.Razorpay) {
@@ -1581,37 +1551,78 @@ function App() {
     }
   };
 
-  const submitAppointmentRequest = async (nextAppointment) => {
-    setAppointment(nextAppointment);
-
-    if (!currentUser?.id) {
-      return "Please sign in before sending an appointment request.";
+  // Book tab: take the visit fee with Razorpay Checkout, then save the booking with the payment ID.
+  // Resolves to { state: "booked" | "pending" | "cancelled" | "error", message, paymentId }.
+  const payAndBookVisit = async (visit) => {
+    if (!currentUser?.id) return { state: "error", message: "Please sign in before booking a visit." };
+    if (!isRazorpayConfigured) {
+      return { state: "error", message: `Online payment is not set up yet. Please book at the clinic reception for now.` };
     }
 
-    const isOnline = nextAppointment.mode === "Online consultation";
-    const { error } = await supabase.from("appointment_requests").insert({
-      patient_id: currentUser.id,
-      patient_name: currentUser.name || "Clinic Patient",
-      patient_phone: currentUser.phone || null,
-      clinic_id: activeClinic.id,
-      clinic_name: activeClinic.name,
-      mode: nextAppointment.mode,
-      appointment_date: nextAppointment.date,
-      appointment_time: nextAppointment.time,
-      reason: nextAppointment.reason,
-      payment_status: isOnline ? (consultPayment.status === "paid" ? "PAID_CONFIRMED" : "PAYMENT_PENDING") : "NOT_REQUIRED",
-      payment_reference: consultPayment.paymentId || null,
-      status: nextAppointment.status
+    const patient = {
+      user_id: currentUser.id,
+      name: currentUser.name || "Patient",
+      email: currentUser.email || "",
+      contact: currentUser.phone || ""
+    };
+    let order;
+    try {
+      await loadRazorpayCheckout();
+      order = await createConsultationOrder({
+        amountRupees: VISIT_FEE_RUPEES,
+        patient,
+        clinic: { id: activeClinic.id, name: activeClinic.name, purpose: VISIT_PAYMENT_PURPOSE, date: visit.date, time: visit.time }
+      });
+    } catch (error) {
+      return { state: "error", message: error.message || "Could not open the payment. Check your connection and try again." };
+    }
+
+    const checkoutResult = await new Promise((resolve) => {
+      let settled = false;
+      const finish = (value) => { if (!settled) { settled = true; resolve(value); } };
+      const checkout = new window.Razorpay({
+        key: order.razorpay_key_id || RAZORPAY_KEY_ID,
+        amount: order.amount,
+        currency: order.currency || "INR",
+        name: "Dr Ashwani Family Clinic",
+        description: `Clinic visit, ${visit.date} ${visit.time}`,
+        order_id: order.order_id,
+        prefill: patient,
+        notes: { clinic: activeClinic.name, purpose: VISIT_PAYMENT_PURPOSE },
+        theme: { color: "#176763" },
+        handler: (response) => finish({ response }),
+        modal: { ondismiss: () => finish({ cancelled: true }) }
+      });
+      checkout.on?.("payment.failed", (response) => finish({ failed: response?.error?.description || "The payment did not go through." }));
+      checkout.open();
     });
 
-    if (error) {
-      if (isMissingSupabaseTableError(error)) {
-        return "Request saved locally. Apply Supabase migrations to sync appointment requests.";
-      }
-      return `Request saved locally, but cloud sync failed: ${error.message}`;
+    if (checkoutResult.cancelled) return { state: "cancelled", message: "Payment was not completed, so nothing was booked." };
+    if (checkoutResult.failed) return { state: "error", message: `${checkoutResult.failed} Nothing was booked. You can try again.` };
+
+    const paymentId = checkoutResult.response.razorpay_payment_id;
+    let paid = false;
+    try {
+      const verification = await verifyConsultationPayment({ order, response: checkoutResult.response });
+      paid = verification.payment_status === "captured";
+    } catch (error) {
+      console.warn("Visit payment verification failed:", error.message);
     }
 
-    return "Appointment request sent to the clinic backend.";
+    const { error } = await supabase.from("appointment_requests")
+      .insert(bookingRow({ appointment: visit, user: currentUser, clinic: activeClinic, paymentId, paid }));
+    const booked = { ...visit, mode: "Clinic visit", status: paid ? "Booked - fee paid" : "Booked - payment confirming" };
+    setAppointment(booked);
+    if (error) {
+      console.warn("Booking save failed after payment:", error.message);
+      return {
+        state: "error",
+        message: `Your payment went through (ID ${paymentId}) but we could not save the booking. Please call the clinic on ${CLINIC_HOTLINE_NUMBER} with this payment ID.`
+      };
+    }
+    return paid
+      ? { state: "booked", paymentId, message: `See you on ${formatAppointmentDate(visit.date)} at ${visit.time} at ${activeClinic.name}.` }
+      : { state: "pending", paymentId, message: "Razorpay has your payment and is confirming it. Your slot is held. This usually takes a few minutes." };
   };
 
   const openAuthFromIntro = () => {
@@ -1626,9 +1637,7 @@ function App() {
         ? current.date
         : findNextBookableDate(activeClinic);
       const syncedSlots = getSlotsFromClinicTiming(activeClinic, syncedDate);
-      const syncedMode = !availability.online && current.mode === "Online consultation"
-        ? "Clinic visit"
-        : current.mode;
+      const syncedMode = "Clinic visit";
       const syncedTime = syncedSlots.includes(current.time)
         ? current.time
         : syncedSlots[0] || current.time;
@@ -1830,7 +1839,7 @@ function App() {
             activeClinic={activeClinic}
             appointment={appointment}
             setAppointment={setAppointment}
-            onSubmitAppointment={submitAppointmentRequest}
+            onPayAndBook={payAndBookVisit}
             educationPosts={educationPosts}
             patientReadings={patientReadings}
             setPatientReadings={setPatientReadings}
@@ -1898,7 +1907,7 @@ const clinicSpecialties = [
   [Droplet, "Diabetes"],
   [Activity, "Thyroid"],
   [Weight, "Obesity care"],
-  [HeartPulse, "High blood pressure"],
+  [HeartPulse, "Hypertension"],
   [Brain, "OCD"],
   [MessageCircle, "Anxiety"]
 ];
@@ -1922,14 +1931,14 @@ function ThemeChoices({ theme, setTheme }) {
 }
 
 const patientFeaturePreviews = [
-  [CalendarCheck, "Book visits", "Request a visit and check when the clinic confirms it."],
+  [CalendarCheck, "Book visits", "Pick a day and time, then pay the ₹700 fee to book your slot."],
   [Pill, "Prescriptions", "Read the medicines and instructions your doctor has shared."],
-  [Activity, "Health readings", "Record blood sugar, blood pressure, weight, and HbA1c."],
+  [Activity, "Readings", "Record blood sugar, blood pressure, weight, and HbA1c."],
   [Bell, "Care reminders", "Enable reminders on your phone for medicines and follow-ups."],
-  [Video, "Online consults", "Check availability and start the clinic’s online consultation process."],
+  [Video, "Online consult", "Check availability and start the clinic’s online consultation process."],
   [BookOpen, "Health library", "Read education posts shared by the clinic."],
   [MapPin, "Clinic status", "See whether the doctor is available and where the clinic is open."],
-  [Bot, "Clinic assistant", "Find help with booking and using the app."]
+  [Bot, "Assistant", "Find help with booking and using the app."]
 ];
 
 function PatientFeaturePreview({ feature: [Icon, label, description], portalContainer }) {
@@ -1985,7 +1994,7 @@ function IntroScreen({ onContinue, theme, setTheme }) {
 
       <div className="welcome-doctor">
         <div className="welcome-doctor-copy">
-          <h1 id="clinic-doctor-name">Dr. Ashwani <span>Kansal</span></h1>
+          <h1 id="clinic-doctor-name">Dr Ashwani <span>Kansal</span></h1>
           <p className="welcome-role">Consultant Diabetologist<br />and Physician</p>
           <p className="welcome-credentials">MBBS, DFID, M.MED, PGCAT</p>
         </div>
@@ -2283,7 +2292,7 @@ function PatientApp({
   activeClinic,
   appointment,
   setAppointment,
-  onSubmitAppointment,
+  onPayAndBook,
   educationPosts,
   patientReadings,
   setPatientReadings,
@@ -2298,12 +2307,14 @@ function PatientApp({
   const activePatientProfile = userId
     ? patientRecords.find((patient) => patient.id === userId) || patientRecords.find((patient) => patient.ownerId === userId)
     : null;
+  const bookingDays = useMemo(() => getAppointmentDays(), []);
+  const getSlotsForClinic = React.useCallback((dateValue) => getSlotsFromClinicTiming(activeClinic, dateValue), [activeClinic]);
 
   return (
     <section className="screen app-screen">
       <div className="app-header">
         <div>
-          <span className="kicker">Dr. Ashwani Family Clinic</span>
+          <span className="kicker">Dr Ashwani Family Clinic</span>
           <h2>{activeTab === "home" ? "Your care" : patientTabTitles[activeTab]}</h2>
         </div>
         <ProfileButton user={currentUser} role="patient" theme={theme} setTheme={setTheme} onSignOut={onSignOut} />
@@ -2339,15 +2350,15 @@ function PatientApp({
             />
           )}
           {activeTab === "book" && (
-            <BookAppointment
+            <BookVisit
               appointment={appointment}
               setAppointment={setAppointment}
-              onSubmitAppointment={onSubmitAppointment}
-              activeClinic={activeClinic}
-              availability={availability}
-              consultationFee={consultationFee}
-              consultPayment={consultPayment}
-              onPayConsult={onPayConsult}
+              clinic={activeClinic}
+              onDuty={availability.status === "On Duty"}
+              days={bookingDays}
+              todayValue={getTodayDateValue()}
+              getSlots={getSlotsForClinic}
+              onPayAndBook={onPayAndBook}
             />
           )}
           {activeTab === "chat" && (
@@ -2602,156 +2613,6 @@ function HealthUpdates({ readings, setReadings, onSubmitReadings }) {
           </p>
         )}
       </div>
-    </div>
-  );
-}
-
-function BookAppointment({
-  appointment,
-  setAppointment,
-  onSubmitAppointment,
-  activeClinic,
-  availability,
-  consultationFee,
-  consultPayment,
-  onPayConsult
-}) {
-  const [requestStatus, setRequestStatus] = useState("");
-  const appointmentDays = useMemo(() => getAppointmentDays(), []);
-  const clinicSlots = useMemo(
-    () => getSlotsFromClinicTiming(activeClinic, appointment.date),
-    [activeClinic, appointment.date]
-  );
-  const slots = clinicSlots;
-  const selectedSlotExists = slots.includes(appointment.time);
-  const feeAmount = normalizeRupees(consultationFee.amount);
-  const paymentLinkStarted = consultPayment.status === "payment_link";
-  const needsOnlinePayment = appointment.mode === "Online consultation"
-    && feeAmount > 0
-    && consultPayment.status !== "paid";
-  const onlineFeePending = appointment.mode === "Online consultation" && feeAmount === 0 && !hasRazorpayPaymentLink;
-  const calendarHref = googleCalendarUrl(
-    {
-      ...appointment,
-      time: selectedSlotExists ? appointment.time : slots[0] || appointment.time
-    },
-    activeClinic
-  );
-
-  return (
-    <div className="stack">
-      <div className="booking-context-card">
-        <span><CalendarCheck size={19} /></span>
-        <div>
-          <strong>{activeClinic.name}</strong>
-          <small>
-            {availability.status === "On Duty"
-              ? `${activeClinic.timing} - live clinic selected by doctor`
-              : `${activeClinic.timing} - doctor is off duty, showing next available clinic slots`}
-          </small>
-        </div>
-      </div>
-
-      <div className="segmented">
-        {["Clinic visit", "Online consultation"].map((mode) => (
-          <button
-            key={mode}
-            className={appointment.mode === mode ? "active" : ""}
-            disabled={mode === "Online consultation" && !availability.online}
-            onClick={() => {
-              setAppointment({ ...appointment, mode, time: clinicSlots[0] || appointment.time });
-            }}
-          >
-            {mode}
-          </button>
-        ))}
-      </div>
-      <div className="date-row">
-        {appointmentDays.map((day) => (
-          <button
-            key={day.dateValue}
-            className={appointment.date === day.dateValue ? "active" : ""}
-            onClick={() => setAppointment({ ...appointment, date: day.dateValue })}
-          >
-            <span>{day.weekday}</span>
-            <strong>{day.day}</strong>
-          </button>
-        ))}
-      </div>
-      <div className="slot-wrap">
-        {slots.length > 0 ? slots.map((time) => (
-          <button
-            key={time}
-            className={appointment.time === time ? "active" : ""}
-            onClick={() => setAppointment({ ...appointment, time })}
-          >
-            {time}
-          </button>
-        )) : (
-          <span className="empty-slots">No more slots for this date. Pick another day.</span>
-        )}
-      </div>
-      <div className="form-card">
-        <label>Reason<select value={appointment.reason} onChange={(event) => setAppointment({ ...appointment, reason: event.target.value })}>
-          <option>Diabetes follow-up</option>
-          <option>Weight management</option>
-          <option>Thyroid</option>
-          <option>BP</option>
-          <option>Fatty liver</option>
-          <option>Report review</option>
-          <option>Prescription renewal</option>
-          <option>Side effects</option>
-          <option>WhatsApp consultation</option>
-        </select></label>
-      </div>
-      {appointment.mode === "Online consultation" && (
-        <div className={`consult-payment-gate ${consultPayment.status}`}>
-          <span><ShieldCheck size={18} /></span>
-          <div>
-            <strong>{feeAmount ? `Online consultation fee: Rs ${feeAmount}` : "Online fee to be decided"}</strong>
-            <p>
-              {consultPayment.status === "paid"
-                ? "Payment is verified. You can send this consultation request."
-                : paymentLinkStarted
-                  ? `Razorpay payment page was opened. WhatsApp stays locked until payment is verified, matching the Noida Talent Hunt payment-confirmation flow.`
-                : onlineFeePending
-                  ? "Doctor/admin has not set the online consultation fee yet."
-                  : hasRazorpayPaymentLink
-                    ? "Open the clinic Razorpay payment page before sending an online consultation request."
-                    : "Please complete Razorpay payment before sending an online consultation request."}
-            </p>
-            {consultPayment.paidAt && <small>Paid at {consultPayment.paidAt}</small>}
-            {consultPayment.paymentUrl && consultPayment.status !== "paid" && (
-              <a href={consultPayment.paymentUrl} target="_blank" rel="noreferrer">
-                Razorpay payment page
-              </a>
-            )}
-          </div>
-          {!["paid", "verifying", "capture_pending"].includes(consultPayment.status) && (feeAmount > 0 || hasRazorpayPaymentLink) && (
-            <button onClick={onPayConsult}>{feeAmount ? `Pay Rs ${feeAmount}` : "Open Razorpay"}</button>
-          )}
-        </div>
-      )}
-      <button
-        className="primary-button"
-        disabled={needsOnlinePayment || onlineFeePending}
-        onClick={async () => {
-          const nextAppointment = { ...appointment, status: "Sent to doctor/admin" };
-          setRequestStatus("Sending request...");
-          const result = await onSubmitAppointment(nextAppointment);
-          setRequestStatus(result);
-        }}
-      >
-        Send request
-      </button>
-      {requestStatus && <p className="fine-print">{requestStatus}</p>}
-      <a className="secondary-button calendar-link" href={calendarHref} target="_blank" rel="noreferrer">
-        <CalendarCheck size={18} /> Add consultation to Google Calendar
-      </a>
-      <p className="fine-print">
-        Google Calendar opens with the selected date, slot, clinic or WhatsApp coordination details.
-      </p>
-      <p className="fine-print">Appointment is not confirmed until doctor/admin approves it.</p>
     </div>
   );
 }

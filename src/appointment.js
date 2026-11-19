@@ -28,7 +28,7 @@ export function buildAppointmentRow(a, { patient, clinic, status }) {
     mode: tele ? "Online consultation" : "Clinic visit",
     appointment_date: a.date,
     appointment_time: a.slot_type === "flexible" ? "Flexible" : a.time,
-    reason: [summary, (a.reason || "").trim()].filter(Boolean).join(" — ").slice(0, 500),
+    reason: [summary, (a.reason || "").trim()].filter(Boolean).join(" - ").slice(0, 500),
     payment_status: "NOT_REQUIRED",
     status,
     visit_type: a.visit_type,

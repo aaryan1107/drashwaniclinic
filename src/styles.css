@@ -39,7 +39,7 @@ button {
 
 a {
   -webkit-tap-highlight-color: transparent;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 .glass-surface {
@@ -154,8 +154,12 @@ p {
   margin: 0;
   letter-spacing: 0;
   min-width: 0;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
+
+/* Even line lengths: headings balance, body text avoids one-word last lines. */
+h1, h2, h3, h4, strong, button, label { text-wrap: balance; }
+p, small, li, dd { text-wrap: pretty; }
 
 h1 {
   font-size: 2.18rem;
@@ -1056,7 +1060,7 @@ textarea:focus {
 }
 
 .app-header h2 {
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 .avatar-button {
@@ -1698,7 +1702,7 @@ textarea:focus {
   border-radius: 18px;
   color: #2d4058;
   line-height: 1.44;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
   word-break: normal;
   box-shadow: 0 10px 24px rgba(30, 71, 121, 0.06);
 }
@@ -2245,7 +2249,7 @@ textarea:focus {
 .pending-payment-row small {
   color: var(--muted);
   font-size: 0.76rem;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 .pending-payment-row .primary-button {
@@ -3351,7 +3355,7 @@ select {
 .clinic-switcher button span,
 .theme-swatch strong,
 .theme-swatch small {
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 /* Respect users who prefer reduced motion */
@@ -4700,7 +4704,7 @@ textarea {
 .chat-quick-prompts button {
   min-height: 48px;
   white-space: normal;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 .chat-thread {
@@ -4915,7 +4919,7 @@ textarea:focus-visible,
   gap: 5px;
   padding-block: 12px;
   border-top: 1px solid var(--line);
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 .care-notes {
@@ -4980,7 +4984,7 @@ textarea:focus-visible,
   gap: 10px;
   padding: 8px 0;
   border-top: 1px solid var(--line);
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 /* Visit workspace entry buttons on the doctor patient screen (rest of the workspace styles: src/visit.css). */
