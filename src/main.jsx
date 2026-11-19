@@ -71,6 +71,8 @@ import { useClinicNavigation } from "./useClinicNavigation";
 import BookVisit from "./BookVisit.jsx";
 import { VISIT_FEE_RUPEES, VISIT_PAYMENT_PURPOSE, bookingRow } from "./booking.js";
 import ClinicMesh, { ClinicMotion } from "./ClinicMesh";
+import { WelcomeHero, ConditionCards } from "./WelcomeHero.jsx";
+import PatientTutorial, { shouldShowTutorial } from "./PatientTutorial.jsx";
 
 const RAZORPAY_KEY_ID = import.meta.env.VITE_RAZORPAY_KEY_ID || "";
 const RAZORPAY_API_BASE = import.meta.env.VITE_RAZORPAY_API_BASE || "/api";
@@ -1904,12 +1906,12 @@ function ReceptionApp({ currentUser, theme, setTheme, onSignOut }) {
 }
 
 const clinicSpecialties = [
-  [Droplet, "Diabetes"],
-  [Activity, "Thyroid"],
-  [Weight, "Obesity care"],
-  [HeartPulse, "Hypertension"],
-  [Brain, "OCD"],
-  [MessageCircle, "Anxiety"]
+  [Droplet, "Diabetes", "Sugar and insulin plans"],
+  [Activity, "Thyroid", "Tests and steady dose tuning"],
+  [Weight, "Obesity care", "Diet and medicine plans"],
+  [HeartPulse, "Hypertension", "BP control and heart care"],
+  [Brain, "OCD", "Private, steady treatment"],
+  [MessageCircle, "Anxiety", "Help with worry, panic, sleep"]
 ];
 
 function ThemeChoices({ theme, setTheme }) {
@@ -1927,39 +1929,6 @@ function ThemeChoices({ theme, setTheme }) {
         {motion.paused ? "Resume background motion" : "Pause background motion"}
       </button>
     </div>
-  );
-}
-
-const patientFeaturePreviews = [
-  [CalendarCheck, "Book visits", "Pick a day and time, then pay the ₹700 fee to book your slot."],
-  [Pill, "Prescriptions", "Read the medicines and instructions your doctor has shared."],
-  [Activity, "Readings", "Record blood sugar, blood pressure, weight, and HbA1c."],
-  [Bell, "Care reminders", "Enable reminders on your phone for medicines and follow-ups."],
-  [Video, "Online consult", "Check availability and start the clinic’s online consultation process."],
-  [BookOpen, "Health library", "Read education posts shared by the clinic."],
-  [MapPin, "Clinic status", "See whether the doctor is available and where the clinic is open."],
-  [Bot, "Assistant", "Find help with booking and using the app."]
-];
-
-function PatientFeaturePreview({ feature: [Icon, label, description], portalContainer }) {
-  return (
-    <li>
-      <Popover.Root>
-        <Popover.Trigger className="welcome-feature-trigger grid min-w-0 items-center text-left">
-          <span className="welcome-feature-icon"><Icon size={16} aria-hidden="true" /></span>
-          <span>{label}</span>
-          <ChevronRight size={14} className="welcome-feature-arrow" aria-hidden="true" />
-        </Popover.Trigger>
-        <Popover.Portal container={portalContainer}>
-          <Popover.Positioner align="center" side="top" sideOffset={8} viewportPadding={14} className="welcome-theme-positioner">
-            <Popover.Popup className="welcome-feature-popover">
-              <Popover.Title>{label}</Popover.Title>
-              <Popover.Description>{description}</Popover.Description>
-            </Popover.Popup>
-          </Popover.Positioner>
-        </Popover.Portal>
-      </Popover.Root>
-    </li>
   );
 }
 
@@ -1992,34 +1961,9 @@ function IntroScreen({ onContinue, theme, setTheme }) {
         </div>
       </header>
 
-      <div className="welcome-doctor">
-        <div className="welcome-doctor-copy">
-          <h1 id="clinic-doctor-name">Dr Ashwani <span>Kansal</span></h1>
-          <p className="welcome-role">Consultant Diabetologist<br />and Physician</p>
-          <p className="welcome-credentials">MBBS, DFID, M.MED, PGCAT</p>
-        </div>
-        <img className="welcome-portrait" src="/doctor-ashwani-welcome.webp" alt="" fetchPriority="high" />
-      </div>
+      <WelcomeHero />
 
-      <section className="welcome-care" aria-label="Conditions treated">
-        <ul>
-          {clinicSpecialties.map(([Icon, label], index) => (
-            <li key={label} data-care-tone={index % 3}>
-              <span className="welcome-care-icon"><Icon size={19} strokeWidth={1.8} aria-hidden="true" /></span>
-              <span>{label}</span>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <section className="welcome-features" aria-labelledby="clinic-app-heading">
-        <h2 id="clinic-app-heading">In the patient app</h2>
-        <ul>
-          {patientFeaturePreviews.map((feature) => (
-            <PatientFeaturePreview key={feature[1]} feature={feature} portalContainer={welcomeOverlaysRef} />
-          ))}
-        </ul>
-      </section>
+      <ConditionCards conditions={clinicSpecialties} />
 
       <div className="welcome-actions">
         <button type="button" className="primary-button w-full" onClick={onContinue}>
@@ -2309,9 +2253,12 @@ function PatientApp({
     : null;
   const bookingDays = useMemo(() => getAppointmentDays(), []);
   const getSlotsForClinic = React.useCallback((dateValue) => getSlotsFromClinicTiming(activeClinic, dateValue), [activeClinic]);
+  const [tutorialOpen, setTutorialOpen] = useState(false);
+  useEffect(() => { setTutorialOpen(shouldShowTutorial(userId)); }, [userId]);
 
   return (
     <section className="screen app-screen">
+      {tutorialOpen && <PatientTutorial userId={userId} onClose={() => setTutorialOpen(false)} />}
       <div className="app-header">
         <div>
           <span className="kicker">Dr Ashwani Family Clinic</span>
