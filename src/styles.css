@@ -4990,3 +4990,8 @@ textarea:focus-visible,
 /* Visit workspace entry buttons on the doctor patient screen (rest of the workspace styles: src/visit.css). */
 .vt-start-row { display: grid; grid-template-columns: 2fr 1fr; gap: 10px; }
 .vt-start { width: 100%; min-height: 52px; border-radius: 12px; }
+
+.bubble .clinic-chat-message {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

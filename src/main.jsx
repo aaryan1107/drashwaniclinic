@@ -69,6 +69,7 @@ import "./clinic-theme.css";
 import "./clinic-brand.css";
 import { useClinicNavigation } from "./useClinicNavigation";
 import BookVisit from "./BookVisit.jsx";
+import { CLINIC_ASSISTANT_SCOPE, clinicAssistantIntent, formatAssistantPayment, formatAssistantPrescription } from "./clinicAssistant.js";
 import { VISIT_FEE_RUPEES, VISIT_PAYMENT_PURPOSE, bookingRow } from "./booking.js";
 import ClinicMesh, { ClinicMotion } from "./ClinicMesh";
 import { WelcomeHero, ConditionCards } from "./WelcomeHero.jsx";
@@ -345,26 +346,6 @@ const HIGH_RISK_KEYWORDS = [
   "foot ulcer", "diabetic foot", "pregnant", "fainted", "severe side effect"
 ];
 
-const MEDICINE_CHANGE_KEYWORDS = [
-  "stop medicine", "stop insulin", "change dose", "increase dose", "reduce dose",
-  "double dose", "skip dose", "start medicine", "which medicine", "change insulin",
-  "change mounjaro", "change semaglutide", "can i take", "should i take"
-];
-
-const MEDICAL_TOPICS = [
-  "diabetes", "insulin", "sugar", "hba1c", "thyroid", "tsh", "bp", "blood pressure",
-  "obesity", "weight", "fatty liver", "cholesterol", "neuropathy", "cgm", "semaglutide",
-  "mounjaro", "medicine", "diet", "exercise", "reversal", "case", "profile"
-];
-
-const CLINIC_ASSISTANT_MODES = {
-  EMERGENCY: "EMERGENCY",
-  PROFILE_REVIEW: "PROFILE_REVIEW",
-  VITALS_UPDATE: "VITALS_UPDATE",
-  BOOKING: "BOOKING",
-  LIFESTYLE_EDUCATION: "LIFESTYLE_EDUCATION"
-};
-
 const parseFirstNumber = (value) => {
   const match = `${value || ""}`.match(/\d+(\.\d+)?/);
   return match ? Number(match[0]) : 0;
@@ -397,26 +378,6 @@ const hasCriticalReadings = ({ text = "", readings = {} }) => {
   const hasHypoglycemia = (fastingReading > 0 && fastingReading < 70) || messageLowSugar;
 
   return messageSugar > 400 || readingSugar > 400 || hasHypoglycemia || messageSystolic > 180 || readingSystolic > 180;
-};
-
-const classifyClinicAssistantMode = (message) => {
-  const text = message.toLowerCase();
-  if (hasAnyKeyword(text, EMERGENCY_KEYWORDS) || hasAnyKeyword(text, HIGH_RISK_KEYWORDS) || hasCriticalReadings({ text: message })) {
-    return CLINIC_ASSISTANT_MODES.EMERGENCY;
-  }
-  if (hasAnyKeyword(text, ["my case", "my profile", "review", "what is wrong", "whats wrong", "what's wrong", "profile case"])) {
-    return CLINIC_ASSISTANT_MODES.PROFILE_REVIEW;
-  }
-  if (hasAnyKeyword(text, ["upload", "report", "reading", "update reading", "update readings", "sugar update", "update sugar", "bp update", "update bp", "weight update", "log sugar", "log bp"])) {
-    return CLINIC_ASSISTANT_MODES.VITALS_UPDATE;
-  }
-  if (hasAnyKeyword(text, ["book", "appointment", "consult", "follow up", "follow-up", "slot"])) {
-    return CLINIC_ASSISTANT_MODES.BOOKING;
-  }
-  if (hasAnyKeyword(text, MEDICAL_TOPICS)) {
-    return CLINIC_ASSISTANT_MODES.LIFESTYLE_EDUCATION;
-  }
-  return null;
 };
 
 const toDateValue = (date) => {
@@ -1852,12 +1813,6 @@ function App() {
             consultationFee={consultationFee}
             consultPayment={consultPayment}
             onPayConsult={startConsultationPayment}
-            onUpdatePatientRecord={(patientId, patch) => {
-              const nextPatient = updatePatientRecord(patientId, patch);
-              if (nextPatient && currentUser?.id) {
-                persistPatientVitals(nextPatient, currentUser.id);
-              }
-            }}
           />
         )}
         {screen === "doctor" && (
@@ -2247,8 +2202,7 @@ function PatientApp({
   patientRecords,
   consultationFee,
   consultPayment,
-  onPayConsult,
-  onUpdatePatientRecord
+  onPayConsult
 }) {
   const userId = currentUser?.id;
   const activePatientProfile = userId
@@ -2315,10 +2269,9 @@ function PatientApp({
             <PatientChat
               availability={availability}
               activeClinic={activeClinic}
-              patientProfile={activePatientProfile}
-              memoryOwnerId={currentUser?.id}
+              key={currentUser?.id}
+              userId={currentUser?.id}
               setActiveTab={setActiveTab}
-              onUpdatePatientRecord={onUpdatePatientRecord}
             />
           )}
           {activeTab === "library" && <EducationLibrary posts={educationPosts} />}
@@ -2635,683 +2588,117 @@ function PatientStoriesCarousel() {
   );
 }
 
-async function getSemanticClinicAssistantReply(message, context) {
-  const { data, error } = await supabase.functions.invoke("clinic-ai-assistant", {
-    body: { message, ...context }
-  });
-
-  if (error) throw error;
-  if (!data?.reply) throw new Error("Assistant response was empty");
-  return data;
-}
-
-function PatientChat({ availability, activeClinic, patientProfile, memoryOwnerId, setActiveTab, onUpdatePatientRecord }) {
+function PatientChat({ availability, activeClinic, userId, setActiveTab }) {
   const threadRef = useRef(null);
-  const nextSlots = useMemo(() => getSlotsFromClinicTiming(activeClinic, getTodayDateValue()).slice(0, 4), [activeClinic]);
-  const [messages, setMessages] = useState([
-    {
-      role: "bot",
-      label: "Clinic assistant",
-      text: "Hello! I am Dr. Ashwani Kansal's AI Clinic Assistant. I can review your health profile, guide your sugar & BP logs, explain metabolic health topics, and check live doctor availability.",
-      actionCard: null
-    }
-  ]);
+  const [messages, setMessages] = useState([{ role: "bot", text: CLINIC_ASSISTANT_SCOPE }]);
   const [draft, setDraft] = useState("");
-  const [showUrgentBanner, setShowUrgentBanner] = useState(false);
-  const [assistantThinking, setAssistantThinking] = useState(false);
+  const [busy, setBusy] = useState(false);
 
-  const [chatState, setChatState] = useState("idle");
-  const [formData, setFormData] = useState({});
-
-  const [appointmentRequests, setAppointmentRequests] = useState([]);
-  const [healthUpdates, setHealthUpdates] = useState([]);
-  const [riskAlerts, setRiskAlerts] = useState([]);
-  const [cardDraft, setCardDraft] = useState({ fasting: "", postMeal: "", systolic: "", diastolic: "" });
-
-  // Persistent Patient Memory (CL4R1T4S context extraction)
-  const patientMemoryKey = `clinic_patient_memory_${patientProfile?.id || memoryOwnerId || "guest"}`;
-  const [patientMemory, setPatientMemory] = useState(() => {
-    try {
-      const saved = localStorage.getItem(patientMemoryKey);
-      return saved ? JSON.parse(saved) : { keyFacts: [], lastSummary: "" };
-    } catch {
-      return { keyFacts: [], lastSummary: "" };
-    }
-  });
-  const [loadedMemoryKey, setLoadedMemoryKey] = useState(patientMemoryKey);
-  const patientMemorySummary = patientMemory.keyFacts.join("; ");
-
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(patientMemoryKey);
-      setPatientMemory(saved ? JSON.parse(saved) : { keyFacts: [], lastSummary: "" });
-    } catch {
-      setPatientMemory({ keyFacts: [], lastSummary: "" });
-    } finally {
-      setLoadedMemoryKey(patientMemoryKey);
-    }
-  }, [patientMemoryKey]);
-
-  useEffect(() => {
-    if (loadedMemoryKey !== patientMemoryKey) return;
-    try {
-      localStorage.setItem(patientMemoryKey, JSON.stringify(patientMemory));
-    } catch (e) {
-      console.warn("Failed to persist patient memory:", e);
-    }
-  }, [patientMemory, patientMemoryKey, loadedMemoryKey]);
-
-  useEffect(() => {
-    if (!patientProfile?.notes?.includes("AI memory:")) return;
-    const noteMemory = patientProfile.notes
-      .split("\n")
-      .find((line) => line.trim().startsWith("AI memory:"))
-      ?.replace("AI memory:", "")
-      .trim();
-    if (!noteMemory) return;
-    setPatientMemory((prev) => {
-      const incoming = noteMemory.split(";").map((part) => part.trim()).filter(Boolean);
-      const missing = incoming.filter((fact) => !prev.keyFacts.includes(fact));
-      if (!missing.length) return prev;
-      const nextFacts = [...prev.keyFacts, ...missing].slice(-6);
-      return { ...prev, keyFacts: nextFacts, lastSummary: nextFacts.join("; ") };
-    });
-  }, [patientProfile?.id, patientProfile?.notes]);
-
-  useEffect(() => {
-    if (!patientProfile || !Object.prototype.hasOwnProperty.call(patientProfile, "notes") || !onUpdatePatientRecord || !patientMemorySummary) return;
-    const existingNotes = patientProfile.notes || "";
-    const notesWithoutMemory = existingNotes
-      .split("\n")
-      .filter((line) => !line.trim().startsWith("AI memory:"))
-      .join("\n")
-      .trim();
-    const nextNotes = [notesWithoutMemory, `AI memory: ${patientMemorySummary}`].filter(Boolean).join("\n");
-    if (nextNotes === existingNotes) return;
-    onUpdatePatientRecord(patientProfile.id, { notes: nextNotes });
-  }, [onUpdatePatientRecord, patientMemorySummary, patientProfile]);
-
-  const addBotMessage = (text, actionCard = null) => {
-    setMessages((items) => [...items, { role: "bot", label: "Clinic assistant", text, actionCard }]);
-  };
-
-  const addUserMessage = (text) => {
-    setMessages((items) => [...items, { role: "user", label: "You", text }]);
-  };
+  const addReply = (text, tab) => setMessages((items) => [...items, { role: "bot", text, tab }]);
 
   useEffect(() => {
     const thread = threadRef.current;
-    if (!thread) return;
-    thread.scrollTop = thread.scrollHeight;
+    if (thread) thread.scrollTop = thread.scrollHeight;
   }, [messages]);
 
-  const sendMessage = async (text) => {
-    const cleanText = text.trim();
-    if (!cleanText || assistantThinking) return;
-
-    addUserMessage(cleanText);
+  async function sendMessage(value) {
+    const text = value.trim();
+    if (!text || busy) return;
+    setMessages((items) => [...items, { role: "user", text }]);
     setDraft("");
 
-    if (chatState !== "idle") {
-      handleStateFlow(cleanText);
+    const lower = text.toLowerCase();
+    if (hasAnyKeyword(lower, EMERGENCY_KEYWORDS) || hasAnyKeyword(lower, HIGH_RISK_KEYWORDS) || hasCriticalReadings({ text })) {
+      addReply("If you may be having a medical emergency, call 112 or seek urgent medical care now. Please do not wait for a chat reply.");
       return;
     }
 
-    const lowerText = cleanText.toLowerCase();
-    const mode = classifyClinicAssistantMode(cleanText);
-
-    if (mode === CLINIC_ASSISTANT_MODES.EMERGENCY) {
-      setShowUrgentBanner(true);
-      setRiskAlerts((items) => [
-        ...items,
-        { type: "Emergency", message: cleanText, createdAt: new Date().toLocaleString() }
-      ]);
-      addBotMessage("URGENT: This message or reading may indicate an emergency. Please call Dr. Ashwani's clinic hotline or contact emergency services immediately.", "emergency_call");
-      saveMemoryFact("Emergency or critical reading detected");
+    const intent = clinicAssistantIntent(text);
+    if (intent === "book") {
+      addReply("Open Book to select a visit type and available slot, then submit your request. The clinic will confirm it.", "book");
+      return;
+    }
+    if (intent === "availability") {
+      const location = availability.status === "On Duty" ? ` at ${activeClinic.name}` : "";
+      const status = availability.status === "On Duty" ? "on duty" : "off duty";
+      addReply(`The app shows the doctor is ${status}${location}. See Book for available visits.`, "book");
+      return;
+    }
+    if (intent === "updates") {
+      addReply("Open Updates to submit readings for your doctor to review.", "updates");
+      return;
+    }
+    if (intent === "medical") {
+      addReply("Please ask the clinic about symptoms, diagnosis, or medication changes. I can show the directions already written on your prescription.", "care");
+      return;
+    }
+    if (intent === "scope") {
+      addReply(CLINIC_ASSISTANT_SCOPE);
+      return;
+    }
+    if (!userId) {
+      addReply("Sign in to look up your clinic records.");
       return;
     }
 
-    if (lowerText.includes("update sugar") || lowerText.includes("sugar update")) {
-      setChatState("sugar_fasting");
-      setFormData({});
-      addBotMessage("Please enter your fasting sugar value (mg/dL).", "sugar_input");
-      return;
-    }
-
-    if (lowerText.includes("update bp") || lowerText.includes("bp update") || lowerText.includes("blood pressure")) {
-      setChatState("bp_systolic");
-      setFormData({});
-      addBotMessage("Please enter your systolic BP value (e.g. 120).", "bp_input");
-      return;
-    }
-
-    if (lowerText.includes("book appointment") || lowerText.includes("appointment")) {
-      setChatState("appointment_type");
-      setFormData({});
-      addBotMessage("Would you like a clinic visit or online consultation? You can also open a quick slot below.", "slot_picker");
-      return;
-    }
-
-    const fallback = generateClinicAssistantReply(cleanText, {
-      availability,
-      activeClinic,
-      patientProfile,
-      patientMemory
-    });
-
-    let assistantReply = fallback;
-    setAssistantThinking(true);
+    setBusy(true);
     try {
-      assistantReply = await getSemanticClinicAssistantReply(cleanText, {
-        availability,
-        activeClinic,
-        patientProfile,
-        patientMemory
-      });
-    } catch (error) {
-      console.warn("Semantic assistant unavailable, using local fallback:", error.message);
+      if (intent === "prescription") {
+        const { data, error } = await supabase.from("prescriptions")
+          .select("id,created_at,medicines,instructions,follow_up_date,patient_records!inner(owner_id)")
+          .eq("patient_records.owner_id", userId).eq("status", "issued")
+          .order("created_at", { ascending: false }).order("id", { ascending: false }).limit(1).maybeSingle();
+        if (error) throw error;
+        addReply(data ? formatAssistantPrescription(data) : "I found no issued prescription linked to your account.", "care");
+      } else {
+        const { data, error } = await supabase.from("consultation_payments")
+          .select("payment_status,razorpay_payment_id,clinic")
+          .filter("patient->>user_id", "eq", userId)
+          .order("created_at", { ascending: false }).order("id", { ascending: false }).limit(1).maybeSingle();
+        if (error) throw error;
+        addReply(formatAssistantPayment(data, VISIT_PAYMENT_PURPOSE));
+      }
+    } catch {
+      addReply("I couldn’t check your clinic record right now. Try again or ask the clinic for help.");
     } finally {
-      setAssistantThinking(false);
+      setBusy(false);
     }
+  }
 
-    const { reply, actionCard, extractedFact } = assistantReply;
-    saveMemoryFact(extractedFact);
-
-    addBotMessage(reply, actionCard);
-  };
-
-  const handleStateFlow = (text) => {
-    const lowerText = text.toLowerCase();
-
-    if (hasEmergencyText(lowerText)) {
-      setShowUrgentBanner(true);
-      setRiskAlerts((items) => [
-        ...items,
-        { type: "Emergency", message: text, createdAt: new Date().toLocaleString() }
-      ]);
-      setChatState("idle");
-      setFormData({});
-      addBotMessage("URGENT: This message indicates a potential emergency. Please contact emergency medical services or call Dr. Ashwani's clinic hotline directly.", "emergency_call");
-      return;
-    }
-
-    if (chatState === "sugar_fasting") {
-      setFormData((data) => ({ ...data, fastingSugar: text }));
-      setChatState("sugar_post_meal");
-      addBotMessage("Please enter your post-meal sugar value.");
-      return;
-    }
-
-    if (chatState === "sugar_post_meal") {
-      setFormData((data) => ({ ...data, postMealSugar: text }));
-      setChatState("sugar_symptoms");
-      addBotMessage("Do you have any symptoms like weakness, sweating, dizziness, confusion, vomiting, or uneasiness?");
-      return;
-    }
-
-    if (chatState === "sugar_symptoms") {
-      const update = {
-        type: "Sugar Update",
-        fastingSugar: formData.fastingSugar,
-        postMealSugar: formData.postMealSugar,
-        symptoms: text,
-        createdAt: new Date().toLocaleString()
-      };
-
-      setHealthUpdates((items) => [...items, update]);
-
-      const fastingVal = parseFirstNumber(formData.fastingSugar);
-      const postMealVal = parseFirstNumber(formData.postMealSugar);
-      const hasLowSugar = fastingVal > 0 && fastingVal < 70;
-      if (fastingVal > 400 || postMealVal > 400 || hasLowSugar || hasHighRiskText(lowerText)) {
-        setShowUrgentBanner(true);
-        setRiskAlerts((items) => [
-          ...items,
-          { type: "Sugar Risk Alert", message: `Sugar update: ${formData.fastingSugar} mg/dL, symptoms: ${text}`, createdAt: new Date().toLocaleString() }
-        ]);
-      }
-
-      setChatState("idle");
-      setFormData({});
-      addBotMessage("Your blood sugar update is saved in this chat session. Use the Updates tab when you want it synced into today's clinic reading for Dr. Ashwani Kansal's review.");
-      return;
-    }
-
-    if (chatState === "bp_systolic") {
-      setFormData((data) => ({ ...data, systolic: text }));
-      setChatState("bp_diastolic");
-      addBotMessage("Please enter your diastolic BP value (e.g. 80).");
-      return;
-    }
-
-    if (chatState === "bp_diastolic") {
-      setFormData((data) => ({ ...data, diastolic: text }));
-      setChatState("bp_symptoms");
-      addBotMessage("Do you have headache, dizziness, chest pain, breathlessness, confusion, or severe weakness?");
-      return;
-    }
-
-    if (chatState === "bp_symptoms") {
-      const update = {
-        type: "BP Update",
-        systolic: formData.systolic,
-        diastolic: formData.diastolic,
-        symptoms: text,
-        createdAt: new Date().toLocaleString()
-      };
-
-      setHealthUpdates((items) => [...items, update]);
-
-      const sysVal = parseFirstNumber(formData.systolic);
-      if (sysVal > 180 || hasHighRiskText(lowerText)) {
-        setShowUrgentBanner(true);
-        setRiskAlerts((items) => [
-          ...items,
-          { type: "BP Risk Alert", message: `BP update: ${formData.systolic}/${formData.diastolic}, symptoms: ${text}`, createdAt: new Date().toLocaleString() }
-        ]);
-      }
-
-      setChatState("idle");
-      setFormData({});
-      addBotMessage("Your BP update is saved in this chat session. Use the Updates tab when you want it synced into today's clinic reading. If you experience headache or chest uneasiness, seek urgent medical care.");
-      return;
-    }
-
-    if (chatState === "appointment_type") {
-      setFormData((data) => ({ ...data, consultationType: text }));
-      setChatState("appointment_reason");
-      addBotMessage("Please enter the reason for appointment (e.g. diabetes follow-up, report review, thyroid, BP, weight management).");
-      return;
-    }
-
-    if (chatState === "appointment_reason") {
-      setFormData((data) => ({ ...data, reason: text }));
-      setChatState("appointment_date");
-      addBotMessage("Please enter your preferred appointment date.");
-      return;
-    }
-
-    if (chatState === "appointment_date") {
-      setFormData((data) => ({ ...data, date: text }));
-      setChatState("appointment_time");
-      addBotMessage("Please enter your preferred appointment time.");
-      return;
-    }
-
-    if (chatState === "appointment_time") {
-      const request = {
-        consultationType: formData.consultationType,
-        reason: formData.reason,
-        date: formData.date,
-        time: text,
-        status: "Pending",
-        createdAt: new Date().toLocaleString()
-      };
-
-      setAppointmentRequests((items) => [...items, request]);
-      setChatState("idle");
-      setFormData({});
-      addBotMessage("Your appointment preference is saved in this chat session. Please use the Book tab to submit it to the clinic team for confirmation.");
-      return;
-    }
-
-    setChatState("idle");
-    setFormData({});
-    addBotMessage("Sorry, I could not process that step. Please select an option or try again.");
-  };
-
-  const hasEmergencyText = (text) => EMERGENCY_KEYWORDS.some((word) => text.includes(word));
-  const hasHighRiskText = (text) => HIGH_RISK_KEYWORDS.some((word) => text.includes(word));
-  const saveMemoryFact = (fact) => {
-    if (!fact) return;
-    setPatientMemory((prev) => {
-      if (prev.keyFacts.includes(fact)) return prev;
-      const nextFacts = [...prev.keyFacts, fact].slice(-6);
-      return { ...prev, keyFacts: nextFacts, lastSummary: nextFacts.join("; ") };
-    });
-  };
-
-  const submitChatSugar = () => {
-    const fastingValue = parseFirstNumber(cardDraft.fasting);
-    const postMealValue = parseFirstNumber(cardDraft.postMeal);
-    if (!fastingValue && !postMealValue) {
-      addBotMessage("Please enter fasting or post-meal sugar before saving.", "sugar_input");
-      return;
-    }
-    const update = {
-      type: "Sugar Update",
-      fastingSugar: cardDraft.fasting,
-      postMealSugar: cardDraft.postMeal,
-      symptoms: "Logged from chat quick card",
-      createdAt: new Date().toLocaleString()
-    };
-    setHealthUpdates((items) => [...items, update]);
-    saveMemoryFact(`Sugar: fasting ${cardDraft.fasting || "--"}, post-meal ${cardDraft.postMeal || "--"}`);
-    setCardDraft((current) => ({ ...current, fasting: "", postMeal: "" }));
-    const hasLowSugar = fastingValue > 0 && fastingValue < 70;
-    if (fastingValue > 400 || postMealValue > 400 || hasLowSugar) {
-      setShowUrgentBanner(true);
-      setRiskAlerts((items) => [...items, { type: "Critical Sugar", message: `${cardDraft.fasting}/${cardDraft.postMeal}`, createdAt: new Date().toLocaleString() }]);
-      addBotMessage("This sugar value is critical. Please call the clinic hotline or seek urgent care now.", "emergency_call");
-      return;
-    }
-    addBotMessage("Sugar reading saved in chat memory. Use Updates when you want this synced as today's clinic reading.");
-  };
-
-  const submitChatBp = () => {
-    const systolicValue = parseFirstNumber(cardDraft.systolic);
-    const diastolicValue = parseFirstNumber(cardDraft.diastolic);
-    if (!systolicValue && !diastolicValue) {
-      addBotMessage("Please enter systolic or diastolic BP before saving.", "bp_input");
-      return;
-    }
-    const update = {
-      type: "BP Update",
-      systolic: cardDraft.systolic,
-      diastolic: cardDraft.diastolic,
-      symptoms: "Logged from chat quick card",
-      createdAt: new Date().toLocaleString()
-    };
-    setHealthUpdates((items) => [...items, update]);
-    saveMemoryFact(`BP: ${cardDraft.systolic || "--"}/${cardDraft.diastolic || "--"}`);
-    setCardDraft((current) => ({ ...current, systolic: "", diastolic: "" }));
-    if (systolicValue > 180) {
-      setShowUrgentBanner(true);
-      setRiskAlerts((items) => [...items, { type: "Critical BP", message: `${cardDraft.systolic}/${cardDraft.diastolic}`, createdAt: new Date().toLocaleString() }]);
-      addBotMessage("This BP value is critical. Please call the clinic hotline or seek urgent care now.", "emergency_call");
-      return;
-    }
-    addBotMessage("BP reading saved in chat memory. Use Updates when you want this synced as today's clinic reading.");
-  };
-
-  const quickPrompts = [
-    "Book appointment",
-    "Update sugar",
-    "Update BP",
-    "Where is doctor?",
-    "Review my case",
-    "Ask about diabetes"
-  ];
-  const latestVitalsActionIndex = messages.reduce(
-    (latest, message, index) => (["vitals_input", "sugar_input", "bp_input"].includes(message.actionCard) ? index : latest),
-    -1
-  );
-
+  const tabLabels = { book: "Open Book", care: "Open Prescriptions", updates: "Open Updates" };
   return (
-    <>
     <div className="chat-panel smart-chat">
-      {showUrgentBanner && <UrgentCareBanner onDismiss={() => setShowUrgentBanner(false)} />}
-
       <div className="chat-context-card">
         <span><Bot size={19} /></span>
-        <div>
-          <strong>AI assistant</strong>
-          <small>Clinic and health questions</small>
-        </div>
-        <button type="button" onClick={() => setActiveTab("book")}>
-          <CalendarCheck size={16} /> Book
-        </button>
+        <div><strong>Clinic chatbot</strong><small>Prescriptions, payments and booking</small></div>
+        <button type="button" onClick={() => setActiveTab("book")}><CalendarCheck size={16} /> Book</button>
       </div>
-
       <div className="chat-quick-prompts">
-        {quickPrompts.map((prompt) => (
-          <button key={prompt} onClick={() => void sendMessage(prompt)} disabled={assistantThinking}>{prompt}</button>
+        {["Show my prescription", "Check payment status", "Book a visit", "Doctor availability"].map((prompt) => (
+          <button key={prompt} type="button" disabled={busy} onClick={() => void sendMessage(prompt)}>{prompt}</button>
         ))}
       </div>
-
       <div className="chat-thread" ref={threadRef} aria-live="polite">
         {messages.map((message, index) => (
-          <div className={`message-row ${message.role}`} key={`${message.role}-${index}`}>
+          <div className={`message-row ${message.role}`} key={index}>
             <div className="message-avatar">{message.role === "bot" ? "A" : "Y"}</div>
             <div className={`bubble ${message.role}`}>
-              <span>{message.label}</span>
-              <p>{message.text}</p>
-              {message.actionCard === "emergency_call" && (
-                <div className="chat-action-card">
-                  <strong><Phone size={15} /> Direct Clinic Contact</strong>
-                  <a href={`tel:${CLINIC_HOTLINE_NUMBER.replace(/\s/g, "")}`} className="urgent-btn-call" style={{ textDecoration: "none" }}>
-                    Call Doctor Hotline ({CLINIC_HOTLINE_NUMBER})
-                  </a>
-                  <a href={doctorWhatsappUrl("EMERGENCY ALERT: Patient needs urgent help from Dr. Ashwani Kansal.")} target="_blank" rel="noreferrer" className="urgent-btn-whatsapp" style={{ textDecoration: "none" }}>
-                    WhatsApp {CLINIC_HOTLINE_NUMBER}
-                  </a>
-                </div>
-              )}
-              {index === latestVitalsActionIndex && ["vitals_input", "sugar_input", "bp_input"].includes(message.actionCard) && (
-                <div className="chat-action-card">
-                  <strong><Activity size={15} /> Quick vitals input</strong>
-                  {message.actionCard !== "bp_input" && (
-                    <div className="chat-action-card-form two-field">
-                      <input inputMode="numeric" value={cardDraft.fasting} onChange={(event) => setCardDraft((current) => ({ ...current, fasting: event.target.value }))} placeholder="Fasting" />
-                      <input inputMode="numeric" value={cardDraft.postMeal} onChange={(event) => setCardDraft((current) => ({ ...current, postMeal: event.target.value }))} placeholder="Post-meal" />
-                      <button type="button" onClick={submitChatSugar}>Save</button>
-                    </div>
-                  )}
-                  {message.actionCard !== "sugar_input" && (
-                    <div className="chat-action-card-form two-field">
-                      <input inputMode="numeric" value={cardDraft.systolic} onChange={(event) => setCardDraft((current) => ({ ...current, systolic: event.target.value }))} placeholder="Sys" />
-                      <input inputMode="numeric" value={cardDraft.diastolic} onChange={(event) => setCardDraft((current) => ({ ...current, diastolic: event.target.value }))} placeholder="Dia" />
-                      <button type="button" onClick={submitChatBp}>Save</button>
-                    </div>
-                  )}
-                  <button type="button" onClick={() => setActiveTab("updates")}>Open full updates</button>
-                </div>
-              )}
-              {["slot_picker", "booking_type"].includes(message.actionCard) && (
-                <div className="chat-action-card">
-                  <strong><CalendarCheck size={15} /> Quick slots</strong>
-                  {(nextSlots.length ? nextSlots : ["Next available"]).map((slot) => (
-                    <button
-                      key={slot}
-                      type="button"
-                      onClick={() => {
-                        addUserMessage(`Preferred slot: ${slot}`);
-                        addBotMessage("Noted. Please open the Book tab to confirm consultation type, reason, and payment status before sending the request.");
-                      }}
-                    >
-                      {slot}
-                    </button>
-                  ))}
-                  <button type="button" onClick={() => setActiveTab("book")}>Open booking</button>
-                </div>
-              )}
+              <span>{message.role === "bot" ? "Clinic chatbot" : "You"}</span>
+              <p className="clinic-chat-message">{message.text}</p>
+              {message.tab && <div className="chat-action-card">
+                <button type="button" onClick={() => setActiveTab(message.tab)}>{tabLabels[message.tab]}</button>
+              </div>}
             </div>
           </div>
         ))}
       </div>
-
-      <div className="chat-composer">
-        <div className="safety-strip"><AlertTriangle size={15} /> Emergency symptoms need urgent medical care.</div>
-        <div className="chat-input">
-          <input
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") void sendMessage(draft);
-            }}
-            aria-label="Message clinic assistant"
-            placeholder={assistantThinking ? "Assistant is reviewing..." : "Message clinic assistant"}
-            disabled={assistantThinking}
-          />
-          <button onClick={() => void sendMessage(draft)} aria-label="Send message" disabled={assistantThinking}><Send size={18} /></button>
-        </div>
-      </div>
-      <div className="quick-actions">
-        {[
-          [Activity, "Sugar", "updates"],
-          [HeartPulse, "BP", "updates"],
-          [Weight, "Weight", "updates"],
-          [Upload, "Report", "updates"],
-          [CalendarCheck, "Book", "book"],
-          [Bot, "Chat", "chat"]
-        ].map(([Icon, label, tab]) => (
-          <button key={label} onClick={() => setActiveTab(tab)}>
-            <span><Icon size={19} /></span>
-            {label}
-          </button>
-        ))}
-      </div>
+      <form className="chat-input" onSubmit={(event) => { event.preventDefault(); void sendMessage(draft); }}>
+        <input aria-label="Message clinic chatbot" placeholder={busy ? "Checking your record…" : "Message clinic chatbot"}
+          value={draft} onChange={(event) => setDraft(event.target.value)} disabled={busy} />
+        <button type="submit" aria-label="Send message" disabled={busy || !draft.trim()}><Send size={18} /></button>
+      </form>
     </div>
-
-      <PatientStoriesCarousel />
-    </>
   );
-}
-
-function generateClinicAssistantReply(message, { availability, activeClinic, patientProfile, patientMemory }) {
-  const text = message.toLowerCase();
-  const has = (words) => hasAnyKeyword(text, words);
-  const mode = classifyClinicAssistantMode(message);
-  const medicalDisclaimer = "For personal medical advice, please consult Dr. Ashwani Kansal.";
-
-  let extractedFact = null;
-  if (text.includes("fasting") || text.includes("post-meal") || text.includes("mg/dl")) {
-    extractedFact = "Patient asked about sugar readings";
-  } else if (text.includes("bp") || text.includes("systolic") || text.includes("diastolic")) {
-    extractedFact = "Patient asked about BP readings";
-  }
-
-  if (mode === CLINIC_ASSISTANT_MODES.EMERGENCY) {
-    return {
-      reply: "URGENT: This indicates a potential medical emergency. Please seek emergency medical care immediately or contact local emergency services at 112. Do not wait; go to the nearest hospital emergency department.",
-      actionCard: "emergency_call",
-      extractedFact: "Emergency keyword detected"
-    };
-  }
-
-  if (has(MEDICINE_CHANGE_KEYWORDS)) {
-    return {
-      reply: "I cannot advise medicine or dose changes. Please consult Dr. Ashwani Kansal before starting, stopping, or changing any medicine, insulin, semaglutide, or Mounjaro dose.",
-      actionCard: null,
-      extractedFact
-    };
-  }
-
-  if (
-    has(["where", "available", "availability", "rn", "right now", "now", "today", "clinic"]) &&
-    has(["doctor", "dr.", "ashwani", "kansal", "sir", "clinic"])
-  ) {
-    if (availability.status !== "On Duty") {
-      return {
-        reply: `Dr. Ashwani Kansal is marked off duty right now in the app. You can still request an appointment or online consultation from the Book tab. Last update: ${availability.updatedAt}.`,
-        actionCard: null,
-        extractedFact
-      };
-    }
-    return {
-      reply: `Dr. Ashwani Kansal is marked on duty at ${activeClinic.name}, ${activeClinic.short}. Address: ${activeClinic.address}. Timing: ${activeClinic.timing}. Online consultation is ${availability.online ? "available" : "not available"} right now. Note from clinic: ${availability.message}`,
-      actionCard: null,
-      extractedFact
-    };
-  }
-
-  if (mode === CLINIC_ASSISTANT_MODES.PROFILE_REVIEW) {
-    const hasProfileData = Boolean(
-      patientProfile
-      && (patientProfile.conditions?.length || Object.values(patientProfile.vitals || {}).some(Boolean))
-    );
-    if (!hasProfileData) {
-      return {
-        reply: "I don't have any saved readings for you yet. Add your fasting sugar, post-meal sugar, BP, weight, or reports in the Updates tab and I can review your case here.",
-        actionCard: "vitals_input",
-        extractedFact
-      };
-    }
-    const memoryNote = patientMemory && patientMemory.keyFacts && patientMemory.keyFacts.length > 0
-      ? ` Context from your recent activity: ${patientMemory.keyFacts.join("; ")}.`
-      : "";
-    return {
-      reply: `${buildCaseReview(patientProfile)}${memoryNote}`,
-      actionCard: "vitals_input",
-      extractedFact
-    };
-  }
-
-  if (mode === CLINIC_ASSISTANT_MODES.BOOKING) {
-    return {
-      reply: `I can help you request a clinic visit or online consultation. Today's active clinic is ${activeClinic.name}, ${activeClinic.short}, with timing ${activeClinic.timing}. Pick a quick slot here or open the full Book tab for date, reason, and payment details.`,
-      actionCard: "slot_picker",
-      extractedFact
-    };
-  }
-
-  if (mode === CLINIC_ASSISTANT_MODES.VITALS_UPDATE) {
-    return {
-      reply: "Use the Updates tab to add fasting sugar, post-meal sugar, BP, weight, or report upload. These details become part of your profile for Dr. Ashwani Kansal to review.",
-      actionCard: "vitals_input",
-      extractedFact
-    };
-  }
-
-  const topicReply = getGeneralHealthReply(text);
-  if (mode === CLINIC_ASSISTANT_MODES.LIFESTYLE_EDUCATION && topicReply) {
-    return {
-      reply: `${topicReply} ${medicalDisclaimer}`,
-      actionCard: null,
-      extractedFact
-    };
-  }
-
-  if (mode === CLINIC_ASSISTANT_MODES.LIFESTYLE_EDUCATION) {
-    return {
-      reply: `I can explain this in general terms, but I cannot diagnose or prescribe from chat. Please update your readings or reports in the app so the doctor can review them. ${medicalDisclaimer}`,
-      actionCard: "vitals_input",
-      extractedFact
-    };
-  }
-
-  return {
-    reply: "I can help with live clinic availability, app features, your saved health profile, and general metabolic health topics (diabetes, thyroid, BP, weight, fatty liver, CGM, cholesterol, and lifestyle education). Try asking: where is Dr. Ashwani Kansal right now, review my case, or how do I book an appointment.",
-    actionCard: null,
-    extractedFact
-  };
-}
-
-function buildCaseReview(patient) {
-  const vitals = patient.vitals;
-  const highlights = [
-    `${patient.conditions.join(", ")} are listed in your profile`,
-    `recent fasting sugar is ${vitals.fasting}, post-meal is ${vitals.postMeal}, and HbA1c is ${vitals.hba1c}`,
-    `BP is recorded as ${vitals.bp} and weight as ${vitals.weight}`
-  ];
-  const concern = patient.risk === "High"
-    ? "The app marks this as high priority because sugar readings and HbA1c are above target in the saved profile."
-    : "The app suggests routine follow-up based on the saved profile.";
-  return `Your saved case shows ${highlights.join("; ")}. ${concern} I cannot diagnose or change medicines here, but you should upload latest reports and book follow-up for doctor review. For personal advice, please consult Dr. Ashwani Kansal.`;
-}
-
-function getGeneralHealthReply(text) {
-  if (text.includes("insulin resistance")) {
-    return "Insulin resistance means the body needs more insulin than usual to control sugar, often linked with weight gain, fatty liver, high triglycerides, and prediabetes or diabetes.";
-  }
-  if (text.includes("diabetes reversal") || text.includes("reverse diabetes") || text.includes("reversal")) {
-    return "Diabetes reversal usually means sugars stay in a healthier range with lifestyle, weight loss, and careful medical supervision, but it does not mean the condition can be ignored. Whether reversal has happened must be assessed only by the doctor based on reports and follow-up.";
-  }
-  if (text.includes("cgm")) {
-    return "CGM shows sugar patterns across the day, including spikes after meals and lows at night, so it can help the clinic adjust lifestyle advice and follow-up decisions.";
-  }
-  if (text.includes("fatty liver")) {
-    return "Fatty liver is commonly linked with weight, insulin resistance, diabetes, cholesterol, and diet patterns. Weight loss, activity, sugar control, and avoiding alcohol usually matter, but reports should be reviewed by the doctor.";
-  }
-  if (text.includes("mounjaro") || text.includes("semaglutide") || text.includes("injection")) {
-    return "Semaglutide and Mounjaro-type injections can affect appetite, weight, and sugar, but nausea, vomiting, acidity, or weakness should be reported. Please consult Dr. Ashwani Kansal before changing dose or continuing if you are facing side effects.";
-  }
-  if (text.includes("bp") || text.includes("blood pressure")) {
-    return "Blood pressure is affected by salt intake, weight, stress, sleep, medicines, and kidney or metabolic health. Keep a home BP log with date and time so the doctor can review the pattern.";
-  }
-  if (text.includes("cholesterol") || text.includes("ldl") || text.includes("triglyceride")) {
-    return "Cholesterol and triglycerides are important because they affect heart and blood vessel risk, especially in diabetes. The doctor usually reviews lipid reports along with sugar, BP, weight, liver, kidney, and medication history.";
-  }
-  if (text.includes("thyroid") || text.includes("tsh")) {
-    return "Thyroid review depends on TSH, symptoms, timing of medicine, weight changes, and other reports. Upload the latest thyroid profile before follow-up for a better review.";
-  }
-  if (text.includes("diet") || text.includes("exercise") || text.includes("walk") || text.includes("weight")) {
-    return "For metabolic health, regular walking, protein with meals, fewer sugary drinks, sleep, and consistent follow-up usually help. The exact diet plan should match your reports, medicines, weight goal, and routine.";
-  }
-  if (text.includes("sugar") || text.includes("hba1c") || text.includes("diabetes")) {
-    return "Fasting sugar, post-meal sugar, and HbA1c tell different parts of the diabetes picture. Repeated high readings should be logged in the app and reviewed with the doctor.";
-  }
-  return null;
 }
 
 function EducationLibrary({ posts }) {
