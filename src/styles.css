@@ -4022,7 +4022,7 @@ textarea {
     var(--surface);
 }
 
-.scroll-area:has(.smart-chat) {
+.scroll-area:has(.smart-chat:not([hidden])) {
   padding-bottom: calc(94px + env(safe-area-inset-bottom, 0px));
 }
 
@@ -4633,7 +4633,7 @@ textarea {
 }
 
 .app-screen .scroll-area,
-.app-screen .scroll-area:has(.smart-chat) {
+.app-screen .scroll-area:has(.smart-chat:not([hidden])) {
   padding: 3px 3px 16px;
   gap: 16px;
 }
@@ -4995,3 +4995,5 @@ textarea:focus-visible,
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+.smart-chat[hidden] { display: none; }

@@ -2265,17 +2265,16 @@ function PatientApp({
               onPayAndBook={onPayAndBook}
             />
           )}
-          {activeTab === "chat" && (
-            <PatientChat
-              availability={availability}
-              activeClinic={activeClinic}
-              key={currentUser?.id}
-              userId={currentUser?.id}
-              setActiveTab={setActiveTab}
-            />
-          )}
           {activeTab === "library" && <EducationLibrary posts={educationPosts} />}
         </React.Fragment>
+        {userId && <PatientChat
+          key={userId}
+          hidden={activeTab !== "chat"}
+          availability={availability}
+          activeClinic={activeClinic}
+          userId={userId}
+          setActiveTab={setActiveTab}
+        />}
       </div>
 
       <PatientNav activeTab={activeTab} setActiveTab={setActiveTab} />
@@ -2588,18 +2587,19 @@ function PatientStoriesCarousel() {
   );
 }
 
-function PatientChat({ availability, activeClinic, userId, setActiveTab }) {
+function PatientChat({ hidden, availability, activeClinic, userId, setActiveTab }) {
   const threadRef = useRef(null);
+  const context = useRef(null);
   const [messages, setMessages] = useState([{ role: "bot", text: CLINIC_ASSISTANT_SCOPE }]);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const addReply = (text, tab) => setMessages((items) => [...items, { role: "bot", text, tab }]);
+  const addReply = (text, tab, recordId) => setMessages((items) => [...items, { role: "bot", text, tab, recordId }]);
 
   useEffect(() => {
     const thread = threadRef.current;
     if (thread) thread.scrollTop = thread.scrollHeight;
-  }, [messages]);
+  }, [messages, hidden]);
 
   async function sendMessage(value) {
     const text = value.trim();
@@ -2613,8 +2613,13 @@ function PatientChat({ availability, activeClinic, userId, setActiveTab }) {
       return;
     }
 
-    const intent = clinicAssistantIntent(text);
+    const intent = clinicAssistantIntent(text, context.current?.topic);
+    if (intent === "book-followup") {
+      addReply("This chat hasn’t submitted a request. Review the slot and any fee in Book, then use the confirmation shown there.", "book");
+      return;
+    }
     if (intent === "book") {
+      context.current = { topic: "book" };
       addReply("Open Book to select a visit type and available slot, then submit your request. The clinic will confirm it.", "book");
       return;
     }
@@ -2633,7 +2638,12 @@ function PatientChat({ availability, activeClinic, userId, setActiveTab }) {
       return;
     }
     if (intent === "scope") {
-      addReply(CLINIC_ASSISTANT_SCOPE);
+      const previous = context.current?.topic;
+      const hint = previous === "prescription" ? "For this prescription, ask about the medicine schedule or follow-up date."
+        : previous === "payment" ? "For that payment, ask for its reference or say “check again.”"
+        : previous === "book" ? "For your visit, ask what happens next or open Book."
+        : "Try “Show my prescription,” “Check payment status,” or “Book a visit.”";
+      addReply(hint);
       return;
     }
     if (!userId) {
@@ -2643,20 +2653,27 @@ function PatientChat({ availability, activeClinic, userId, setActiveTab }) {
 
     setBusy(true);
     try {
-      if (intent === "prescription") {
-        const { data, error } = await supabase.from("prescriptions")
+      if (intent.startsWith("prescription")) {
+        let query = supabase.from("prescriptions")
           .select("id,created_at,medicines,instructions,follow_up_date,patient_records!inner(owner_id)")
-          .eq("patient_records.owner_id", userId).eq("status", "issued")
-          .order("created_at", { ascending: false }).order("id", { ascending: false }).limit(1).maybeSingle();
+          .eq("patient_records.owner_id", userId).eq("status", "issued");
+        if (intent !== "prescription" && context.current?.id) query = query.eq("id", context.current.id);
+        const { data, error } = await query.order("created_at", { ascending: false }).order("id", { ascending: false }).limit(1).maybeSingle();
         if (error) throw error;
-        addReply(data ? formatAssistantPrescription(data) : "I found no issued prescription linked to your account.", "care");
+        context.current = data ? { topic: "prescription", id: data.id } : null;
+        addReply(data ? formatAssistantPrescription(data, intent) : "I couldn’t find that issued prescription on your account.", "care", data?.id);
       } else {
-        const { data, error } = await supabase.from("consultation_payments")
-          .select("payment_status,razorpay_payment_id,clinic")
-          .filter("patient->>user_id", "eq", userId)
-          .order("created_at", { ascending: false }).order("id", { ascending: false }).limit(1).maybeSingle();
+        let query = supabase.from("consultation_payments")
+          .select("id,payment_status,razorpay_payment_id,clinic")
+          .filter("patient->>user_id", "eq", userId);
+        if (intent === "payment-followup" && context.current?.id) query = query.eq("id", context.current.id);
+        const { data, error } = await query.order("created_at", { ascending: false }).order("id", { ascending: false }).limit(1).maybeSingle();
         if (error) throw error;
-        addReply(formatAssistantPayment(data, VISIT_PAYMENT_PURPOSE));
+        context.current = data ? { topic: "payment", id: data.id } : null;
+        const reference = intent === "payment-followup" && /reference/i.test(text)
+          ? data?.razorpay_payment_id ? `The payment reference is ${data.razorpay_payment_id}.` : "That record has no payment reference yet."
+          : formatAssistantPayment(data, VISIT_PAYMENT_PURPOSE);
+        addReply(reference);
       }
     } catch {
       addReply("I couldn’t check your clinic record right now. Try again or ask the clinic for help.");
@@ -2667,7 +2684,7 @@ function PatientChat({ availability, activeClinic, userId, setActiveTab }) {
 
   const tabLabels = { book: "Open Book", care: "Open Prescriptions", updates: "Open Updates" };
   return (
-    <div className="chat-panel smart-chat">
+    <div className="chat-panel smart-chat" hidden={hidden}>
       <div className="chat-context-card">
         <span><Bot size={19} /></span>
         <div><strong>Clinic chatbot</strong><small>Prescriptions, payments and booking</small></div>
@@ -2686,7 +2703,14 @@ function PatientChat({ availability, activeClinic, userId, setActiveTab }) {
               <span>{message.role === "bot" ? "Clinic chatbot" : "You"}</span>
               <p className="clinic-chat-message">{message.text}</p>
               {message.tab && <div className="chat-action-card">
-                <button type="button" onClick={() => setActiveTab(message.tab)}>{tabLabels[message.tab]}</button>
+                <button type="button" onClick={() => {
+                  setActiveTab(message.tab);
+                  if (message.recordId) requestAnimationFrame(() => {
+                    const record = document.getElementById(`patient-rx-${message.recordId}`);
+                    record?.scrollIntoView({ block: "nearest" });
+                    record?.focus({ preventScroll: true });
+                  });
+                }}>{message.recordId ? "Open this prescription" : tabLabels[message.tab]}</button>
               </div>}
             </div>
           </div>

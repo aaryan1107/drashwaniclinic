@@ -44,7 +44,7 @@ function usePrescriptionRows(patientId, { all = false } = {}) {
   return { rows, state, reload };
 }
 
-function PrescriptionRow({ rx, clinics, actions }) {
+function PrescriptionRow({ rx, clinics, actions, recordAnchor }) {
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState("");
 
@@ -61,7 +61,7 @@ function PrescriptionRow({ rx, clinics, actions }) {
   }
 
   return (
-    <div className={`care-item rx-item${rx.status === "void" ? " rx-void" : ""}`}>
+    <div id={recordAnchor} tabIndex={recordAnchor ? -1 : undefined} className={`care-item rx-item${rx.status === "void" ? " rx-void" : ""}`}>
       <strong>{rxNumber(rx)} · {shortDate(rx.created_at)}{rx.status === "void" ? " · VOID" : ""}</strong>
       {rx.patient_name && <p>{rx.patient_name}</p>}
       <p>{rx.diagnosis}</p>
@@ -255,7 +255,7 @@ export function PatientPrescriptions({ patient, clinics }) {
       <h3>My prescriptions</h3>
       {state === "error" && <p className="detail-copy" role="status">Could not load your prescriptions. Reopen the app when connected.</p>}
       {state === "ready" && !rows.length && <p className="detail-copy">Prescriptions your doctor issues will appear here.</p>}
-      {rows.map((rx) => <PrescriptionRow key={rx.id} rx={rx} clinics={clinics} />)}
+      {rows.map((rx) => <PrescriptionRow key={rx.id} rx={rx} clinics={clinics} recordAnchor={`patient-rx-${rx.id}`} />)}
     </section>
   );
 }
