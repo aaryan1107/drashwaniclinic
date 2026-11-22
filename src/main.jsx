@@ -74,6 +74,8 @@ import { VISIT_FEE_RUPEES, VISIT_PAYMENT_PURPOSE, bookingRow } from "./booking.j
 import ClinicMesh, { ClinicMotion } from "./ClinicMesh";
 import { WelcomeHero, ConditionCards } from "./WelcomeHero.jsx";
 import PatientTutorial, { shouldShowTutorial } from "./PatientTutorial.jsx";
+import PatientMedicalInfo from "./MedicalProfile.jsx";
+import { profileToRecordFields } from "./medicalProfile.js";
 
 const RAZORPAY_KEY_ID = import.meta.env.VITE_RAZORPAY_KEY_ID || "";
 const RAZORPAY_API_BASE = import.meta.env.VITE_RAZORPAY_API_BASE || "/api";
@@ -1707,8 +1709,10 @@ function App() {
         })
         .eq("id", nextUser.id);
 
+      const recordFields = profileToRecordFields(medicalProfile);
+      const patientId = nextUser.id;
       await persistPatientVitals({
-        id: nextUser.id,
+        id: patientId,
         name: medicalProfile.fullName || nextUser.name || "Clinic Patient",
         age: Number(medicalProfile.age) || 0,
         gender: medicalProfile.gender || "Patient",
@@ -1716,25 +1720,24 @@ function App() {
         whatsapp: medicalProfile.whatsapp || medicalProfile.phone || nextUser.phone || "",
         abha: medicalProfile.abha || "Not linked",
         source: nextUser.provider || "Patient app",
-        conditions: medicalProfile.conditions || [],
-        latest: medicalProfile.fasting ? `Fasting ${ensureUnit(medicalProfile.fasting, "mg/dL")}` : "Medical intake completed",
-        risk: medicalProfile.conditions?.includes("Diabetes") || medicalProfile.conditions?.includes("High BP") ? "Medium" : "Low",
-        vitals: {
-          fasting: ensureUnit(medicalProfile.fasting, "mg/dL"),
-          postMeal: "",
-          bp: medicalProfile.bp || "",
-          weight: ensureUnit(medicalProfile.weight, "kg"),
-          hba1c: medicalProfile.hba1c ? `${stripUnit(medicalProfile.hba1c, "%")}%` : "",
-          thyroid: ""
-        },
-        history: medicalProfile.conditions || [],
+        conditions: recordFields.conditions,
+        latest: recordFields.vitals.fasting ? `Fasting ${recordFields.vitals.fasting}` : "Medical intake completed",
+        risk: recordFields.risk,
+        vitals: recordFields.vitals,
+        history: recordFields.history,
         labs: [],
-        symptoms: [],
-        medicines: [],
-        notes: `Preferred consult mode: ${medicalProfile.preferredMode || "Clinic visit"}`,
+        symptoms: recordFields.symptoms,
+        medicines: recordFields.medicines,
+        notes: recordFields.notes,
         followUp: "Not scheduled",
         lastVisit: "Medical intake"
-      }, nextUser.id);
+      }, patientId);
+      // The partial update above does not carry history, medicines or notes, so write them to the patient's own row.
+      const { error: detailError } = await supabase
+        .from("patient_records")
+        .update({ history: recordFields.history, medicines: recordFields.medicines, notes: recordFields.notes })
+        .eq("id", String(patientId));
+      if (detailError && !isMissingSupabaseTableError(detailError)) console.warn("Patient intake details sync failed:", detailError.message);
     }
 
     setScreen("patient");
@@ -2052,89 +2055,6 @@ function GoogleLogo() {
       <path fill="#FBBC05" d="M5.84 14.1c-.22-.66-.35-1.36-.35-2.1s.13-1.44.35-2.1V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l3.66-2.84z" />
       <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06L5.84 9.9C6.71 7.3 9.14 5.38 12 5.38z" />
     </svg>
-  );
-}
-
-function PatientMedicalInfo({ source, googleProfile, onBack, onDone }) {
-  const conditionOptions = ["Diabetes", "Obesity", "Thyroid", "Fatty liver", "High BP", "Cholesterol", "Neuropathy", "Weight"];
-  const [profile, setProfile] = useState({
-    fullName: googleProfile?.name || "",
-    phone: "",
-    whatsapp: "",
-    age: "",
-    gender: "Male",
-    conditions: ["Diabetes"],
-    fasting: "",
-    hba1c: "",
-    bp: "",
-    weight: "",
-    preferredMode: "Clinic visit"
-  });
-  const updateProfile = (key, value) => setProfile((current) => ({ ...current, [key]: value }));
-  const toggleCondition = (condition) => {
-    setProfile((current) => ({
-      ...current,
-      conditions: current.conditions.includes(condition)
-        ? current.conditions.filter((item) => item !== condition)
-        : [...current.conditions, condition]
-    }));
-  };
-
-  return (
-    <section className="screen signup-screen">
-      <TopAction title="Medical profile" onBack={onBack} />
-      <h2>{source === "google" ? "Complete your health profile" : "Add medical details"}</h2>
-      <p className="screen-copy">These details help the clinic manage follow-ups and help Dr. Ashwani review your case.</p>
-
-      {googleProfile && (
-        <div className="integration-card google-connected">
-          <span className="google-dot">G</span>
-          <div>
-            <strong>Google connected</strong>
-            <small>{googleProfile.email} will be linked after consent.</small>
-          </div>
-        </div>
-      )}
-
-      <div className="form-card">
-        <label>Full name<input value={profile.fullName} onChange={(event) => updateProfile("fullName", event.target.value)} placeholder="Patient full name" /></label>
-        <label>Mobile number<input value={profile.phone} onChange={(event) => updateProfile("phone", event.target.value)} placeholder="+91 98765 43210" /></label>
-        <label>WhatsApp number<input value={profile.whatsapp} onChange={(event) => updateProfile("whatsapp", event.target.value)} placeholder="+91 98765 43210" /></label>
-        <div className="two-col">
-          <label>Age<input value={profile.age} onChange={(event) => updateProfile("age", event.target.value)} placeholder="52" /></label>
-          <label>Gender<select value={profile.gender} onChange={(event) => updateProfile("gender", event.target.value)}><option>Male</option><option>Female</option><option>Other</option></select></label>
-        </div>
-      </div>
-
-      <div className="chip-panel">
-        <strong>Existing conditions</strong>
-        <div className="chip-wrap">
-          {conditionOptions.map((item) => (
-            <label className="chip-check" key={item}>
-              <input type="checkbox" checked={profile.conditions.includes(item)} onChange={() => toggleCondition(item)} />
-              <span>{item}</span>
-            </label>
-          ))}
-        </div>
-      </div>
-
-      <div className="form-card compact-form">
-        <div className="two-col">
-          <label>Fasting sugar<input value={profile.fasting} onChange={(event) => updateProfile("fasting", event.target.value)} placeholder="mg/dL" /></label>
-          <label>HbA1c<input value={profile.hba1c} onChange={(event) => updateProfile("hba1c", event.target.value)} placeholder="%" /></label>
-          <label>BP<input value={profile.bp} onChange={(event) => updateProfile("bp", event.target.value)} placeholder="128/82" /></label>
-          <label>Weight<input value={profile.weight} onChange={(event) => updateProfile("weight", event.target.value)} placeholder="kg" /></label>
-        </div>
-        <label>Preferred consult mode<select value={profile.preferredMode} onChange={(event) => updateProfile("preferredMode", event.target.value)}><option>Clinic visit</option><option>WhatsApp consultation</option><option>Online consultation</option></select></label>
-      </div>
-
-      <label className="consent-line">
-        <input type="checkbox" defaultChecked />
-        I consent to storing health data and follow-up reminders.
-      </label>
-
-      <button className="primary-button" onClick={() => onDone(profile)}><Check size={18} /> Create patient app</button>
-    </section>
   );
 }
 
