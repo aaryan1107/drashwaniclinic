@@ -69,6 +69,7 @@ import "./clinic-theme.css";
 import "./clinic-brand.css";
 import { useClinicNavigation } from "./useClinicNavigation";
 import BookVisit from "./BookVisit.jsx";
+import { dayTimeline, loadByDay, loadFromCounts, recommendSlot, reservedOnDay } from "./slotLoad.js";
 import { CLINIC_ASSISTANT_SCOPE, clinicAssistantIntent, formatAssistantPayment, formatAssistantPrescription } from "./clinicAssistant.js";
 import { VISIT_FEE_RUPEES, VISIT_PAYMENT_PURPOSE, bookingRow } from "./booking.js";
 import ClinicMesh, { ClinicMotion } from "./ClinicMesh";
@@ -2210,6 +2211,16 @@ function PatientApp({
     : null;
   const bookingDays = useMemo(() => getAppointmentDays(), []);
   const getSlotsForClinic = React.useCallback((dateValue) => getSlotsFromClinicTiming(activeClinic, dateValue), [activeClinic]);
+  // Booked-patient counts per slot (counts only, no names). Stays null until the database function exists.
+  const [slotLoad, setSlotLoad] = useState(null);
+  useEffect(() => {
+    if (activeTab !== "book" || !userId || !bookingDays.length) return undefined;
+    let cancelled = false;
+    supabase.rpc("clinic_slot_load", {
+      p_clinic: activeClinic.id, p_from: bookingDays[0].dateValue, p_to: bookingDays[bookingDays.length - 1].dateValue
+    }).then(({ data, error }) => { if (!cancelled) setSlotLoad(error ? null : loadFromCounts(data || [])); });
+    return () => { cancelled = true; };
+  }, [activeTab, userId, activeClinic.id, bookingDays]);
   const [tutorialOpen, setTutorialOpen] = useState(false);
   useEffect(() => { setTutorialOpen(shouldShowTutorial(userId)); }, [userId]);
 
@@ -2265,6 +2276,7 @@ function PatientApp({
               todayValue={getTodayDateValue()}
               getSlots={getSlotsForClinic}
               onPayAndBook={onPayAndBook}
+              load={slotLoad}
             />
           )}
           {activeTab === "library" && <EducationLibrary posts={educationPosts} />}
@@ -2778,6 +2790,21 @@ function DoctorApp({
     [patients]
   );
   const selectedPatient = patients.find((patient) => patient.id === selectedPatientId) || patients[0];
+  // Today's reserved patients at the active clinic, read straight from the bookings table (the doctor may read them).
+  const [todayBookings, setTodayBookings] = useState(null);
+  useEffect(() => {
+    if (doctorTab !== "today") return undefined;
+    let cancelled = false;
+    const date = getTodayDateValue();
+    supabase.from("appointment_requests")
+      .select("appointment_date,appointment_time,status,payment_status")
+      .eq("clinic_id", activeClinic.id).eq("appointment_date", date)
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        setTodayBookings(error ? null : { date, load: loadByDay(data || []), slots: getSlotsFromClinicTiming(activeClinic, date) });
+      });
+    return () => { cancelled = true; };
+  }, [doctorTab, activeClinic]);
 
   return (
     <section className="screen app-screen doctor-mode">
@@ -2805,7 +2832,7 @@ function DoctorApp({
       </header>
 
       <div className="scroll-area" key={doctorTab}>
-        {doctorTab === "today" && <DoctorToday stats={stats} alerts={alerts} setDoctorTab={setDoctorTab} />}
+        {doctorTab === "today" && <DoctorToday stats={stats} alerts={alerts} setDoctorTab={setDoctorTab} bookings={todayBookings} />}
         {doctorTab === "availability" && (
           <DoctorAvailabilityEditor
             availability={availability}
@@ -2910,7 +2937,24 @@ function DoctorEducationEditor({ posts, onPublishPost }) {
   );
 }
 
-function DoctorToday({ stats, alerts = [], setDoctorTab }) {
+function TodayBookings({ bookings }) {
+  const total = reservedOnDay(bookings.load, bookings.date);
+  const timeline = dayTimeline(bookings.load, bookings.date);
+  const best = recommendSlot(bookings.slots, bookings.load, bookings.date);
+  return (
+    <section className="doctor-bookings" aria-label="Booked today">
+      <div className="doctor-bookings-head">
+        <strong>{total === 0 ? "No patients booked yet today" : `${total} patient${total === 1 ? "" : "s"} booked today`}</strong>
+        {best && <span>Best time for a new booking: <b>{best.slot}</b></span>}
+      </div>
+      {timeline.length > 0 && (
+        <ul>{timeline.map(({ slot, reserved }) => <li key={slot}><span>{slot}</span><b>{reserved}</b></li>)}</ul>
+      )}
+    </section>
+  );
+}
+
+function DoctorToday({ stats, alerts = [], setDoctorTab, bookings = null }) {
   return (
     <div className="stack">
       <div className="doctor-stats">
@@ -2922,6 +2966,7 @@ function DoctorToday({ stats, alerts = [], setDoctorTab }) {
           </div>
         ))}
       </div>
+      {bookings && <TodayBookings bookings={bookings} />}
       <button type="button" className="doctor-duty-cta" onClick={() => setDoctorTab("availability")}>
         <span className="doctor-duty-icon"><MapPin size={21} aria-hidden="true" /></span>
         <span className="doctor-duty-copy">

@@ -52,6 +52,7 @@ export default function Visit({ doctorId, patient, clinic, onBack }) {
   const [customVersion, setCustomVersion] = useState(0);
   const [savedAt, setSavedAt] = useState(null);
   const [sentRx, setSentRx] = useState(null);
+  const [sentLink, setSentLink] = useState(null);
   const [cloudAt, setCloudAt] = useState(null);
   const first = useRef(true);
   const cloudId = useRef(visit.cloud_id || null);
@@ -149,11 +150,11 @@ export default function Visit({ doctorId, patient, clinic, onBack }) {
   if (screen === "history") return <div className="vt">{header}<HistoryScreen visit={visit} patch={patch} index={index} usage={usage} onUsed={used} onDone={toHome} /></div>;
   if (screen === "notes") return <div className="vt">{header}<NotesScreen visit={visit} patch={patch} onDone={toHome} /></div>;
   if (screen === "followup") return <div className="vt">{header}<FollowUpScreen visit={visit} patch={patch} onDone={toHome} /></div>;
-  if (sentRx) return <div className="vt">{header}<SentScreen rx={sentRx} patient={patient} clinic={clinic} onDone={onBack} /></div>;
+  if (sentRx) return <div className="vt">{header}<SentScreen rx={sentRx} patient={patient} clinic={clinic} link={sentLink} onDone={onBack} /></div>;
   if (screen === "send") return (
     <div className="vt">{header}<SendScreen visit={{ ...visit, cloud_id: cloudId.current }} patient={patient} clinic={clinic} onEdit={setScreen}
-      onSent={(rx) => {
-        saveLastVitals(doctorId, pid, visit.vitals); clearDraft(doctorId, pid); setSentRx(rx);
+      onSent={(rx, link) => {
+        saveLastVitals(doctorId, pid, visit.vitals); clearDraft(doctorId, pid); setSentLink(link); setSentRx(rx);
         // Best-effort: the prescription row is the source of truth. Queue behind any autosave so the draft is never inserted twice.
         pushing.current = pushing.current.then(() => markSent({ ...visit, cloud_id: cloudId.current }, clinic?.id));
       }} /></div>

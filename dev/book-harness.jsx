@@ -21,6 +21,6 @@ const fake = {
 function Harness() {
   const [appointment, setAppointment] = useState({ mode: "Clinic visit", date: days[0].dateValue, time: "8:00 AM", reason: "Diabetes follow-up" });
   return <BookVisit appointment={appointment} setAppointment={setAppointment} clinic={clinic} onDuty days={days} todayValue={days[0].dateValue}
-    getSlots={getSlots} onPayAndBook={() => new Promise((r) => setTimeout(() => r(fake[outcome]), 400))} />;
+    getSlots={getSlots} load={new URLSearchParams(location.search).has("load") ? Object.fromEntries(days.map((d) => [d.dateValue, { [allSlots[0]]: 3, [allSlots[1]]: 2, [allSlots[2]]: 1 }])) : null} onPayAndBook={() => new Promise((r) => setTimeout(() => r(fake[outcome]), 400))} />;
 }
 createRoot(document.getElementById("root")).render(<Harness />);

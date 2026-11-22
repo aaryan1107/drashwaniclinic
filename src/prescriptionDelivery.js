@@ -43,3 +43,15 @@ export async function uploadPrescription(supabase, rx, blob) {
   const { data, error: signError } = await bucket.createSignedUrl(path, LINK_DAYS * 24 * 60 * 60);
   return signError || !data?.signedUrl ? null : data.signedUrl;
 }
+
+// The finalize step: build the PDF and make its link right after the prescription is saved, so the doctor
+// can send it straight away. Returns null (never throws) when storage is not ready, so sending is never blocked.
+export async function createPrescriptionLink(supabase, rx, clinic, { phone } = {}) {
+  try {
+    const { prescriptionPdfBlob } = await import("./prescriptionPdf.js");
+    const blob = await prescriptionPdfBlob(rx, clinic, { phone });
+    return await uploadPrescription(supabase, rx, blob);
+  } catch {
+    return null;
+  }
+}
