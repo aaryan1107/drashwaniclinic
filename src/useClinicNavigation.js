@@ -4,7 +4,7 @@ import { Capacitor } from "@capacitor/core";
 
 const easeOut = "cubic-bezier(.23,1,.32,1)";
 
-export function useClinicNavigation({ scope, route, restoreRoute }) {
+export function useClinicNavigation({ scope, route, restoreRoute, isBackBlocked }) {
   const shell = useRef(null);
   const history = useRef({ scope, entries: [], current: null, restore: null });
   const gesture = useRef(null);
@@ -45,6 +45,7 @@ export function useClinicNavigation({ scope, route, restoreRoute }) {
   }, [scope, routeKey]);
 
   function goBack(direction = "right") {
+    if (isBackBlocked?.()) return true;
     const state = history.current;
     if (state.scope !== scope || state.restore) return false;
     const entry = state.entries.pop();

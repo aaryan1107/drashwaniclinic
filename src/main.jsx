@@ -76,6 +76,8 @@ import { VISIT_FEE_RUPEES, VISIT_PAYMENT_PURPOSE, bookingRow } from "./booking.j
 import ClinicMesh, { ClinicMotion } from "./ClinicMesh";
 import { WelcomeHero, ConditionCards } from "./WelcomeHero.jsx";
 import PatientTutorial, { shouldShowTutorial } from "./PatientTutorial.jsx";
+import PatientMedicalInfo from "./MedicalProfile.jsx";
+import { profileToRecordFields } from "./medicalProfile.js";
 
 const RAZORPAY_KEY_ID = import.meta.env.VITE_RAZORPAY_KEY_ID || "";
 const RAZORPAY_API_BASE = import.meta.env.VITE_RAZORPAY_API_BASE || "/api";
@@ -575,15 +577,24 @@ function getClinicTheme() {
     : window.matchMedia("(prefers-color-scheme: dark)").matches ? "charcoal" : "light";
 }
 
+const emptyPatientReadings = {
+  fasting: "", postMeal: "", bp: "", weight: "", hba1c: "", reportName: "",
+  symptoms: "", note: "", updatedAt: "Not submitted yet"
+};
+
 function App() {
   const [screen, setScreen] = useState("intro");
   const [authMode, setAuthMode] = useState("signin");
   const [googleProfile, setGoogleProfile] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
+  const [intakeDraft, setIntakeDraft] = useState(null);
   const [authMessage, setAuthMessage] = useState("");
   const directAuth = useRef(false);
   const recoveringPassword = useRef(false);
   const handledAuthUser = useRef(null);
+  const recordSession = useRef(null);
+  const recordRequest = useRef(0);
+  const intakeSaving = useRef(null);
   const [theme, setTheme] = useState(getClinicTheme);
   const [meshPaused, setMeshPaused] = useState(() => localStorage.getItem("clinic-mesh-motion") === "paused");
   function toggleMeshMotion() {
@@ -605,7 +616,9 @@ function App() {
   const [patientRecords, setPatientRecords] = useState(patients);
   const [selectedPatientId, setSelectedPatientId] = useState(patients[0]?.id ?? null);
   const navigation = useClinicNavigation({
-    scope: authMode === "reset" && screen === "auth" ? "recovery" : currentUser?.id || "guest",
+    scope: screen === "patientMedicalInfo" ? `${currentUser?.id}:intake` :
+      authMode === "reset" && screen === "auth" ? "recovery" : currentUser?.id || "guest",
+    isBackBlocked: () => intakeSaving.current === currentUser?.id,
     route: {
       screen,
       ...(screen === "auth" ? { authMode } : {}),
@@ -643,17 +656,7 @@ function App() {
     updatedAt: "Clinic default"
   });
   const [consultPayment, setConsultPayment] = useState(makeDefaultConsultPayment);
-  const [patientReadings, setPatientReadings] = useState({
-    fasting: "",
-    postMeal: "",
-    bp: "",
-    weight: "",
-    hba1c: "",
-    reportName: "",
-    symptoms: "",
-    note: "",
-    updatedAt: "Not submitted yet"
-  });
+  const [patientReadings, setPatientReadings] = useState(emptyPatientReadings);
   const [educationPosts, setEducationPosts] = useState(() =>
     education.map(([title, body], index) => ({
       id: `seed-${index}`,
@@ -688,8 +691,18 @@ function App() {
     }
   };
 
+  const resetRecordSession = (userId) => {
+    if (recordSession.current === userId) return;
+    recordSession.current = userId;
+    recordRequest.current += 1;
+    setPatientRecords(patients);
+    setSelectedPatientId(patients[0]?.id ?? null);
+    setPatientReadings(emptyPatientReadings);
+  };
+
   const loadPatientRecords = async (user = currentUser) => {
     if (!user?.id) return;
+    const request = ++recordRequest.current;
 
     const query = supabase
       .from("patient_records")
@@ -700,6 +713,7 @@ function App() {
       ? await query
       : await query.eq("owner_id", user.id);
 
+    if (recordSession.current !== user.id || recordRequest.current !== request) return;
     if (error) {
       if (!isMissingSupabaseTableError(error)) {
         console.warn("Patient records load failed:", error.message);
@@ -781,6 +795,7 @@ function App() {
   };
 
   const updatePatientRecord = (patientId, patch) => {
+    recordRequest.current += 1;
     const cleanPatch = Object.fromEntries(
       Object.entries(patch).filter(([, value]) => value !== undefined)
     );
@@ -1102,10 +1117,10 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (currentUser?.id) {
+    if (currentUser?.id && (screen === "patient" || screen === "doctor")) {
       loadPatientRecords(currentUser);
     }
-  }, [currentUser?.id, currentUser?.role]);
+  }, [currentUser?.id, currentUser?.role, screen]);
 
   const logAuthAction = async (user, role, action) => {
     if (!user?.id) return;
@@ -1160,13 +1175,21 @@ function App() {
 
     if (error) throw error;
     await logAuthAction(user, role, "sign_in");
-    return { ...profile, hasMedicalProfile: Object.keys(existing?.medical_profile || {}).length > 0 };
+    return { ...profile, medicalProfile: existing?.medical_profile };
   };
 
   const applySupabaseUser = async (user, extra = {}) => {
-    const dbProfile = await upsertClinicProfile(user, extra);
-    if (!dbProfile) return;
+    if (!user?.id) return;
     handledAuthUser.current = user.id;
+    if (recordSession.current && recordSession.current !== user.id) {
+      setScreen("auth");
+      setCurrentUser(null);
+      setIntakeDraft(null);
+      resetRecordSession(null);
+    }
+    const dbProfile = await upsertClinicProfile(user, extra);
+    if (!dbProfile || handledAuthUser.current !== user.id) return;
+    resetRecordSession(dbProfile.id);
 
     const uiProfile = {
       name: dbProfile.full_name || "Clinic User",
@@ -1207,6 +1230,19 @@ function App() {
       return;
     }
 
+    const medicalProfile = dbProfile.medicalProfile;
+    // Wizard drafts from the earlier split-write path need confirmation by the atomic save.
+    const hasConfirmedProfile = Object.keys(medicalProfile || {}).length > 0 &&
+      (!medicalProfile.consentedAt || Boolean(medicalProfile.intakeCompletedAt));
+    let hasIntakeRecord = false;
+    if (hasConfirmedProfile) {
+      const { data, error } = await supabase.from("patient_records").select("id")
+        .eq("id", dbProfile.id).eq("owner_id", dbProfile.id).maybeSingle();
+      if (handledAuthUser.current !== dbProfile.id) return;
+      if (error) throw error;
+      hasIntakeRecord = data?.id === dbProfile.id;
+    }
+
     setCurrentUser({
       id: dbProfile.id,
       role: "patient",
@@ -1216,7 +1252,8 @@ function App() {
       avatar: dbProfile.avatar_url,
       provider: dbProfile.provider
     });
-    setScreen(extra.skipMedicalProfile || dbProfile.hasMedicalProfile ? "patient" : "patientMedicalInfo");
+    setIntakeDraft(hasIntakeRecord ? null : dbProfile.medicalProfile);
+    setScreen(hasIntakeRecord ? "patient" : "patientMedicalInfo");
   };
 
   const showGoogleError = (message) => {
@@ -1247,7 +1284,9 @@ function App() {
       if (event === "SIGNED_OUT") {
         recoveringPassword.current = false;
         handledAuthUser.current = null;
+        resetRecordSession(null);
         setCurrentUser(null);
+        setIntakeDraft(null);
         setScreen("auth");
       }
       if (!session && (event === "INITIAL_SESSION" || event === "SIGNED_OUT")) {
@@ -1257,17 +1296,16 @@ function App() {
       if (handledAuthUser.current === session.user.id) return;
       handledAuthUser.current = session.user.id;
 
-      const needsMedicalProfile = window.localStorage.getItem("clinicAuthNeedsMedicalProfile") === "1";
       window.localStorage.removeItem("clinicAuthRole");
       window.localStorage.removeItem("clinicAuthNeedsMedicalProfile");
 
       // Supabase holds its auth lock while notifying listeners.
       window.setTimeout(async () => {
-        if (!mounted || recoveringPassword.current) return;
+        if (!mounted || recoveringPassword.current || handledAuthUser.current !== session.user.id) return;
         try {
-          await applySupabaseUser(session.user, { skipMedicalProfile: !needsMedicalProfile });
+          await applySupabaseUser(session.user);
         } catch (error) {
-          if (!mounted) return;
+          if (!mounted || handledAuthUser.current !== session.user.id) return;
           handledAuthUser.current = null;
           setScreen("auth");
           setAuthMessage(friendlyAuthError(error));
@@ -1381,8 +1419,7 @@ function App() {
       await applySupabaseUser(data.user, {
         fullName,
         phone: normalizedPhone || phone,
-        provider: "email",
-        skipMedicalProfile: mode !== "signup"
+        provider: "email"
       });
     } catch (error) {
       setAuthMessage(friendlyAuthError(error));
@@ -1425,8 +1462,7 @@ function App() {
       if (error) throw error;
       await applySupabaseUser(data.user, {
         phone: normalizedPhone,
-        provider: "phone",
-        skipMedicalProfile: false
+        provider: "phone"
       });
     } catch (error) {
       setAuthMessage(friendlyAuthError(error));
@@ -1688,59 +1724,43 @@ function App() {
     if (error) throw error;
   };
 
-  const enterPatient = async (medicalProfile = {}) => {
-    const nextUser = currentUser || {
-      role: "patient",
-      name: medicalProfile.fullName || googleProfile?.name || "Clinic Patient",
-      email: googleProfile?.email || "",
-      avatar: googleProfile?.avatar || "",
-      provider: googleProfile ? "Google" : "Clinic account"
-    };
+  const enterPatient = async (medicalProfile) => {
+    const patientId = currentUser?.id;
+    if (!patientId || currentUser.role !== "patient") throw new Error("Patient session is required");
 
-    setCurrentUser(nextUser);
-
-    if (nextUser.id) {
-      await supabase
-        .from("clinic_profiles")
-        .update({
-          full_name: medicalProfile.fullName || nextUser.name || "Clinic Patient",
-          phone: medicalProfile.phone || nextUser.phone || null,
-          medical_profile: medicalProfile
-        })
-        .eq("id", nextUser.id);
-
-      await persistPatientVitals({
-        id: nextUser.id,
-        name: medicalProfile.fullName || nextUser.name || "Clinic Patient",
-        age: Number(medicalProfile.age) || 0,
-        gender: medicalProfile.gender || "Patient",
-        mobile: medicalProfile.phone || nextUser.phone || "",
-        whatsapp: medicalProfile.whatsapp || medicalProfile.phone || nextUser.phone || "",
-        abha: medicalProfile.abha || "Not linked",
-        source: nextUser.provider || "Patient app",
-        conditions: medicalProfile.conditions || [],
-        latest: medicalProfile.fasting ? `Fasting ${ensureUnit(medicalProfile.fasting, "mg/dL")}` : "Medical intake completed",
-        risk: medicalProfile.conditions?.includes("Diabetes") || medicalProfile.conditions?.includes("High BP") ? "Medium" : "Low",
-        vitals: {
-          fasting: ensureUnit(medicalProfile.fasting, "mg/dL"),
-          postMeal: "",
-          bp: medicalProfile.bp || "",
-          weight: ensureUnit(medicalProfile.weight, "kg"),
-          hba1c: medicalProfile.hba1c ? `${stripUnit(medicalProfile.hba1c, "%")}%` : "",
-          thyroid: ""
-        },
-        history: medicalProfile.conditions || [],
-        labs: [],
-        symptoms: [],
-        medicines: [],
-        notes: `Preferred consult mode: ${medicalProfile.preferredMode || "Clinic visit"}`,
+    const recordFields = profileToRecordFields(medicalProfile);
+    const name = medicalProfile.fullName || currentUser.name || "Clinic Patient";
+    const phone = medicalProfile.phone || currentUser.phone || "";
+    const { data: saved, error } = await supabase.rpc("clinic_save_patient_intake", {
+      p_patient_id: patientId,
+      p_profile: medicalProfile,
+      p_record: patientToRecordRow({
+        id: patientId,
+        name,
+        age: Number(medicalProfile.age),
+        gender: medicalProfile.gender,
+        mobile: phone,
+        whatsapp: medicalProfile.whatsapp || phone,
+        abha: medicalProfile.abha,
+        source: currentUser.provider,
+        ...recordFields,
+        history: [...recordFields.history, `Patient intake: ${recordFields.notes}`],
+        notes: null,
+        latest: recordFields.vitals.fasting ? `Fasting ${recordFields.vitals.fasting}` : "Medical intake completed",
         followUp: "Not scheduled",
         lastVisit: "Medical intake"
-      }, nextUser.id);
-    }
-
-    setScreen("patient");
-    setActiveTab("home");
+      })
+    });
+    if (error || saved?.patient_id !== patientId) throw new Error("Patient intake could not be saved");
+    const openSavedIntake = () => {
+      if (handledAuthUser.current !== patientId) return;
+      setCurrentUser({ ...currentUser, name: saved.full_name, phone: saved.phone });
+      setIntakeDraft(null);
+      setActiveTab("home");
+      setScreen("patient");
+    };
+    if (saved.earlier_details_saved) return openSavedIntake;
+    openSavedIntake();
   };
 
   const signOut = async () => {
@@ -1788,10 +1808,16 @@ function App() {
         )}
         {screen === "patientMedicalInfo" && (
           <PatientMedicalInfo
+            key={currentUser?.id}
             source={googleProfile ? "google" : "signup"}
             googleProfile={googleProfile}
             onBack={() => setScreen("auth")}
+            initialProfile={intakeDraft}
             onDone={enterPatient}
+            onSavingChange={(saving) => {
+              if (saving) intakeSaving.current = currentUser?.id;
+              else if (intakeSaving.current === currentUser?.id) intakeSaving.current = null;
+            }}
           />
         )}
         {screen === "patient" && (
@@ -2054,89 +2080,6 @@ function GoogleLogo() {
       <path fill="#FBBC05" d="M5.84 14.1c-.22-.66-.35-1.36-.35-2.1s.13-1.44.35-2.1V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l3.66-2.84z" />
       <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06L5.84 9.9C6.71 7.3 9.14 5.38 12 5.38z" />
     </svg>
-  );
-}
-
-function PatientMedicalInfo({ source, googleProfile, onBack, onDone }) {
-  const conditionOptions = ["Diabetes", "Obesity", "Thyroid", "Fatty liver", "High BP", "Cholesterol", "Neuropathy", "Weight"];
-  const [profile, setProfile] = useState({
-    fullName: googleProfile?.name || "",
-    phone: "",
-    whatsapp: "",
-    age: "",
-    gender: "Male",
-    conditions: ["Diabetes"],
-    fasting: "",
-    hba1c: "",
-    bp: "",
-    weight: "",
-    preferredMode: "Clinic visit"
-  });
-  const updateProfile = (key, value) => setProfile((current) => ({ ...current, [key]: value }));
-  const toggleCondition = (condition) => {
-    setProfile((current) => ({
-      ...current,
-      conditions: current.conditions.includes(condition)
-        ? current.conditions.filter((item) => item !== condition)
-        : [...current.conditions, condition]
-    }));
-  };
-
-  return (
-    <section className="screen signup-screen">
-      <TopAction title="Medical profile" onBack={onBack} />
-      <h2>{source === "google" ? "Complete your health profile" : "Add medical details"}</h2>
-      <p className="screen-copy">These details help the clinic manage follow-ups and help Dr. Ashwani review your case.</p>
-
-      {googleProfile && (
-        <div className="integration-card google-connected">
-          <span className="google-dot">G</span>
-          <div>
-            <strong>Google connected</strong>
-            <small>{googleProfile.email} will be linked after consent.</small>
-          </div>
-        </div>
-      )}
-
-      <div className="form-card">
-        <label>Full name<input value={profile.fullName} onChange={(event) => updateProfile("fullName", event.target.value)} placeholder="Patient full name" /></label>
-        <label>Mobile number<input value={profile.phone} onChange={(event) => updateProfile("phone", event.target.value)} placeholder="+91 98765 43210" /></label>
-        <label>WhatsApp number<input value={profile.whatsapp} onChange={(event) => updateProfile("whatsapp", event.target.value)} placeholder="+91 98765 43210" /></label>
-        <div className="two-col">
-          <label>Age<input value={profile.age} onChange={(event) => updateProfile("age", event.target.value)} placeholder="52" /></label>
-          <label>Gender<select value={profile.gender} onChange={(event) => updateProfile("gender", event.target.value)}><option>Male</option><option>Female</option><option>Other</option></select></label>
-        </div>
-      </div>
-
-      <div className="chip-panel">
-        <strong>Existing conditions</strong>
-        <div className="chip-wrap">
-          {conditionOptions.map((item) => (
-            <label className="chip-check" key={item}>
-              <input type="checkbox" checked={profile.conditions.includes(item)} onChange={() => toggleCondition(item)} />
-              <span>{item}</span>
-            </label>
-          ))}
-        </div>
-      </div>
-
-      <div className="form-card compact-form">
-        <div className="two-col">
-          <label>Fasting sugar<input value={profile.fasting} onChange={(event) => updateProfile("fasting", event.target.value)} placeholder="mg/dL" /></label>
-          <label>HbA1c<input value={profile.hba1c} onChange={(event) => updateProfile("hba1c", event.target.value)} placeholder="%" /></label>
-          <label>BP<input value={profile.bp} onChange={(event) => updateProfile("bp", event.target.value)} placeholder="Top / bottom" /></label>
-          <label>Weight<input value={profile.weight} onChange={(event) => updateProfile("weight", event.target.value)} placeholder="kg" /></label>
-        </div>
-        <label>Preferred consult mode<select value={profile.preferredMode} onChange={(event) => updateProfile("preferredMode", event.target.value)}><option>Clinic visit</option><option>WhatsApp consultation</option><option>Online consultation</option></select></label>
-      </div>
-
-      <label className="consent-line">
-        <input type="checkbox" defaultChecked />
-        I consent to storing health data and follow-up reminders.
-      </label>
-
-      <button className="primary-button" onClick={() => onDone(profile)}><Check size={18} /> Create patient app</button>
-    </section>
   );
 }
 
