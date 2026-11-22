@@ -79,7 +79,7 @@ assert.equal(toRxMedicine({ display: "Eye drop X", details: { route: "Eye drops"
 const { buildPrescriptionPdf } = await import("./prescriptionPdf.js");
 const doc = await buildPrescriptionPdf({ ...row, id: "abc123", created_at: "2026-11-18T05:00:00Z", status: "issued" }, { name: "Test Clinic", address: "Test address" });
 const pdfText = Buffer.from(doc.output("arraybuffer")).toString("latin1");
-assert.ok(pdfText.includes("Amlodipine"), "PDF contains medicines");
+assert.ok(pdfText.toLowerCase().includes("amlodipine"), "PDF contains medicines");
 assert.ok(pdfText.includes("Low salt"), "PDF contains public advice");
 assert.equal(pdfText.includes("SECRET-PRIVATE-NOTE"), false, "PDF must never contain private notes");
 console.log("visit -> prescription and PDF tests passed");

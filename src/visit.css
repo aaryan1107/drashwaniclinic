@@ -111,3 +111,13 @@
 .vt .vt-chip-on { background: var(--soft-blue); border-color: var(--blue); color: var(--blue-dark); }
 .vt .vt-lock.on { background: var(--soft-blue); color: var(--blue-dark); border-color: var(--blue); }
 .vt-calcs h4 { font-size: 1rem; font-weight: 650; }
+
+/* Prescription fields (form, generic, pattern, duration, Hindi preview) */
+.vt-narrow { max-width: 84px; }
+.vt-hindi { margin: 0; padding: 10px 12px; border-radius: 12px; background: color-mix(in srgb, var(--ink) 6%, transparent); font-size: .92rem; line-height: 1.6; }
+.vt-hindi span { display: block; margin-bottom: 2px; color: var(--muted); font-size: .72rem; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; }
+.vt-rx-list { display: grid; gap: 10px; padding-left: 20px; }
+.vt-rx-list li { display: grid; gap: 2px; }
+.vt-rx-list .vt-generic { color: var(--muted); font-size: .8rem; }
+.vt-rx-list span { font-size: .88rem; }
+.vt-rx-list .vt-hindi-line { color: var(--muted); }
