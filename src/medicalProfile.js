@@ -100,11 +100,12 @@ export function bmi(heightCm, weightKg) {
   return Math.round((w / (h * h)) * 10) / 10;
 }
 
+// Asian-Indian cut-offs used by RSSDI-ESI 2020 and ICMR: overweight from 23, obese from 25.
 export function bmiBand(value) {
   if (value === null) return "";
   if (value < 18.5) return "Underweight";
   if (value < 23) return "Healthy range";
-  if (value < 27.5) return "Overweight";
+  if (value < 25) return "Overweight";
   return "Obese";
 }
 

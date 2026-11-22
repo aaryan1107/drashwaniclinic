@@ -31,7 +31,10 @@ const filled = () => ({
 assert.equal(bmi("170", "78"), 27);
 assert.equal(bmi("", "78"), null);
 assert.equal(bmi("20", "78"), null);
-assert.equal(bmiBand(27), "Overweight");
+assert.equal(bmiBand(22.9), "Healthy range");
+assert.equal(bmiBand(23), "Overweight");
+assert.equal(bmiBand(25), "Obese");
+assert.equal(bmiBand(27), "Obese");
 assert.equal(bmiBand(null), "");
 
 // Step checks: only the first and last steps can block
@@ -61,7 +64,7 @@ for (const part of [
   "Past surgery or hospital stay: Appendix removed, 2015",
   "Family history: Diabetes, Heart disease",
   "smoking: currently (5 a day)",
-  "BMI 27 (overweight)"
+  "BMI 27 (obese)"
 ]) assert.ok(history.includes(part), `missing: ${part}`);
 assert.ok(!history.includes("Past surgery or hospital stay: \n"));
 
