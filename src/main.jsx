@@ -2255,6 +2255,8 @@ function PatientApp({
           )}
           {activeTab === "book" && (
             <BookVisit
+              key={userId}
+              userId={userId}
               appointment={appointment}
               setAppointment={setAppointment}
               clinic={activeClinic}
