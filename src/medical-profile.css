@@ -74,3 +74,7 @@
 
 .app-stage .mp-choice button.is-on::before { content: "\2713"; margin-right: 6px; color: var(--blue); font-weight: 800; }
 .mp-plain { display: grid; gap: 12px; }
+
+.mp .chip-check { max-width: 100%; }
+.mp .chip-check span { height: auto; min-height: 44px; padding-block: 8px; text-align: left; line-height: 1.25; }
+.mp-choice button { height: auto; padding-block: 8px; text-align: left; line-height: 1.25; }

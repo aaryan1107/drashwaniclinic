@@ -5,7 +5,9 @@ import { ArrowRight, Check, ChevronLeft, Plus, ShieldCheck, X } from "lucide-rea
 import { Button } from "./ui/Button.jsx";
 import {
   ACTIVITY, ALCOHOL, BLOOD_GROUPS, COMMON_DRUG_ALLERGIES, CONDITION_GROUPS, CONSULT_MODES, DIABETES_COMPLICATIONS,
-  DIABETES_DURATIONS, DIABETES_TREATMENTS, DIET, FAMILY_HISTORY, HOME_CHECKS, LANGUAGES, SLEEP, SMOKING, SYMPTOMS_NOW,
+  COST_SKIPPING, DIABETES_DURATIONS, DIABETES_TREATMENTS, DIET, FAMILY_HISTORY, HOME_CHECKS, HOME_DEVICES, HOSPITAL_STAYS,
+  HYPO_AWARENESS, HYPO_FREQUENCY, LANGUAGES, LAST_CHECK, MISSED_DOSES, MOOD_ANSWERS, MOOD_QUESTIONS, PAST_INFECTIONS,
+  PREGNANCY_PLANS, SEXUAL_HEALTH, SLEEP, SLEEP_SIGNS, SMOKING, SUPPORT, SYMPTOMS_NOW, VACCINES,
   bmi, bmiBand, emptyMedicine, emptyProfile, hasDiabetes, profileForStorage, stepProblems
 } from "./medicalProfile.js";
 import "./medical-profile.css";
@@ -87,6 +89,9 @@ function AboutStep({ profile, set }) {
         {profile.gender === "Female" && (
           <label>Pregnant or breastfeeding?<select value={profile.pregnant} onChange={(e) => set("pregnant", e.target.value)}><option>No</option><option>Pregnant</option><option>Breastfeeding</option></select></label>
         )}
+        {profile.gender === "Female" && !(Number(profile.age) > 50) && (
+          <div className="mp-field"><span>Planning a pregnancy?</span><Choice legend="Planning pregnancy" options={PREGNANCY_PLANS} value={profile.planningPregnancy} onChange={(v) => set("planningPregnancy", v)} /></div>
+        )}
         <label>ABHA number (optional)<input value={profile.abha} inputMode="numeric" onChange={(e) => set("abha", e.target.value)} placeholder="14 digit health ID" /></label>
       </div>
     </>
@@ -114,7 +119,16 @@ function HealthStep({ profile, set }) {
           <div className="mp-field"><span>Since when?</span><Choice legend="Diabetes duration" options={DIABETES_DURATIONS} value={profile.diabetes.duration} onChange={(v) => setDiabetes("duration", v)} /></div>
           <div className="mp-field"><span>Treatment now</span><Choice legend="Diabetes treatment" options={DIABETES_TREATMENTS} value={profile.diabetes.treatment} onChange={(v) => setDiabetes("treatment", v)} /></div>
           <div className="mp-field"><span>Check sugar at home?</span><Choice legend="Home sugar checks" options={HOME_CHECKS} value={profile.diabetes.homeChecks} onChange={(v) => setDiabetes("homeChecks", v)} /></div>
+          <div className="mp-field"><span>Home sugar device</span><Choice legend="Home sugar device" options={HOME_DEVICES} value={profile.diabetes.device} onChange={(v) => setDiabetes("device", v)} /></div>
+          <div className="mp-field"><span>Low sugar episodes (sweating, shaking, feeling faint)</span><Choice legend="Low sugar episodes" options={HYPO_FREQUENCY} value={profile.diabetes.hypoFrequency} onChange={(v) => setDiabetes("hypoFrequency", v)} /></div>
+          {profile.diabetes.hypoFrequency && profile.diabetes.hypoFrequency !== "Never" && (
+            <div className="mp-field"><span>Do you feel a low coming?</span><Choice legend="Low sugar awareness" options={HYPO_AWARENESS} value={profile.diabetes.hypoAwareness} onChange={(v) => setDiabetes("hypoAwareness", v)} /></div>
+          )}
+          <div className="mp-field"><span>Hospital stays because of diabetes</span><Choice legend="Hospital stays for diabetes" options={HOSPITAL_STAYS} value={profile.diabetes.hospitalStays} onChange={(v) => setDiabetes("hospitalStays", v)} /></div>
           <div className="mp-field"><span>Any complications?</span><Chips legend="Diabetes complications" options={DIABETES_COMPLICATIONS} value={profile.diabetes.complications} onChange={(v) => setDiabetes("complications", v)} /></div>
+          <div className="mp-field"><span>Last eye check (dilated)</span><Choice legend="Last eye check" options={LAST_CHECK} value={profile.diabetes.lastEye} onChange={(v) => setDiabetes("lastEye", v)} /></div>
+          <div className="mp-field"><span>Last foot check by a doctor</span><Choice legend="Last foot check" options={LAST_CHECK} value={profile.diabetes.lastFoot} onChange={(v) => setDiabetes("lastFoot", v)} /></div>
+          <div className="mp-field"><span>Last dental check</span><Choice legend="Last dental check" options={LAST_CHECK} value={profile.diabetes.lastDental} onChange={(v) => setDiabetes("lastDental", v)} /></div>
         </Block>
       )}
 
@@ -132,6 +146,20 @@ function HealthStep({ profile, set }) {
       <Block title="What are you feeling now?">
         <Chips legend="Current symptoms" options={SYMPTOMS_NOW} value={profile.symptoms} onChange={(next) => set("symptoms", next)} />
         <label>In your own words<textarea rows={3} value={profile.reason} onChange={(e) => set("reason", e.target.value)} placeholder="Why are you joining the clinic app?" /></label>
+      </Block>
+
+      <Block title="Mood and worry" hint="Over the last 2 weeks, how often have you been bothered by these? Only you and Dr Ashwani see the answers.">
+        {MOOD_QUESTIONS.map(([key, question]) => (
+          <div className="mp-field" key={key}>
+            <span>{question}</span>
+            <Choice legend={question} options={MOOD_ANSWERS} value={profile.mood[key]} onChange={(v) => set("mood", (current) => ({ ...current, [key]: v }))} />
+          </div>
+        ))}
+      </Block>
+
+      <Block title="Sleep and private health" hint="Optional. Skip anything you prefer to discuss in person.">
+        <div className="mp-field"><span>Sleep problems you notice</span><Chips legend="Sleep signs" options={SLEEP_SIGNS} value={profile.sleepSigns} onChange={(next) => set("sleepSigns", next)} /></div>
+        <div className="mp-field"><span>Sexual health</span><Choice legend="Sexual health" options={SEXUAL_HEALTH} value={profile.sexualHealth} onChange={(v) => set("sexualHealth", v)} /></div>
       </Block>
     </>
   );
@@ -159,6 +187,12 @@ function MedicinesStep({ profile, set }) {
         <label>Vitamins or supplements<input value={profile.supplements} onChange={(e) => set("supplements", e.target.value)} placeholder="e.g. Vitamin D, B12, ayurvedic" /></label>
       </Block>
 
+      <Block title="Taking your medicines" hint="No judgement. This helps the doctor choose a plan you can stick to.">
+        <div className="mp-field"><span>Missed doses</span><Choice legend="Missed doses" options={MISSED_DOSES} value={profile.missedDoses} onChange={(v) => set("missedDoses", v)} /></div>
+        <div className="mp-field"><span>Skipped medicine because of cost</span><Choice legend="Skipped medicine because of cost" options={COST_SKIPPING} value={profile.costSkipping} onChange={(v) => set("costSkipping", v)} /></div>
+        <label>Side effects you notice<input value={profile.sideEffects} onChange={(e) => set("sideEffects", e.target.value)} placeholder="e.g. stomach upset, dizziness" /></label>
+      </Block>
+
       <Block title="Allergies" hint="Medicines that caused a reaction.">
         <Chips legend="Drug allergies" options={COMMON_DRUG_ALLERGIES} value={profile.drugAllergies} onChange={(next) => set("drugAllergies", next)} />
         <label>Other allergy (medicine, food, dust)<input value={profile.otherAllergy} onChange={(e) => set("otherAllergy", e.target.value)} placeholder="Name it here" /></label>
@@ -173,6 +207,11 @@ function MedicinesStep({ profile, set }) {
           </div>
         ))}
         <Button intent="secondary" icon={<Plus size={18} />} onClick={() => set("surgeries", [...profile.surgeries, ""])}>Add surgery or stay</Button>
+      </Block>
+
+      <Block title="Vaccines and past infections" hint="Optional. Tick what applies.">
+        <div className="mp-field"><span>Vaccines you have had</span><Chips legend="Vaccines" options={VACCINES} value={profile.vaccines} onChange={(next) => set("vaccines", next)} /></div>
+        <div className="mp-field"><span>Past infections</span><Chips legend="Past infections" options={PAST_INFECTIONS} value={profile.pastInfections} onChange={(next) => set("pastInfections", next)} /></div>
       </Block>
 
       <Block title="Family history" hint="Parents, brothers or sisters.">
@@ -193,6 +232,7 @@ function LifeStep({ profile, set, problems }) {
         <label className="mp-check"><input type="checkbox" checked={profile.chewsTobacco} onChange={(e) => set("chewsTobacco", e.target.checked)} />I chew tobacco or gutka</label>
         <div className="mp-field"><span>Activity</span><Choice legend="Activity" options={ACTIVITY} value={profile.activity} onChange={(v) => set("activity", v || "Light walking")} /></div>
         <div className="mp-field"><span>Diet</span><Choice legend="Diet" options={DIET} value={profile.diet} onChange={(v) => set("diet", v || "Vegetarian")} /></div>
+        <div className="mp-field"><span>Who helps you with your health?</span><Choice legend="Support at home" options={SUPPORT} value={profile.support} onChange={(v) => set("support", v)} /></div>
         <div className="mp-field"><span>Sleep</span><Choice legend="Sleep" options={SLEEP} value={profile.sleep} onChange={(v) => set("sleep", v || "7 to 8 hours")} /></div>
       </Block>
 

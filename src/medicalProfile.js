@@ -7,7 +7,7 @@ export const CONDITION_GROUPS = [
   { id: "thyroid", label: "Thyroid", items: ["Underactive thyroid", "Overactive thyroid", "Goitre"] },
   { id: "heart", label: "Heart and blood pressure", items: ["High BP", "Heart disease", "Past heart attack or stent", "Past stroke"] },
   { id: "organs", label: "Kidney and liver", items: ["Kidney disease", "Kidney stones", "Liver disease"] },
-  { id: "chest", label: "Lungs", items: ["Asthma", "COPD", "Past TB"] },
+  { id: "chest", label: "Lungs", items: ["Asthma", "COPD"] },
   { id: "mind", label: "Mind and sleep", items: ["Anxiety", "OCD", "Depression", "Poor sleep"] },
   { id: "body", label: "Bones and nerves", items: ["Arthritis", "Back or joint pain", "Numbness or tingling in feet", "Epilepsy"] },
   { id: "women", label: "Women's health", items: ["PCOS", "Irregular periods", "Menopause"], femaleOnly: true },
@@ -24,6 +24,26 @@ export const DIABETES_COMPLICATIONS = ["Eye problems", "Kidney problems", "Nerve
 export const DIABETES_DURATIONS = ["Just diagnosed", "Under 1 year", "1 to 5 years", "5 to 10 years", "More than 10 years"];
 export const DIABETES_TREATMENTS = ["Diet and exercise only", "Tablets", "Insulin", "Tablets and insulin", "Not on treatment"];
 export const HOME_CHECKS = ["Never", "Sometimes", "Regularly"];
+export const HOME_DEVICES = ["No meter", "Glucose meter", "Sensor (CGM)"];
+export const HYPO_FREQUENCY = ["Never", "Once or twice a year", "Every month", "Every week or more"];
+export const HYPO_AWARENESS = ["I feel it coming", "Sometimes I do not", "I usually do not feel it"];
+export const HOSPITAL_STAYS = ["None", "Once", "More than once"];
+export const LAST_CHECK = ["Within 1 year", "1 to 2 years ago", "More than 2 years ago", "Never"];
+export const MOOD_ANSWERS = ["Not at all", "Several days", "More than half the days", "Nearly every day"];
+export const MOOD_QUESTIONS = [
+  ["interest", "Little interest or pleasure in doing things"],
+  ["down", "Feeling down, low or hopeless"],
+  ["nervous", "Feeling nervous, anxious or on edge"],
+  ["worry", "Not being able to stop or control worrying"]
+];
+export const SLEEP_SIGNS = ["Loud snoring", "Sleepy in the daytime", "Someone saw me stop breathing in sleep"];
+export const SEXUAL_HEALTH = ["No concern", "Yes, I have a concern", "I would rather talk in person"];
+export const PREGNANCY_PLANS = ["No", "Yes", "Not sure"];
+export const MISSED_DOSES = ["Never", "Sometimes", "Often"];
+export const COST_SKIPPING = ["No", "Sometimes", "Yes"];
+export const VACCINES = ["Flu (this year)", "Pneumonia", "Hepatitis B", "Tetanus (last 10 years)", "COVID-19"];
+export const PAST_INFECTIONS = ["Tuberculosis (TB)", "Hepatitis B", "Hepatitis C", "HIV"];
+export const SUPPORT = ["I manage on my own", "Family helps me", "A caregiver helps me"];
 
 export const SYMPTOMS_NOW = [
   "Excess thirst", "Passing urine often", "Tiredness", "Blurred vision", "Tingling in feet", "Weight change",
@@ -32,7 +52,7 @@ export const SYMPTOMS_NOW = [
 ];
 
 export const COMMON_DRUG_ALLERGIES = ["Penicillin", "Sulfa drugs", "Aspirin or pain killers", "Other antibiotics"];
-export const FAMILY_HISTORY = ["Diabetes", "High BP", "Heart disease", "Stroke", "Thyroid", "Kidney disease", "Cancer", "Mental health"];
+export const FAMILY_HISTORY = ["Diabetes", "High BP", "Heart disease", "Heart attack when young (men under 55, women under 65)", "Stroke", "Thyroid", "Kidney disease", "Cancer", "Mental health"];
 export const BLOOD_GROUPS = ["Not sure", "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 export const SMOKING = ["Never", "Used to", "Currently"];
 export const ALCOHOL = ["Never", "Occasionally", "Regularly"];
@@ -55,19 +75,31 @@ export const emptyProfile = (googleProfile) => ({
   heightCm: "",
   weight: "",
   pregnant: "No",
+  planningPregnancy: "",
   abha: "",
   language: "English",
   conditions: [],
   otherCondition: "",
-  diabetes: { duration: "", treatment: "", homeChecks: "", complications: [] },
+  diabetes: {
+    duration: "", treatment: "", homeChecks: "", device: "", complications: [],
+    hypoFrequency: "", hypoAwareness: "", hospitalStays: "", lastEye: "", lastFoot: "", lastDental: ""
+  },
   fasting: "",
   postMeal: "",
   hba1c: "",
   bp: "",
   symptoms: [],
   reason: "",
+  mood: { interest: "", down: "", nervous: "", worry: "" },
+  sleepSigns: [],
+  sexualHealth: "",
   medicines: [emptyMedicine()],
   supplements: "",
+  missedDoses: "",
+  costSkipping: "",
+  sideEffects: "",
+  vaccines: [],
+  pastInfections: [],
   drugAllergies: [],
   otherAllergy: "",
   allergyReaction: "",
@@ -81,6 +113,7 @@ export const emptyProfile = (googleProfile) => ({
   activity: "Light walking",
   diet: "Vegetarian",
   sleep: "7 to 8 hours",
+  support: "",
   emergencyName: "",
   emergencyRelation: "",
   emergencyPhone: "",
@@ -126,6 +159,15 @@ export function stepProblems(step, profile) {
   return problems;
 }
 
+// Two-item screens in the usual scoring: each answer is worth 0 to 3, and 3 or more on a pair needs a doctor's review.
+const moodPoints = (answer) => Math.max(MOOD_ANSWERS.indexOf(answer), 0);
+export function moodScores(mood) {
+  const pair = (a, b) => ({ score: moodPoints(mood[a]) + moodPoints(mood[b]), answered: Boolean(mood[a] && mood[b]) });
+  const low = pair("interest", "down");
+  const worry = pair("nervous", "worry");
+  return { low: low.score, worry: worry.score, lowFlag: low.answered && low.score >= 3, worryFlag: worry.answered && worry.score >= 3, any: low.answered || worry.answered };
+}
+
 const clean = (items) => items.map((item) => `${item}`.trim()).filter(Boolean);
 const withUnit = (value, unit) => (value && `${value}`.trim() ? `${`${value}`.trim()} ${unit}` : "");
 
@@ -147,12 +189,24 @@ export function historyLines(profile) {
     if (diabetes.duration) parts.push(diabetes.duration.toLowerCase());
     if (diabetes.treatment) parts.push(diabetes.treatment.toLowerCase());
     if (diabetes.homeChecks) parts.push(`checks sugar at home: ${diabetes.homeChecks.toLowerCase()}`);
+    if (diabetes.device) parts.push(`home device: ${diabetes.device.toLowerCase()}`);
     if (parts.length) lines.push(`Diabetes: ${parts.join(", ")}`);
     if (diabetes.complications.length) lines.push(`Diabetes complications: ${diabetes.complications.join(", ")}`);
+    if (diabetes.hypoFrequency) lines.push(`Low sugar episodes: ${diabetes.hypoFrequency.toLowerCase()}${diabetes.hypoFrequency !== "Never" && diabetes.hypoAwareness ? `; ${diabetes.hypoAwareness.toLowerCase()}` : ""}`);
+    if (diabetes.hospitalStays && diabetes.hospitalStays !== "None") lines.push(`Hospital stays because of diabetes: ${diabetes.hospitalStays.toLowerCase()}`);
+    const checks = [["eye", diabetes.lastEye], ["foot", diabetes.lastFoot], ["dental", diabetes.lastDental]].filter(([, value]) => value);
+    if (checks.length) lines.push(`Last checks: ${checks.map(([name, value]) => `${name} ${value.toLowerCase()}`).join(", ")}`);
   }
   if (profile.otherCondition.trim()) lines.push(`Other condition: ${profile.otherCondition.trim()}`);
   const allergies = clean([...profile.drugAllergies, profile.otherAllergy]);
   if (allergies.length) lines.push(`Allergies: ${allergies.join(", ")}${profile.allergyReaction.trim() ? ` (reaction: ${profile.allergyReaction.trim()})` : ""}`);
+  const adherence = [];
+  if (profile.missedDoses && profile.missedDoses !== "Never") adherence.push(`misses doses ${profile.missedDoses.toLowerCase()}`);
+  if (profile.costSkipping && profile.costSkipping !== "No") adherence.push(`skips medicine because of cost: ${profile.costSkipping.toLowerCase()}`);
+  if (profile.sideEffects.trim()) adherence.push(`side effects: ${profile.sideEffects.trim()}`);
+  if (adherence.length) lines.push(`Medicines: ${adherence.join("; ")}`);
+  if (profile.vaccines.length) lines.push(`Vaccines had: ${profile.vaccines.join(", ")}`);
+  if (profile.pastInfections.length) lines.push(`Past infections: ${profile.pastInfections.join(", ")}`);
   clean(profile.surgeries).forEach((item) => lines.push(`Past surgery or hospital stay: ${item}`));
   if (profile.familyHistory.length) lines.push(`Family history: ${profile.familyHistory.join(", ")}${profile.familyNote.trim() ? ` (${profile.familyNote.trim()})` : ""}`);
   const lifestyle = [];
@@ -161,10 +215,19 @@ export function historyLines(profile) {
   if (profile.chewsTobacco) lifestyle.push("chews tobacco");
   lifestyle.push(`activity: ${profile.activity.toLowerCase()}`, `diet: ${profile.diet.toLowerCase()}`, `sleep: ${profile.sleep.toLowerCase()}`);
   lines.push(`Lifestyle: ${lifestyle.join(", ")}`);
+  if (profile.sleepSigns.length) lines.push(`Sleep apnoea signs: ${profile.sleepSigns.join(", ")}`);
+  const mood = moodScores(profile.mood);
+  if (mood.any) {
+    const parts = [`low mood ${mood.low} of 6${mood.lowFlag ? " (at or above screening cut-off of 3)" : ""}`, `worry ${mood.worry} of 6${mood.worryFlag ? " (at or above screening cut-off of 3)" : ""}`];
+    lines.push(`Mood screen: ${parts.join(", ")}${mood.lowFlag || mood.worryFlag ? ". Needs doctor review" : ""}`);
+  }
+  if (profile.sexualHealth && profile.sexualHealth !== "No concern") lines.push(`Sexual health: ${profile.sexualHealth.toLowerCase()}`);
+  if (profile.support) lines.push(`Support at home: ${profile.support.toLowerCase()}`);
   const value = bmi(profile.heightCm, profile.weight);
   if (profile.heightCm) lines.push(`Height ${profile.heightCm} cm${value ? `, BMI ${value} (${bmiBand(value).toLowerCase()})` : ""}`);
   if (profile.bloodGroup && profile.bloodGroup !== "Not sure") lines.push(`Blood group: ${profile.bloodGroup}`);
   if (profile.gender === "Female" && profile.pregnant !== "No") lines.push(`Pregnancy: ${profile.pregnant.toLowerCase()}`);
+  if (profile.gender === "Female" && profile.planningPregnancy && profile.planningPregnancy !== "No") lines.push(`Planning pregnancy: ${profile.planningPregnancy.toLowerCase()}`);
   return lines;
 }
 
@@ -185,6 +248,7 @@ export function noteText(profile) {
 // Risk is only a first sorting hint for the doctor's list; the doctor sets the real level.
 export function riskHint(profile) {
   if (Number(profile.hba1c) >= 9) return "High";
+  if (hasDiabetes(profile) && profile.diabetes.hypoFrequency === "Every week or more") return "High";
   return profile.conditions.some((item) => CHRONIC_CONDITIONS.includes(item)) ? "Medium" : "Low";
 }
 

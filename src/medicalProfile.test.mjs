@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import {
-  bmi, bmiBand, emptyProfile, hasDiabetes, historyLines, medicineLines, profileForStorage, profileToRecordFields, riskHint, stepProblems
+  bmi, bmiBand, emptyProfile, hasDiabetes, historyLines, medicineLines, moodScores, profileForStorage, profileToRecordFields, riskHint, stepProblems
 } from "./medicalProfile.js";
 
 const filled = () => ({
@@ -84,3 +84,45 @@ assert.deepEqual(stored.surgeries, ["Appendix removed, 2015"]);
 assert.ok(stored.consentedAt);
 
 console.log("Medical profile tests passed.");
+
+// Added items: hypoglycaemia, last checks, adherence, mood screen, vaccines, infections, support
+const extra = {
+  ...filled(),
+  diabetes: { ...filled().diabetes, device: "Glucose meter", hypoFrequency: "Every week or more", hypoAwareness: "I usually do not feel it", hospitalStays: "Once", lastEye: "More than 2 years ago", lastFoot: "Never", lastDental: "Within 1 year" },
+  mood: { interest: "More than half the days", down: "Several days", nervous: "Not at all", worry: "Several days" },
+  sleepSigns: ["Loud snoring"],
+  missedDoses: "Sometimes",
+  costSkipping: "Yes",
+  sideEffects: "stomach upset",
+  vaccines: ["Flu (this year)"],
+  pastInfections: ["Hepatitis B"],
+  support: "Family helps me",
+  sexualHealth: "I would rather talk in person"
+};
+const moods = moodScores(extra.mood);
+assert.deepEqual([moods.low, moods.worry, moods.lowFlag, moods.worryFlag], [3, 1, true, false]);
+assert.equal(moodScores({ interest: "", down: "", nervous: "", worry: "" }).any, false);
+assert.equal(moodScores({ interest: "Nearly every day", down: "", nervous: "", worry: "" }).lowFlag, false);
+const extraHistory = historyLines(extra).join("\n");
+for (const part of [
+  "checks sugar at home: regularly, home device: glucose meter",
+  "Low sugar episodes: every week or more; i usually do not feel it",
+  "Hospital stays because of diabetes: once",
+  "Last checks: eye more than 2 years ago, foot never, dental within 1 year",
+  "Medicines: misses doses sometimes; skips medicine because of cost: yes; side effects: stomach upset",
+  "Vaccines had: Flu (this year)",
+  "Past infections: Hepatitis B",
+  "Sleep apnoea signs: Loud snoring",
+  "Mood screen: low mood 3 of 6 (at or above screening cut-off of 3), worry 1 of 6. Needs doctor review",
+  "Sexual health: i would rather talk in person",
+  "Support at home: family helps me"
+]) assert.ok(extraHistory.includes(part), `missing: ${part}`);
+assert.equal(riskHint({ ...filled(), diabetes: { ...filled().diabetes, hypoFrequency: "Every week or more" } }), "High");
+assert.equal(riskHint(filled()), "Medium");
+const deviceOnly = historyLines({ ...emptyProfile(), conditions: ["Type 2 diabetes"], diabetes: { ...emptyProfile().diabetes, device: "Sensor (CGM)" } }).join("\n");
+assert.ok(deviceOnly.includes("Diabetes: home device: sensor (cgm)"));
+const quiet = historyLines(emptyProfile()).join("\n");
+for (const absent of ["Low sugar", "Mood screen", "Vaccines", "Medicines:", "Last checks"]) assert.ok(!quiet.includes(absent), `unexpected: ${absent}`);
+const female = { ...emptyProfile(), gender: "Female", planningPregnancy: "Yes" };
+assert.ok(historyLines(female).join("\n").includes("Planning pregnancy: yes"));
+console.log("Added-item tests passed.");
