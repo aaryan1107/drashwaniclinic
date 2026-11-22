@@ -1,0 +1,58 @@
+/* Layout polish found in a full-app audit at 375px. Loaded last so it settles inconsistencies between the older style files. */
+
+/* Bottom tabs: the grid follows the number of tabs shown, so the sliding highlight can never land on an empty column. */
+.app-stage .bottom-nav,
+.app-stage .doctor-nav { grid-template-columns: repeat(var(--tabs, 5), minmax(0, 1fr)); }
+
+/* Detail rows (clinic hours, address, fee): the icon keeps its size and sits on the first line when the text wraps. */
+.clinic-detail-list span { align-items: flex-start; line-height: 1.4; }
+.clinic-detail-list span > svg { flex: none; margin-top: 2px; }
+
+/* Report upload: theme colours instead of a fixed light blue. */
+.app-stage .file-upload-control {
+  color: var(--ink);
+  border: 1px dashed color-mix(in srgb, var(--blue) 55%, transparent);
+  background: color-mix(in srgb, var(--blue) 10%, transparent);
+}
+
+/* Checkboxes and switches: one size, one gap, vertically centred with their text, 44px tall to tap. */
+.app-stage label:has(> input[type="checkbox"]):not(.chip-check) {
+  display: flex;
+  grid-template-columns: none;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+}
+.app-stage label > input[type="checkbox"]:not(.chip-check input) {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  min-height: 22px;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--blue);
+}
+
+/* Text that was under 12px. */
+.clinic-wordmark small { font-size: 12px; }
+.bubble.bot > span:first-child,
+.bubble.user > span:first-child { font-size: 12px; }
+.message-avatar { display: grid; place-items: center; flex: none; }
+
+/* Last-updated row: label on the left, time on the right, same line. */
+.audit-card { grid-template-columns: auto 1fr auto; }
+.audit-card strong { grid-column: 3; justify-self: end; text-align: right; }
+
+/* Selected-tab highlight follows the measured button (--pill-x / --pill-w are set in FloatingTabs). */
+.app-stage .bottom-nav .floating-tab-selection {
+  inset: 5px auto 5px 0;
+  width: var(--pill-w, calc((100% - 10px) / var(--tabs, 5)));
+  translate: var(--pill-x, 0px) 0;
+  transition: translate 230ms cubic-bezier(.23, 1, .32, 1), width 230ms cubic-bezier(.23, 1, .32, 1), opacity 145ms ease-out;
+}
+/* Older theme files also paint the active button itself, which drew a second pill beside the sliding one. */
+.app-stage .bottom-nav button.active,
+.app-stage.dark-theme .bottom-nav button.active,
+.app-stage .bottom-nav button[aria-current="page"],
+.app-stage .bottom-nav button:focus:not(:focus-visible),
+.app-stage .bottom-nav button:hover { background: transparent !important; box-shadow: none; }
