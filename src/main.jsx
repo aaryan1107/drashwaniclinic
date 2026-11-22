@@ -4,7 +4,7 @@ import { DoctorPrescriptions, PatientPrescriptions, ReceptionPrescriptions } fro
 import { Browser } from "@capacitor/browser";
 import { Capacitor } from "@capacitor/core";
 import { Popover } from "@base-ui/react/popover";
-import React, { lazy, Suspense, useContext, useMemo, useState, useEffect, useRef } from "react";
+import React, { lazy, Suspense, useContext, useLayoutEffect, useMemo, useState, useEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
 const Visit = lazy(() => import("./Visit.jsx"));
 const AppointmentSheet = lazy(() => import("./AppointmentSheet.jsx"));
@@ -67,6 +67,7 @@ import "./styles.css";
 import "./clinic-appearance.css";
 import "./clinic-theme.css";
 import "./clinic-brand.css";
+import "./polish.css";
 import { useClinicNavigation } from "./useClinicNavigation";
 import BookVisit from "./BookVisit.jsx";
 import { dayTimeline, loadByDay, loadFromCounts, recommendSlot, reservedOnDay } from "./slotLoad.js";
@@ -167,7 +168,7 @@ const clinics = [
   },
   {
     id: "clinic-2",
-    name: "Dr. Ashwani Family Clinic",
+    name: "Dr Ashwani Family Clinic",
     short: "Ace City Square",
     address: "1st Floor, Shop Number 1011, Ace City Square Market, Ace City Road, Jalalpur, Greater Noida, Uttar Pradesh 203207, India",
     timing: "6:00 PM - 9:30 PM",
@@ -2123,7 +2124,7 @@ function PatientMedicalInfo({ source, googleProfile, onBack, onDone }) {
         <div className="two-col">
           <label>Fasting sugar<input value={profile.fasting} onChange={(event) => updateProfile("fasting", event.target.value)} placeholder="mg/dL" /></label>
           <label>HbA1c<input value={profile.hba1c} onChange={(event) => updateProfile("hba1c", event.target.value)} placeholder="%" /></label>
-          <label>BP<input value={profile.bp} onChange={(event) => updateProfile("bp", event.target.value)} placeholder="128/82" /></label>
+          <label>BP<input value={profile.bp} onChange={(event) => updateProfile("bp", event.target.value)} placeholder="Top / bottom" /></label>
           <label>Weight<input value={profile.weight} onChange={(event) => updateProfile("weight", event.target.value)} placeholder="kg" /></label>
         </div>
         <label>Preferred consult mode<select value={profile.preferredMode} onChange={(event) => updateProfile("preferredMode", event.target.value)}><option>Clinic visit</option><option>WhatsApp consultation</option><option>Online consultation</option></select></label>
@@ -2398,7 +2399,7 @@ function LiveAvailabilityViewer({ availability, activeClinic, consultationFee, c
       <div className="clinic-detail-list">
         <span><Clock size={15} /> {activeClinic.timing}</span>
         {isOnDuty && <span><MapPin size={15} /> {activeClinic.address}</span>}
-        <span><Video size={15} /> Online consultation {availability.online ? "available" : "not available"}</span>
+        {availability.online && <span><Video size={15} /> Online consultation available</span>}
         <span><ShieldCheck size={15} /> Consultation fee {feeAmount ? `Rs ${feeAmount}` : consultationFee.label}</span>
       </div>
       {canStartConsultPayment ? (
@@ -2412,12 +2413,12 @@ function LiveAvailabilityViewer({ availability, activeClinic, consultationFee, c
             </a>
           )}
         </div>
-      ) : (
+      ) : availability.online ? (
         <div className="payment-status-card booking-only">
           <strong>Booking only right now</strong>
           <p>Online consultations are unavailable right now. You can still request a clinic visit.</p>
         </div>
-      )}
+      ) : null}
       <div className="split-actions">
         {isOnDuty ? (
           <a
@@ -2479,14 +2480,14 @@ function HealthUpdates({ readings, setReadings, onSubmitReadings }) {
         </div>
 
         <div className="two-col">
-          <label>Fasting sugar<input inputMode="numeric" value={draft.fasting} onChange={(event) => updateDraft("fasting", event.target.value)} placeholder="142" /></label>
-          <label>Post-meal sugar<input inputMode="numeric" value={draft.postMeal} onChange={(event) => updateDraft("postMeal", event.target.value)} placeholder="186" /></label>
+          <label>Fasting sugar<input inputMode="numeric" value={draft.fasting} onChange={(event) => updateDraft("fasting", event.target.value)} placeholder="mg/dL" /></label>
+          <label>Post-meal sugar<input inputMode="numeric" value={draft.postMeal} onChange={(event) => updateDraft("postMeal", event.target.value)} placeholder="mg/dL" /></label>
         </div>
         <div className="two-col">
-          <label>BP<input value={draft.bp} onChange={(event) => updateDraft("bp", event.target.value)} placeholder="128/82" /></label>
-          <label>Weight<input inputMode="decimal" value={draft.weight} onChange={(event) => updateDraft("weight", event.target.value)} placeholder="84.2" /></label>
+          <label>BP<input value={draft.bp} onChange={(event) => updateDraft("bp", event.target.value)} placeholder="Top / bottom" /></label>
+          <label>Weight<input inputMode="decimal" value={draft.weight} onChange={(event) => updateDraft("weight", event.target.value)} placeholder="kg" /></label>
         </div>
-        <label>HbA1c<input inputMode="decimal" value={draft.hba1c} onChange={(event) => updateDraft("hba1c", event.target.value)} placeholder="7.4" /></label>
+        <label>HbA1c<input inputMode="decimal" value={draft.hba1c} onChange={(event) => updateDraft("hba1c", event.target.value)} placeholder="%" /></label>
         <label className="file-upload-field">
           <span>Report upload</span>
           <input
@@ -2505,8 +2506,8 @@ function HealthUpdates({ readings, setReadings, onSubmitReadings }) {
             <span>{draft.reportName}</span>
           </div>
         )}
-        <label>Symptoms<input value={draft.symptoms} onChange={(event) => updateDraft("symptoms", event.target.value)} placeholder="Weakness, dizziness, burning feet..." /></label>
-        <label>Note for doctor<input value={draft.note} onChange={(event) => updateDraft("note", event.target.value)} placeholder="Medicine timing, diet change, missed dose..." /></label>
+        <label>Symptoms<input value={draft.symptoms} onChange={(event) => updateDraft("symptoms", event.target.value)} placeholder="e.g. weakness, dizziness" /></label>
+        <label>Note for doctor<input value={draft.note} onChange={(event) => updateDraft("note", event.target.value)} placeholder="e.g. missed doses" /></label>
 
         <button className="primary-button" onClick={submitReadings} disabled={saving}>
           <Check size={18} /> {saving ? "Saving..." : "Submit readings"}
@@ -2712,7 +2713,7 @@ function PatientChat({ hidden, availability, activeClinic, userId, setActiveTab 
       <div className="chat-thread" ref={threadRef} aria-live="polite">
         {messages.map((message, index) => (
           <div className={`message-row ${message.role}`} key={index}>
-            <div className="message-avatar">{message.role === "bot" ? "A" : "Y"}</div>
+            <div className="message-avatar" aria-hidden="true">{message.role === "bot" ? <Bot size={16} /> : "Y"}</div>
             <div className={`bubble ${message.role}`}>
               <span>{message.role === "bot" ? "Clinic chatbot" : "You"}</span>
               <p className="clinic-chat-message">{message.text}</p>
@@ -3142,14 +3143,6 @@ function DoctorAvailabilityEditor({
             </div>
           </div>
         </div>
-        <div className="locked-fee-card">
-          <span>Online consultation fee</span>
-          <strong>Rs {ONLINE_CONSULTATION_FEE}</strong>
-          <small>Static fee locked for all online consultations.</small>
-        </div>
-        <small className="field-help">
-          Patients must pay this fee through Razorpay before sending an online consultation request.
-        </small>
       </div>
 
       <DoctorPendingPayments />
@@ -3508,8 +3501,25 @@ const doctorTabs = [
 
 function FloatingTabs({ items, current, onSelect, label, doctor = false }) {
   const index = items.findIndex(([key]) => key === current);
+  const navRef = useRef(null);
+  // The highlight is placed from the real position of the selected button, so it stays under the right tab
+  // whatever the number of tabs, the screen width or the font size.
+  useLayoutEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return undefined;
+    const place = () => {
+      const active = nav.querySelector("button.active");
+      if (!active) return;
+      nav.style.setProperty("--pill-x", `${active.offsetLeft}px`);
+      nav.style.setProperty("--pill-w", `${active.offsetWidth}px`);
+    };
+    place();
+    const observer = typeof ResizeObserver === "function" ? new ResizeObserver(place) : null;
+    observer?.observe(nav);
+    return () => observer?.disconnect();
+  }, [current, items.length]);
   return (
-    <nav className={`bottom-nav${doctor ? " doctor-nav" : ""}`} aria-label={label}
+    <nav ref={navRef} className={`bottom-nav${doctor ? " doctor-nav" : ""}`} aria-label={label}
       style={{ "--tabs": items.length, "--selected-tab": Math.max(0, index) }}>
       <span className="floating-tab-selection" data-visible={index >= 0} aria-hidden="true" />
       {items.map(([key, Icon, text]) => (
