@@ -70,3 +70,21 @@ export function bookingRow({ appointment, user, clinic, paymentId, paid }) {
     status: paid ? "Booked - fee paid" : "Booked - payment confirming"
   };
 }
+
+export function savedVisitState(visit, payment) {
+  if (/\bcancell?ed\b/i.test(visit.status || "")) return "cancelled";
+  if (payment?.payment_status === "REFUNDED" || visit.payment_status === "REFUNDED") return "refunded";
+  if (payment?.payment_status === "FAILED" || visit.payment_status === "FAILED") return "failed";
+  if ([payment?.payment_status, visit.payment_status].includes("PAID_CONFIRMED")) return "booked";
+  return "pending";
+}
+
+export function bookingWhatsAppUrl(visit) {
+  const text = [
+    "Clinic visit confirmed",
+    visit.clinic_name,
+    `${longDate(visit.appointment_date)} at ${visit.appointment_time}`,
+    visit.payment_reference && `Payment reference: ${visit.payment_reference}`
+  ].filter(Boolean).join("\n");
+  return `https://wa.me/?text=${encodeURIComponent(text)}`;
+}

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { bookingRow, dayLabel, groupSlots, longDate } from "./booking.js";
+import { bookingRow, bookingWhatsAppUrl, dayLabel, groupSlots, longDate, savedVisitState } from "./booking.js";
 
 assert.deepEqual(groupSlots(["8:00 AM", "11:30 AM", "12:00 PM", "4:30 PM", "5:00 PM", "7:30 PM"]), [
   { label: "Morning", slots: ["8:00 AM", "11:30 AM"] },
@@ -27,4 +27,13 @@ assert.equal(paid.mode, "Clinic visit");
 assert.equal(paid.patient_phone, null);
 assert.equal(bookingRow({ ...base, paid: false }).payment_status, "PAYMENT_PENDING");
 
+const visit = { appointment_date: "2026-11-25", appointment_time: "6:30 PM", clinic_name: "Fixture Clinic",
+  reason: "Private fixture reason", payment_reference: "pay_fixture", payment_status: "PAYMENT_PENDING" };
+assert.equal(savedVisitState(visit, { payment_status: "PAID_CONFIRMED" }), "booked");
+assert.equal(savedVisitState(visit, { payment_status: "AUTHORIZED" }), "pending");
+assert.equal(savedVisitState({ ...visit, payment_status: "PAID_CONFIRMED" }, { payment_status: "REFUNDED" }), "refunded");
+assert.equal(savedVisitState({ ...visit, status: "Cancelled" }, { payment_status: "PAID_CONFIRMED" }), "cancelled");
+const share = new URL(bookingWhatsAppUrl(visit));
+assert.match(share.searchParams.get("text"), /6:30 PM/);
+assert.doesNotMatch(share.searchParams.get("text"), /Private fixture reason/);
 console.log("booking tests passed");

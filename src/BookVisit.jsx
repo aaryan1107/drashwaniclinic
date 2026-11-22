@@ -1,13 +1,84 @@
 // Patient Book tab: pick a day, time and reason for a clinic visit, then pay the fee to book it.
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CalendarCheck, Check, Clock, MapPin } from "lucide-react";
 import { Button } from "./ui/Button.jsx";
-import { BOOKING_REASONS, VISIT_FEE_RUPEES, dayLabel, groupSlots, longDate } from "./booking.js";
+import { BOOKING_REASONS, VISIT_FEE_RUPEES, bookingWhatsAppUrl, dayLabel, groupSlots, longDate, savedVisitState } from "./booking.js";
+import { supabase } from "./supabase.js";
 import "./book.css";
 
-export default function BookVisit({ appointment, setAppointment, clinic, onDuty, days, todayValue, getSlots, onPayAndBook }) {
+function SavedVisitCard({ visit, state }) {
+  const confirmed = state === "booked";
+  const titles = {
+    booked: "Your visit is booked",
+    pending: "Payment is being confirmed",
+    cancelled: "Visit cancelled",
+    refunded: "Payment refunded",
+    failed: "Payment failed"
+  };
+  return (
+    <section className={`bk-done ${confirmed ? "is-booked" : "is-pending"}`} aria-label="Saved clinic visit">
+      <span className="bk-done-icon" aria-hidden="true">{confirmed ? <Check size={22} /> : <Clock size={22} />}</span>
+      <h3>{titles[state]}</h3>
+      <dl className="bk-facts">
+        <div><dt>Day</dt><dd>{longDate(visit.appointment_date)}</dd></div>
+        <div><dt>Time</dt><dd>{visit.appointment_time}</dd></div>
+        <div><dt>Clinic</dt><dd>{visit.clinic_name}</dd></div>
+        {visit.reason && <div><dt>Reason</dt><dd>{visit.reason}</dd></div>}
+        {visit.payment_reference && <div><dt>Payment ID</dt><dd className="bk-mono">{visit.payment_reference}</dd></div>}
+      </dl>
+      {confirmed && <a className="secondary-button bk-confirmation-share" href={bookingWhatsAppUrl(visit)}
+        target="_blank" rel="noopener noreferrer">Share confirmation on WhatsApp</a>}
+    </section>
+  );
+}
+
+export default function BookVisit({ appointment, setAppointment, clinic, onDuty, days, todayValue, getSlots, onPayAndBook, userId }) {
   const [paying, setPaying] = useState(false);
   const [result, setResult] = useState(null);
+  const [saved, setSaved] = useState([]);
+  const [savedError, setSavedError] = useState(false);
+  const [loadingSaved, setLoadingSaved] = useState(Boolean(userId));
+  const [bookAnother, setBookAnother] = useState(false);
+  const [refresh, setRefresh] = useState(0);
+
+  useEffect(() => {
+    if (!userId) return;
+    let active = true;
+    let requestVersion = 0;
+    const reload = async () => {
+      const version = ++requestVersion;
+      try {
+        const { data: visits, error } = await supabase.from("appointment_requests")
+          .select("id,appointment_date,appointment_time,clinic_name,reason,payment_reference,payment_status,status")
+          .eq("patient_id", userId).eq("mode", "Clinic visit").not("payment_reference", "is", null)
+          .order("appointment_date", { ascending: false }).order("created_at", { ascending: false }).limit(10);
+        if (error) throw error;
+        const refs = visits.map((visit) => visit.payment_reference).filter(Boolean);
+        const { data: payments, error: paymentError } = refs.length ? await supabase.from("consultation_payments")
+          .select("razorpay_payment_id,payment_status")
+          .filter("patient->>user_id", "eq", userId).in("razorpay_payment_id", refs) : { data: [] };
+        if (paymentError) throw paymentError;
+        if (!active || version !== requestVersion) return;
+        const byReference = new Map((payments || []).map((row) => [row.razorpay_payment_id, row]));
+        setSaved(visits.map((visit) => ({ visit, state: savedVisitState(visit, byReference.get(visit.payment_reference)) })));
+        setSavedError(false);
+      } catch {
+        if (active && version === requestVersion) setSavedError(true);
+      } finally {
+        if (active && version === requestVersion) setLoadingSaved(false);
+      }
+    };
+    const onVisible = () => { if (document.visibilityState === "visible") void reload(); };
+    void reload();
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      active = false;
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [userId, refresh]);
+
+  const showForm = bookAnother || (!loadingSaved && !saved.length);
+
   const slotsByDay = useMemo(
     () => Object.fromEntries(days.map((day) => [day.dateValue, getSlots(day.dateValue)])),
     [days, getSlots]
@@ -28,33 +99,34 @@ export default function BookVisit({ appointment, setAppointment, clinic, onDuty,
     const outcome = await onPayAndBook({ ...appointment });
     setPaying(false);
     setResult(outcome);
+    if (outcome.state === "booked" || outcome.state === "pending") {
+      setBookAnother(false);
+      setRefresh((value) => value + 1);
+    }
   };
 
-  if (result && (result.state === "booked" || result.state === "pending")) {
-    const booked = result.state === "booked";
+  const justBooked = result && (result.state === "booked" || result.state === "pending") ? result : null;
+  const showTemporaryReceipt = justBooked && !saved.some(({ visit }) => visit.payment_reference === justBooked.paymentId);
+  if (!showForm || showTemporaryReceipt) {
     return (
       <div className="bk">
-        <section className={`bk-done ${booked ? "is-booked" : "is-pending"}`} aria-live="polite">
-          <span className="bk-done-icon" aria-hidden="true">{booked ? <Check size={22} /> : <Clock size={22} />}</span>
-          <h3>{booked ? "Your visit is booked" : "Payment is being confirmed"}</h3>
-          <p>{result.message}</p>
-          <dl className="bk-facts">
-            <div><dt>Day</dt><dd>{longDate(appointment.date)}</dd></div>
-            <div><dt>Time</dt><dd>{appointment.time}</dd></div>
-            <div><dt>Clinic</dt><dd>{clinic.name}</dd></div>
-            <div><dt>Reason</dt><dd>{appointment.reason}</dd></div>
-            <div><dt>Fee</dt><dd>₹{VISIT_FEE_RUPEES} {booked ? "paid" : "confirming"}</dd></div>
-            {result.paymentId && <div><dt>Payment ID</dt><dd className="bk-mono">{result.paymentId}</dd></div>}
-          </dl>
-        </section>
-        <p className="bk-note">Show this screen at reception, and bring your recent reports and current medicines.</p>
-        <Button intent="secondary" block onClick={() => setResult(null)}>Book another visit</Button>
+        {loadingSaved && <p role="status">Loading your bookings…</p>}
+        {savedError && <p role="alert">Couldn’t refresh your bookings. <button type="button" onClick={() => setRefresh((value) => value + 1)}>Try again</button></p>}
+        {showTemporaryReceipt && <SavedVisitCard state={justBooked.state} visit={{
+          appointment_date: appointment.date, appointment_time: appointment.time,
+          clinic_name: clinic.name, reason: appointment.reason, payment_reference: justBooked.paymentId
+        }} />}
+        {saved.length > 0 && <h3>My bookings</h3>}
+        {saved.map(({ visit, state }) => <SavedVisitCard key={visit.id} visit={visit} state={state} />)}
+        {!loadingSaved && <Button intent="secondary" block onClick={() => { setBookAnother(true); setResult(null); }}>Book another visit</Button>}
       </div>
     );
   }
 
   return (
     <div className="bk">
+      {saved.length > 0 && <Button intent="secondary" block onClick={() => setBookAnother(false)}>View my bookings</Button>}
+      {savedError && <p role="alert">Couldn’t load your saved bookings. <button type="button" onClick={() => setRefresh((value) => value + 1)}>Try again</button></p>}
       <p className="bk-intro">Pick a day and time to see Dr Ashwani at the clinic. Your slot is booked once the ₹{VISIT_FEE_RUPEES} fee is paid.</p>
 
       <section className="bk-clinic" aria-label="Clinic">
