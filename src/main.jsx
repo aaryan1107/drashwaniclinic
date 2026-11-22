@@ -575,15 +575,24 @@ function getClinicTheme() {
     : window.matchMedia("(prefers-color-scheme: dark)").matches ? "charcoal" : "light";
 }
 
+const emptyPatientReadings = {
+  fasting: "", postMeal: "", bp: "", weight: "", hba1c: "", reportName: "",
+  symptoms: "", note: "", updatedAt: "Not submitted yet"
+};
+
 function App() {
   const [screen, setScreen] = useState("intro");
   const [authMode, setAuthMode] = useState("signin");
   const [googleProfile, setGoogleProfile] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
+  const [intakeDraft, setIntakeDraft] = useState(null);
   const [authMessage, setAuthMessage] = useState("");
   const directAuth = useRef(false);
   const recoveringPassword = useRef(false);
   const handledAuthUser = useRef(null);
+  const recordSession = useRef(null);
+  const recordRequest = useRef(0);
+  const intakeSaving = useRef(null);
   const [theme, setTheme] = useState(getClinicTheme);
   const [meshPaused, setMeshPaused] = useState(() => localStorage.getItem("clinic-mesh-motion") === "paused");
   function toggleMeshMotion() {
@@ -605,7 +614,9 @@ function App() {
   const [patientRecords, setPatientRecords] = useState(patients);
   const [selectedPatientId, setSelectedPatientId] = useState(patients[0]?.id ?? null);
   const navigation = useClinicNavigation({
-    scope: authMode === "reset" && screen === "auth" ? "recovery" : currentUser?.id || "guest",
+    scope: screen === "patientMedicalInfo" ? `${currentUser?.id}:intake` :
+      authMode === "reset" && screen === "auth" ? "recovery" : currentUser?.id || "guest",
+    isBackBlocked: () => intakeSaving.current === currentUser?.id,
     route: {
       screen,
       ...(screen === "auth" ? { authMode } : {}),
@@ -643,17 +654,7 @@ function App() {
     updatedAt: "Clinic default"
   });
   const [consultPayment, setConsultPayment] = useState(makeDefaultConsultPayment);
-  const [patientReadings, setPatientReadings] = useState({
-    fasting: "",
-    postMeal: "",
-    bp: "",
-    weight: "",
-    hba1c: "",
-    reportName: "",
-    symptoms: "",
-    note: "",
-    updatedAt: "Not submitted yet"
-  });
+  const [patientReadings, setPatientReadings] = useState(emptyPatientReadings);
   const [educationPosts, setEducationPosts] = useState(() =>
     education.map(([title, body], index) => ({
       id: `seed-${index}`,
@@ -688,8 +689,18 @@ function App() {
     }
   };
 
+  const resetRecordSession = (userId) => {
+    if (recordSession.current === userId) return;
+    recordSession.current = userId;
+    recordRequest.current += 1;
+    setPatientRecords(patients);
+    setSelectedPatientId(patients[0]?.id ?? null);
+    setPatientReadings(emptyPatientReadings);
+  };
+
   const loadPatientRecords = async (user = currentUser) => {
     if (!user?.id) return;
+    const request = ++recordRequest.current;
 
     const query = supabase
       .from("patient_records")
@@ -700,6 +711,7 @@ function App() {
       ? await query
       : await query.eq("owner_id", user.id);
 
+    if (recordSession.current !== user.id || recordRequest.current !== request) return;
     if (error) {
       if (!isMissingSupabaseTableError(error)) {
         console.warn("Patient records load failed:", error.message);
@@ -781,6 +793,7 @@ function App() {
   };
 
   const updatePatientRecord = (patientId, patch) => {
+    recordRequest.current += 1;
     const cleanPatch = Object.fromEntries(
       Object.entries(patch).filter(([, value]) => value !== undefined)
     );
@@ -1102,10 +1115,10 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (currentUser?.id) {
+    if (currentUser?.id && (screen === "patient" || screen === "doctor")) {
       loadPatientRecords(currentUser);
     }
-  }, [currentUser?.id, currentUser?.role]);
+  }, [currentUser?.id, currentUser?.role, screen]);
 
   const logAuthAction = async (user, role, action) => {
     if (!user?.id) return;
@@ -1160,13 +1173,21 @@ function App() {
 
     if (error) throw error;
     await logAuthAction(user, role, "sign_in");
-    return { ...profile, hasMedicalProfile: Object.keys(existing?.medical_profile || {}).length > 0 };
+    return { ...profile, medicalProfile: existing?.medical_profile };
   };
 
   const applySupabaseUser = async (user, extra = {}) => {
-    const dbProfile = await upsertClinicProfile(user, extra);
-    if (!dbProfile) return;
+    if (!user?.id) return;
     handledAuthUser.current = user.id;
+    if (recordSession.current && recordSession.current !== user.id) {
+      setScreen("auth");
+      setCurrentUser(null);
+      setIntakeDraft(null);
+      resetRecordSession(null);
+    }
+    const dbProfile = await upsertClinicProfile(user, extra);
+    if (!dbProfile || handledAuthUser.current !== user.id) return;
+    resetRecordSession(dbProfile.id);
 
     const uiProfile = {
       name: dbProfile.full_name || "Clinic User",
@@ -1207,6 +1228,19 @@ function App() {
       return;
     }
 
+    const medicalProfile = dbProfile.medicalProfile;
+    // Wizard drafts from the earlier split-write path need confirmation by the atomic save.
+    const hasConfirmedProfile = Object.keys(medicalProfile || {}).length > 0 &&
+      (!medicalProfile.consentedAt || Boolean(medicalProfile.intakeCompletedAt));
+    let hasIntakeRecord = false;
+    if (hasConfirmedProfile) {
+      const { data, error } = await supabase.from("patient_records").select("id")
+        .eq("id", dbProfile.id).eq("owner_id", dbProfile.id).maybeSingle();
+      if (handledAuthUser.current !== dbProfile.id) return;
+      if (error) throw error;
+      hasIntakeRecord = data?.id === dbProfile.id;
+    }
+
     setCurrentUser({
       id: dbProfile.id,
       role: "patient",
@@ -1216,7 +1250,8 @@ function App() {
       avatar: dbProfile.avatar_url,
       provider: dbProfile.provider
     });
-    setScreen(extra.skipMedicalProfile || dbProfile.hasMedicalProfile ? "patient" : "patientMedicalInfo");
+    setIntakeDraft(hasIntakeRecord ? null : dbProfile.medicalProfile);
+    setScreen(hasIntakeRecord ? "patient" : "patientMedicalInfo");
   };
 
   const showGoogleError = (message) => {
@@ -1247,7 +1282,9 @@ function App() {
       if (event === "SIGNED_OUT") {
         recoveringPassword.current = false;
         handledAuthUser.current = null;
+        resetRecordSession(null);
         setCurrentUser(null);
+        setIntakeDraft(null);
         setScreen("auth");
       }
       if (!session && (event === "INITIAL_SESSION" || event === "SIGNED_OUT")) {
@@ -1257,17 +1294,16 @@ function App() {
       if (handledAuthUser.current === session.user.id) return;
       handledAuthUser.current = session.user.id;
 
-      const needsMedicalProfile = window.localStorage.getItem("clinicAuthNeedsMedicalProfile") === "1";
       window.localStorage.removeItem("clinicAuthRole");
       window.localStorage.removeItem("clinicAuthNeedsMedicalProfile");
 
       // Supabase holds its auth lock while notifying listeners.
       window.setTimeout(async () => {
-        if (!mounted || recoveringPassword.current) return;
+        if (!mounted || recoveringPassword.current || handledAuthUser.current !== session.user.id) return;
         try {
-          await applySupabaseUser(session.user, { skipMedicalProfile: !needsMedicalProfile });
+          await applySupabaseUser(session.user);
         } catch (error) {
-          if (!mounted) return;
+          if (!mounted || handledAuthUser.current !== session.user.id) return;
           handledAuthUser.current = null;
           setScreen("auth");
           setAuthMessage(friendlyAuthError(error));
@@ -1381,8 +1417,7 @@ function App() {
       await applySupabaseUser(data.user, {
         fullName,
         phone: normalizedPhone || phone,
-        provider: "email",
-        skipMedicalProfile: mode !== "signup"
+        provider: "email"
       });
     } catch (error) {
       setAuthMessage(friendlyAuthError(error));
@@ -1425,8 +1460,7 @@ function App() {
       if (error) throw error;
       await applySupabaseUser(data.user, {
         phone: normalizedPhone,
-        provider: "phone",
-        skipMedicalProfile: false
+        provider: "phone"
       });
     } catch (error) {
       setAuthMessage(friendlyAuthError(error));
@@ -1688,60 +1722,43 @@ function App() {
     if (error) throw error;
   };
 
-  const enterPatient = async (medicalProfile = {}) => {
-    const nextUser = currentUser || {
-      role: "patient",
-      name: medicalProfile.fullName || googleProfile?.name || "Clinic Patient",
-      email: googleProfile?.email || "",
-      avatar: googleProfile?.avatar || "",
-      provider: googleProfile ? "Google" : "Clinic account"
-    };
+  const enterPatient = async (medicalProfile) => {
+    const patientId = currentUser?.id;
+    if (!patientId || currentUser.role !== "patient") throw new Error("Patient session is required");
 
-    setCurrentUser(nextUser);
-
-    if (nextUser.id) {
-      await supabase
-        .from("clinic_profiles")
-        .update({
-          full_name: medicalProfile.fullName || nextUser.name || "Clinic Patient",
-          phone: medicalProfile.phone || nextUser.phone || null,
-          medical_profile: medicalProfile
-        })
-        .eq("id", nextUser.id);
-
-      const recordFields = profileToRecordFields(medicalProfile);
-      const patientId = nextUser.id;
-      await persistPatientVitals({
+    const recordFields = profileToRecordFields(medicalProfile);
+    const name = medicalProfile.fullName || currentUser.name || "Clinic Patient";
+    const phone = medicalProfile.phone || currentUser.phone || "";
+    const { data: saved, error } = await supabase.rpc("clinic_save_patient_intake", {
+      p_patient_id: patientId,
+      p_profile: medicalProfile,
+      p_record: patientToRecordRow({
         id: patientId,
-        name: medicalProfile.fullName || nextUser.name || "Clinic Patient",
-        age: Number(medicalProfile.age) || 0,
-        gender: medicalProfile.gender || "Patient",
-        mobile: medicalProfile.phone || nextUser.phone || "",
-        whatsapp: medicalProfile.whatsapp || medicalProfile.phone || nextUser.phone || "",
-        abha: medicalProfile.abha || "Not linked",
-        source: nextUser.provider || "Patient app",
-        conditions: recordFields.conditions,
+        name,
+        age: Number(medicalProfile.age),
+        gender: medicalProfile.gender,
+        mobile: phone,
+        whatsapp: medicalProfile.whatsapp || phone,
+        abha: medicalProfile.abha,
+        source: currentUser.provider,
+        ...recordFields,
+        history: [...recordFields.history, `Patient intake: ${recordFields.notes}`],
+        notes: null,
         latest: recordFields.vitals.fasting ? `Fasting ${recordFields.vitals.fasting}` : "Medical intake completed",
-        risk: recordFields.risk,
-        vitals: recordFields.vitals,
-        history: recordFields.history,
-        labs: [],
-        symptoms: recordFields.symptoms,
-        medicines: recordFields.medicines,
-        notes: recordFields.notes,
         followUp: "Not scheduled",
         lastVisit: "Medical intake"
-      }, patientId);
-      // The partial update above does not carry history, medicines or notes, so write them to the patient's own row.
-      const { error: detailError } = await supabase
-        .from("patient_records")
-        .update({ history: recordFields.history, medicines: recordFields.medicines, notes: recordFields.notes })
-        .eq("id", String(patientId));
-      if (detailError && !isMissingSupabaseTableError(detailError)) console.warn("Patient intake details sync failed:", detailError.message);
-    }
-
-    setScreen("patient");
-    setActiveTab("home");
+      })
+    });
+    if (error || saved?.patient_id !== patientId) throw new Error("Patient intake could not be saved");
+    const openSavedIntake = () => {
+      if (handledAuthUser.current !== patientId) return;
+      setCurrentUser({ ...currentUser, name: saved.full_name, phone: saved.phone });
+      setIntakeDraft(null);
+      setActiveTab("home");
+      setScreen("patient");
+    };
+    if (saved.earlier_details_saved) return openSavedIntake;
+    openSavedIntake();
   };
 
   const signOut = async () => {
@@ -1789,10 +1806,16 @@ function App() {
         )}
         {screen === "patientMedicalInfo" && (
           <PatientMedicalInfo
+            key={currentUser?.id}
             source={googleProfile ? "google" : "signup"}
             googleProfile={googleProfile}
             onBack={() => setScreen("auth")}
+            initialProfile={intakeDraft}
             onDone={enterPatient}
+            onSavingChange={(saving) => {
+              if (saving) intakeSaving.current = currentUser?.id;
+              else if (intakeSaving.current === currentUser?.id) intakeSaving.current = null;
+            }}
           />
         )}
         {screen === "patient" && (

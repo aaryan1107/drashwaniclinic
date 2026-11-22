@@ -260,11 +260,25 @@ function LifeStep({ profile, set, problems }) {
   );
 }
 
-export default function PatientMedicalInfo({ source, googleProfile, onBack, onDone }) {
-  const [profile, setProfile] = useState(() => emptyProfile(googleProfile));
+export default function PatientMedicalInfo({ source, googleProfile, initialProfile, onBack, onDone, onSavingChange }) {
+  const [profile, setProfile] = useState(() => {
+    const defaults = emptyProfile(googleProfile);
+    if (!initialProfile) return defaults;
+    return {
+      ...defaults,
+      ...initialProfile,
+      diabetes: { ...defaults.diabetes, ...initialProfile.diabetes },
+      mood: { ...defaults.mood, ...initialProfile.mood },
+      medicines: Array.isArray(initialProfile.medicines) && initialProfile.medicines.length
+        ? initialProfile.medicines : defaults.medicines,
+      consent: false
+    };
+  });
   const [step, setStep] = useState(0);
   const [problems, setProblems] = useState([]);
   const [submitting, setSubmitting] = useState(false);
+  const [saveFailed, setSaveFailed] = useState(false);
+  const [openSavedIntake, setOpenSavedIntake] = useState(null);
   const top = useRef(null);
   const set = (key, value) => { setProfile((current) => ({ ...current, [key]: typeof value === "function" ? value(current[key]) : value })); setProblems([]); };
   const last = step === STEPS.length - 1;
@@ -272,21 +286,33 @@ export default function PatientMedicalInfo({ source, googleProfile, onBack, onDo
   const goTo = (next) => {
     setStep(next);
     setProblems([]);
+    setSaveFailed(false);
     top.current?.scrollIntoView({ block: "start" });
   };
   const next = async () => {
+    if (submitting) return;
     const found = stepProblems(step, profile);
     if (found.length) { setProblems(found); return; }
     if (!last) { goTo(step + 1); return; }
     setSubmitting(true);
-    try { await onDone(profileForStorage(profile)); } finally { setSubmitting(false); }
+    onSavingChange?.(true);
+    setSaveFailed(false);
+    try {
+      const open = await onDone(profileForStorage(profile));
+      if (typeof open === "function") setOpenSavedIntake(() => open);
+    } catch {
+      setSaveFailed(true);
+    } finally {
+      setSubmitting(false);
+      onSavingChange?.(false);
+    }
   };
 
   const StepBody = [AboutStep, HealthStep, MedicinesStep, LifeStep][step];
   return (
     <section className="screen signup-screen mp">
       <div className="top-action" ref={top}>
-        <button type="button" onClick={() => (step === 0 ? onBack() : goTo(step - 1))} aria-label="Back"><ChevronLeft size={20} /></button>
+        <button type="button" disabled={submitting || Boolean(openSavedIntake)} onClick={() => (step === 0 ? onBack() : goTo(step - 1))} aria-label="Back"><ChevronLeft size={20} /></button>
         <strong>Medical profile</strong>
         <span />
       </div>
@@ -308,12 +334,15 @@ export default function PatientMedicalInfo({ source, googleProfile, onBack, onDo
         </div>
       )}
 
-      <StepBody profile={profile} set={set} problems={problems} />
+      {openSavedIntake ? (
+        <p role="status">Your earlier intake was saved. Contact the clinic to update any additional details.</p>
+      ) : <StepBody profile={profile} set={set} problems={problems} />}
       {!last && problems.length > 0 && <ul className="mp-problems" role="alert">{problems.map((item) => <li key={item}>{item}</li>)}</ul>}
 
       <div className="mp-actions">
-        <Button block loading={submitting} icon={last ? <Check size={18} /> : null} onClick={next}>
-          {last ? "Create patient app" : <>Continue <ArrowRight size={18} /></>}
+        {saveFailed && <p className="mp-problems" role="alert">We could not save your medical profile. Please try again.</p>}
+        <Button block loading={submitting} icon={last ? <Check size={18} /> : null} onClick={openSavedIntake || next}>
+          {openSavedIntake ? "Continue to Home" : last ? (saveFailed ? "Retry save" : "Create patient app") : <>Continue <ArrowRight size={18} /></>}
         </Button>
         {(step === 1 || step === 2) && <Button intent="ghost" block onClick={() => goTo(step + 1)}>Skip for now</Button>}
       </div>
