@@ -2151,9 +2151,8 @@ function PatientMedicalInfo({ source, googleProfile, onBack, onDone }) {
 }
 
 function privacyPage(path) {
-  const url = Capacitor.isNativePlatform() ? `https://drashwaniclinic.pages.dev/${path}` : `/${path}`;
-  if (Capacitor.isNativePlatform()) return Browser.open({ url });
-  window.location.assign(url);
+  // The pages ship inside the app build, so they open on the phone with no internet or separate deploy.
+  window.location.assign(`/${path}`);
 }
 
 function ProfileButton({ user, role, theme, setTheme, onSignOut }) {
