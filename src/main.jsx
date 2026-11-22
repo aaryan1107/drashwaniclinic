@@ -4,7 +4,7 @@ import { DoctorPrescriptions, PatientPrescriptions, ReceptionPrescriptions } fro
 import { Browser } from "@capacitor/browser";
 import { Capacitor } from "@capacitor/core";
 import { Popover } from "@base-ui/react/popover";
-import React, { lazy, Suspense, useContext, useMemo, useState, useEffect, useRef } from "react";
+import React, { lazy, Suspense, useContext, useLayoutEffect, useMemo, useState, useEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
 const Visit = lazy(() => import("./Visit.jsx"));
 const AppointmentSheet = lazy(() => import("./AppointmentSheet.jsx"));
@@ -67,8 +67,10 @@ import "./styles.css";
 import "./clinic-appearance.css";
 import "./clinic-theme.css";
 import "./clinic-brand.css";
+import "./polish.css";
 import { useClinicNavigation } from "./useClinicNavigation";
 import BookVisit from "./BookVisit.jsx";
+import { dayTimeline, loadByDay, loadFromCounts, recommendSlot, reservedOnDay } from "./slotLoad.js";
 import { CLINIC_ASSISTANT_SCOPE, clinicAssistantIntent, formatAssistantPayment, formatAssistantPrescription } from "./clinicAssistant.js";
 import { VISIT_FEE_RUPEES, VISIT_PAYMENT_PURPOSE, bookingRow } from "./booking.js";
 import ClinicMesh, { ClinicMotion } from "./ClinicMesh";
@@ -168,7 +170,7 @@ const clinics = [
   },
   {
     id: "clinic-2",
-    name: "Dr. Ashwani Family Clinic",
+    name: "Dr Ashwani Family Clinic",
     short: "Ace City Square",
     address: "1st Floor, Shop Number 1011, Ace City Square Market, Ace City Road, Jalalpur, Greater Noida, Uttar Pradesh 203207, India",
     timing: "6:00 PM - 9:30 PM",
@@ -2153,6 +2155,16 @@ function PatientApp({
     : null;
   const bookingDays = useMemo(() => getAppointmentDays(), []);
   const getSlotsForClinic = React.useCallback((dateValue) => getSlotsFromClinicTiming(activeClinic, dateValue), [activeClinic]);
+  // Booked-patient counts per slot (counts only, no names). Stays null until the database function exists.
+  const [slotLoad, setSlotLoad] = useState(null);
+  useEffect(() => {
+    if (activeTab !== "book" || !userId || !bookingDays.length) return undefined;
+    let cancelled = false;
+    supabase.rpc("clinic_slot_load", {
+      p_clinic: activeClinic.id, p_from: bookingDays[0].dateValue, p_to: bookingDays[bookingDays.length - 1].dateValue
+    }).then(({ data, error }) => { if (!cancelled) setSlotLoad(error ? null : loadFromCounts(data || [])); });
+    return () => { cancelled = true; };
+  }, [activeTab, userId, activeClinic.id, bookingDays]);
   const [tutorialOpen, setTutorialOpen] = useState(false);
   useEffect(() => { setTutorialOpen(shouldShowTutorial(userId)); }, [userId]);
 
@@ -2198,6 +2210,8 @@ function PatientApp({
           )}
           {activeTab === "book" && (
             <BookVisit
+              key={userId}
+              userId={userId}
               appointment={appointment}
               setAppointment={setAppointment}
               clinic={activeClinic}
@@ -2206,6 +2220,7 @@ function PatientApp({
               todayValue={getTodayDateValue()}
               getSlots={getSlotsForClinic}
               onPayAndBook={onPayAndBook}
+              load={slotLoad}
             />
           )}
           {activeTab === "library" && <EducationLibrary posts={educationPosts} />}
@@ -2327,7 +2342,7 @@ function LiveAvailabilityViewer({ availability, activeClinic, consultationFee, c
       <div className="clinic-detail-list">
         <span><Clock size={15} /> {activeClinic.timing}</span>
         {isOnDuty && <span><MapPin size={15} /> {activeClinic.address}</span>}
-        <span><Video size={15} /> Online consultation {availability.online ? "available" : "not available"}</span>
+        {availability.online && <span><Video size={15} /> Online consultation available</span>}
         <span><ShieldCheck size={15} /> Consultation fee {feeAmount ? `Rs ${feeAmount}` : consultationFee.label}</span>
       </div>
       {canStartConsultPayment ? (
@@ -2341,12 +2356,12 @@ function LiveAvailabilityViewer({ availability, activeClinic, consultationFee, c
             </a>
           )}
         </div>
-      ) : (
+      ) : availability.online ? (
         <div className="payment-status-card booking-only">
           <strong>Booking only right now</strong>
           <p>Online consultations are unavailable right now. You can still request a clinic visit.</p>
         </div>
-      )}
+      ) : null}
       <div className="split-actions">
         {isOnDuty ? (
           <a
@@ -2408,14 +2423,14 @@ function HealthUpdates({ readings, setReadings, onSubmitReadings }) {
         </div>
 
         <div className="two-col">
-          <label>Fasting sugar<input inputMode="numeric" value={draft.fasting} onChange={(event) => updateDraft("fasting", event.target.value)} placeholder="142" /></label>
-          <label>Post-meal sugar<input inputMode="numeric" value={draft.postMeal} onChange={(event) => updateDraft("postMeal", event.target.value)} placeholder="186" /></label>
+          <label>Fasting sugar<input inputMode="numeric" value={draft.fasting} onChange={(event) => updateDraft("fasting", event.target.value)} placeholder="mg/dL" /></label>
+          <label>Post-meal sugar<input inputMode="numeric" value={draft.postMeal} onChange={(event) => updateDraft("postMeal", event.target.value)} placeholder="mg/dL" /></label>
         </div>
         <div className="two-col">
-          <label>BP<input value={draft.bp} onChange={(event) => updateDraft("bp", event.target.value)} placeholder="128/82" /></label>
-          <label>Weight<input inputMode="decimal" value={draft.weight} onChange={(event) => updateDraft("weight", event.target.value)} placeholder="84.2" /></label>
+          <label>BP<input value={draft.bp} onChange={(event) => updateDraft("bp", event.target.value)} placeholder="Top / bottom" /></label>
+          <label>Weight<input inputMode="decimal" value={draft.weight} onChange={(event) => updateDraft("weight", event.target.value)} placeholder="kg" /></label>
         </div>
-        <label>HbA1c<input inputMode="decimal" value={draft.hba1c} onChange={(event) => updateDraft("hba1c", event.target.value)} placeholder="7.4" /></label>
+        <label>HbA1c<input inputMode="decimal" value={draft.hba1c} onChange={(event) => updateDraft("hba1c", event.target.value)} placeholder="%" /></label>
         <label className="file-upload-field">
           <span>Report upload</span>
           <input
@@ -2434,8 +2449,8 @@ function HealthUpdates({ readings, setReadings, onSubmitReadings }) {
             <span>{draft.reportName}</span>
           </div>
         )}
-        <label>Symptoms<input value={draft.symptoms} onChange={(event) => updateDraft("symptoms", event.target.value)} placeholder="Weakness, dizziness, burning feet..." /></label>
-        <label>Note for doctor<input value={draft.note} onChange={(event) => updateDraft("note", event.target.value)} placeholder="Medicine timing, diet change, missed dose..." /></label>
+        <label>Symptoms<input value={draft.symptoms} onChange={(event) => updateDraft("symptoms", event.target.value)} placeholder="e.g. weakness, dizziness" /></label>
+        <label>Note for doctor<input value={draft.note} onChange={(event) => updateDraft("note", event.target.value)} placeholder="e.g. missed doses" /></label>
 
         <button className="primary-button" onClick={submitReadings} disabled={saving}>
           <Check size={18} /> {saving ? "Saving..." : "Submit readings"}
@@ -2641,7 +2656,7 @@ function PatientChat({ hidden, availability, activeClinic, userId, setActiveTab 
       <div className="chat-thread" ref={threadRef} aria-live="polite">
         {messages.map((message, index) => (
           <div className={`message-row ${message.role}`} key={index}>
-            <div className="message-avatar">{message.role === "bot" ? "A" : "Y"}</div>
+            <div className="message-avatar" aria-hidden="true">{message.role === "bot" ? <Bot size={16} /> : "Y"}</div>
             <div className={`bubble ${message.role}`}>
               <span>{message.role === "bot" ? "Clinic chatbot" : "You"}</span>
               <p className="clinic-chat-message">{message.text}</p>
@@ -2719,6 +2734,21 @@ function DoctorApp({
     [patients]
   );
   const selectedPatient = patients.find((patient) => patient.id === selectedPatientId) || patients[0];
+  // Today's reserved patients at the active clinic, read straight from the bookings table (the doctor may read them).
+  const [todayBookings, setTodayBookings] = useState(null);
+  useEffect(() => {
+    if (doctorTab !== "today") return undefined;
+    let cancelled = false;
+    const date = getTodayDateValue();
+    supabase.from("appointment_requests")
+      .select("appointment_date,appointment_time,status,payment_status")
+      .eq("clinic_id", activeClinic.id).eq("appointment_date", date)
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        setTodayBookings(error ? null : { date, load: loadByDay(data || []), slots: getSlotsFromClinicTiming(activeClinic, date) });
+      });
+    return () => { cancelled = true; };
+  }, [doctorTab, activeClinic]);
 
   return (
     <section className="screen app-screen doctor-mode">
@@ -2746,7 +2776,7 @@ function DoctorApp({
       </header>
 
       <div className="scroll-area" key={doctorTab}>
-        {doctorTab === "today" && <DoctorToday stats={stats} alerts={alerts} setDoctorTab={setDoctorTab} />}
+        {doctorTab === "today" && <DoctorToday stats={stats} alerts={alerts} setDoctorTab={setDoctorTab} bookings={todayBookings} />}
         {doctorTab === "availability" && (
           <DoctorAvailabilityEditor
             availability={availability}
@@ -2851,7 +2881,24 @@ function DoctorEducationEditor({ posts, onPublishPost }) {
   );
 }
 
-function DoctorToday({ stats, alerts = [], setDoctorTab }) {
+function TodayBookings({ bookings }) {
+  const total = reservedOnDay(bookings.load, bookings.date);
+  const timeline = dayTimeline(bookings.load, bookings.date);
+  const best = recommendSlot(bookings.slots, bookings.load, bookings.date);
+  return (
+    <section className="doctor-bookings" aria-label="Booked today">
+      <div className="doctor-bookings-head">
+        <strong>{total === 0 ? "No patients booked yet today" : `${total} patient${total === 1 ? "" : "s"} booked today`}</strong>
+        {best && <span>Best time for a new booking: <b>{best.slot}</b></span>}
+      </div>
+      {timeline.length > 0 && (
+        <ul>{timeline.map(({ slot, reserved }) => <li key={slot}><span>{slot}</span><b>{reserved}</b></li>)}</ul>
+      )}
+    </section>
+  );
+}
+
+function DoctorToday({ stats, alerts = [], setDoctorTab, bookings = null }) {
   return (
     <div className="stack">
       <div className="doctor-stats">
@@ -2863,6 +2910,7 @@ function DoctorToday({ stats, alerts = [], setDoctorTab }) {
           </div>
         ))}
       </div>
+      {bookings && <TodayBookings bookings={bookings} />}
       <button type="button" className="doctor-duty-cta" onClick={() => setDoctorTab("availability")}>
         <span className="doctor-duty-icon"><MapPin size={21} aria-hidden="true" /></span>
         <span className="doctor-duty-copy">
@@ -3038,14 +3086,6 @@ function DoctorAvailabilityEditor({
             </div>
           </div>
         </div>
-        <div className="locked-fee-card">
-          <span>Online consultation fee</span>
-          <strong>Rs {ONLINE_CONSULTATION_FEE}</strong>
-          <small>Static fee locked for all online consultations.</small>
-        </div>
-        <small className="field-help">
-          Patients must pay this fee through Razorpay before sending an online consultation request.
-        </small>
       </div>
 
       <DoctorPendingPayments />
@@ -3404,8 +3444,25 @@ const doctorTabs = [
 
 function FloatingTabs({ items, current, onSelect, label, doctor = false }) {
   const index = items.findIndex(([key]) => key === current);
+  const navRef = useRef(null);
+  // The highlight is placed from the real position of the selected button, so it stays under the right tab
+  // whatever the number of tabs, the screen width or the font size.
+  useLayoutEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return undefined;
+    const place = () => {
+      const active = nav.querySelector("button.active");
+      if (!active) return;
+      nav.style.setProperty("--pill-x", `${active.offsetLeft}px`);
+      nav.style.setProperty("--pill-w", `${active.offsetWidth}px`);
+    };
+    place();
+    const observer = typeof ResizeObserver === "function" ? new ResizeObserver(place) : null;
+    observer?.observe(nav);
+    return () => observer?.disconnect();
+  }, [current, items.length]);
   return (
-    <nav className={`bottom-nav${doctor ? " doctor-nav" : ""}`} aria-label={label}
+    <nav ref={navRef} className={`bottom-nav${doctor ? " doctor-nav" : ""}`} aria-label={label}
       style={{ "--tabs": items.length, "--selected-tab": Math.max(0, index) }}>
       <span className="floating-tab-selection" data-visible={index >= 0} aria-hidden="true" />
       {items.map(([key, Icon, text]) => (

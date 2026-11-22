@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host localhost",
-    "test": "node src/auth.test.mjs && node src/medicalProfile.test.mjs && node src/carePlan.test.mjs && node src/prescription.test.mjs && node src/termSearch.test.mjs && node src/visit.test.mjs && node src/visitRx.test.mjs && node src/appointment.test.mjs && node src/booking.test.mjs && node src/visitSync.test.mjs && node src/patient_record_sync.test.mjs && node supabase/functions/consultation-payments.test.mjs",
+    "test": "node src/auth.test.mjs && node src/medicalProfile.test.mjs && node src/slotLoad.test.mjs && node src/prescriptionFields.test.mjs && node src/prescriptionDelivery.test.mjs && node src/carePlan.test.mjs && node src/prescription.test.mjs && node src/termSearch.test.mjs && node src/visit.test.mjs && node src/visitRx.test.mjs && node src/appointment.test.mjs && node src/booking.test.mjs && node src/visitSync.test.mjs && node src/patient_record_sync.test.mjs && node supabase/functions/consultation-payments.test.mjs",
     "build": "vite build",
     "preview": "vite preview --host 127.0.0.1",
     "firebase:deploy": "npm run build && npx firebase-tools deploy --only hosting",

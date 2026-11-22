@@ -58,3 +58,22 @@
   .bk :is(.bk-day, .bk-slot, .bk-reason) { transition: none; }
   .bk :is(.bk-day, .bk-slot, .bk-reason):active:not(:disabled) { transform: none; }
 }
+
+/* Slot load: how many are already booked, and the quietest time */
+.bk-slot { display: grid; gap: 2px; justify-items: center; align-content: center; }
+.bk-slot small { font-size: .7rem; font-weight: 650; line-height: 1.1; }
+.bk-load-quiet { color: var(--muted); }
+.bk-load-moderate { color: #b4690e; }
+.bk-load-busy { color: #c2410c; }
+.dark-theme .bk-load-moderate { color: #f2c063; }
+.dark-theme .bk-load-busy { color: #ff9b73; }
+.bk-slot.is-best { box-shadow: inset 0 0 0 2px var(--blue); }
+.bk-slot.is-best small { color: var(--blue); }
+.bk-recommend { margin: 0; padding: 10px 12px; border-radius: 12px; background: color-mix(in srgb, var(--blue) 12%, transparent); font-size: .9rem; }
+
+/* Doctor Today: patients booked, by time */
+.doctor-bookings { display: grid; gap: 10px; padding: 14px 16px; border-radius: 14px; border: 1px solid var(--line); background: color-mix(in srgb, var(--ink) 5%, transparent); }
+.doctor-bookings-head { display: grid; gap: 2px; }
+.doctor-bookings-head span { color: var(--muted); font-size: .86rem; }
+.doctor-bookings ul { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 8px; }
+.doctor-bookings li { display: inline-flex; gap: 8px; align-items: baseline; padding: 6px 12px; border-radius: 99px; background: color-mix(in srgb, var(--blue) 14%, transparent); font-size: .86rem; }

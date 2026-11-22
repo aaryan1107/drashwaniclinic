@@ -1,5 +1,6 @@
 // Pure helpers for history, notes, follow-up and prescribing safety checks. No React, no network.
 import { normalize } from "./termSearch.js";
+import { composeNotes, durationDays, durationText, hindiInstruction, normalizeFrequency, timesFor } from "./prescriptionFields.js";
 
 export const HISTORY_CATEGORIES = [
   { id: "patient_history", label: "Patient history", hints: ["Diabetes", "Hypertension", "Thyroid disorder", "Asthma", "Heart disease", "Kidney disease", "Epilepsy", "Tuberculosis (treated)", "Jaundice (past)"] },
@@ -118,15 +119,17 @@ export function buildSendPayload(visit) {
 
 // ---------------------------------------------------------------- Visit -> public.prescriptions row
 // The row shape is the one src/prescription.js already validates, prints and publishes.
-const TIMES = { OD: ["09:00"], BD: ["09:00", "21:00"], TDS: ["08:00", "14:00", "20:00"], QID: ["08:00", "12:00", "16:00", "20:00"], HS: ["21:00"] };
 const ROUTE_MAP = { Oral: "Oral (swallow)", Topical: "Topical (skin)", Inhaled: "Inhaled", "Eye drops": "Eye", "Ear drops": "Ear", Injection: "Injection", Other: "Other" };
 
+// One visit medicine -> the prescription medicine shape (also the care plan shape). Structured fields
+// (form, generic, pattern, timing, duration, remarks, hindi) ride along for the PDF; reminders only use
+// the fields the care plan already knows.
 export function toRxMedicine(item, visitDate, index = 0) {
   const d = item.details || {};
-  const code = String(d.frequency || "").split(" ")[0];
+  const pattern = normalizeFrequency(d.frequency);
   const route = ROUTE_MAP[d.route || "Oral"] || "Oral (swallow)";
-  const duration = Number(d.duration) || 0;
-  const notes = [d.frequency, d.when, duration ? `${duration} days` : ""].filter(Boolean).join(" · ");
+  const days = durationDays(d);
+  const times = timesFor(pattern);
   const base = {
     id: `v${index + 1}`,
     name: String(item.display || item.free_text || "").slice(0, 180),
@@ -134,10 +137,17 @@ export function toRxMedicine(item, visitDate, index = 0) {
     route,
     site: route === "Oral (swallow)" ? "" : (d.route || "As directed"),
     days: [],
-    notes: notes.slice(0, 500)
+    form: String(d.form || "").slice(0, 40),
+    generic: String(d.generic || "").trim().slice(0, 240),
+    pattern,
+    timing: String(d.when || "").slice(0, 40),
+    duration_text: durationText(d),
+    remarks: String(d.remarks || "").trim().slice(0, 300),
+    hindi: pattern ? hindiInstruction(d) : "",
+    notes: composeNotes(d)
   };
-  if (TIMES[code] && duration > 0) {
-    return { ...base, frequency: "daily", times: TIMES[code], start: visitDate, end: addDays(visitDate, duration - 1) };
+  if (times.length && days > 0) {
+    return { ...base, frequency: "daily", times, start: visitDate, end: addDays(visitDate, days - 1) };
   }
   return { ...base, frequency: "instructions", times: [], start: "", end: "", notes: base.notes || "As directed by the doctor" };
 }

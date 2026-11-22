@@ -5,6 +5,7 @@ import { HISTORY_CATEGORIES, addDays, applyTemplate, DEFAULT_FOLLOWUP_DAYS, pars
 import { deleteTemplate, loadFollowUpDays, loadTemplates, replaceTemplates, saveFollowUpDays, saveTemplate } from "./visitStore.js";
 import { deleteCloudTemplate, saveCloudTemplate, syncTemplates } from "./visitCloud.js";
 import { Button } from "./ui/Button.jsx";
+import { DURATION_CHIPS, DURATION_UNITS, FORMS, FREQUENCIES, TIMINGS, hindiInstruction, normalizeFrequency } from "./prescriptionFields.js";
 
 const keyOf = (i) => i.term_id || `free:${(i.free_text || "").toLowerCase()}`;
 
@@ -145,10 +146,7 @@ export function FollowUpScreen({ visit, patch, onDone }) {
 }
 
 // ---------------------------------------------------------------- Prescribe
-const FREQ = ["OD (once daily)", "BD (twice daily)", "TDS (three times)", "QID (four times)", "HS (at night)", "SOS (if needed)", "Weekly"];
 const ROUTE = ["Oral", "Topical", "Inhaled", "Eye drops", "Ear drops", "Injection", "Other"];
-const WHEN = ["", "After food", "Before food", "With food", "Empty stomach", "At bedtime"];
-const DUR = [3, 5, 7, 10, 15, 30];
 
 export function PrescribeScreen({ visit, patch, index, usage, onUsed, onOpenHistory, onDone }) {
   const [searching, setSearching] = useState(false);
@@ -241,19 +239,32 @@ export function PrescribeScreen({ visit, patch, index, usage, onUsed, onOpenHist
               {w.duplicates.length > 0 && <div className="vt-warn vt-warn-amber"><AlertTriangle size={16} /> Possible duplicate in this prescription: {w.duplicates.join(", ")}.</div>}
               {w.alreadyTaking.length > 0 && <div className="vt-warn vt-warn-amber"><AlertTriangle size={16} /> Patient already takes: {w.alreadyTaking.join(", ")}.</div>}
               <div className="vt-grid2">
-                <div className="vt-field"><label htmlFor={`d-${idx}`}>Dose</label><input id={`d-${idx}`} placeholder="e.g. 500 mg" value={d.dose || ""} onChange={(e) => setDetail(idx, { dose: e.target.value })} /></div>
-                <div className="vt-field"><label htmlFor={`f-${idx}`}>Frequency</label>
-                  <select id={`f-${idx}`} value={d.frequency || ""} onChange={(e) => setDetail(idx, { frequency: e.target.value })}><option value="">Select</option>{FREQ.map((f) => <option key={f}>{f}</option>)}</select></div>
+                <div className="vt-field"><label htmlFor={`fm-${idx}`}>Form</label>
+                  <select id={`fm-${idx}`} value={d.form || ""} onChange={(e) => setDetail(idx, { form: e.target.value })}>{FORMS.map((f) => <option key={f} value={f}>{f || "Not set"}</option>)}</select></div>
+                <div className="vt-field"><label htmlFor={`d-${idx}`}>Dose</label><input id={`d-${idx}`} placeholder="e.g. 1 tablet, 7.5 ml" value={d.dose || ""} onChange={(e) => setDetail(idx, { dose: e.target.value })} /></div>
               </div>
-              <div className="vt-field"><label>Duration</label>
-                <div className="vt-chips">{DUR.map((n) => <button type="button" key={n} className={`vt-chip${d.duration === n ? " vt-chip-on" : ""}`} onClick={() => setDetail(idx, { duration: n, duration_unit: "days" })}>{n} days</button>)}</div>
+              <div className="vt-field"><label htmlFor={`g-${idx}`}>Generic name or composition</label>
+                <input id={`g-${idx}`} placeholder="e.g. Ebastine (10mg) + Phenylephrine (10mg)" value={d.generic || ""} onChange={(e) => setDetail(idx, { generic: e.target.value })} /></div>
+              <div className="vt-grid2">
+                <div className="vt-field"><label htmlFor={`f-${idx}`}>Frequency</label>
+                  <select id={`f-${idx}`} value={normalizeFrequency(d.frequency)} onChange={(e) => setDetail(idx, { frequency: e.target.value })}><option value="">Select</option>{FREQUENCIES.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}</select></div>
+                <div className="vt-field"><label htmlFor={`w-${idx}`}>When</label>
+                  <select id={`w-${idx}`} value={d.when || ""} onChange={(e) => setDetail(idx, { when: e.target.value })}>{TIMINGS.map((r) => <option key={r} value={r}>{r || "Not set"}</option>)}</select></div>
+              </div>
+              <div className="vt-field"><label htmlFor={`n-${idx}`}>Duration</label>
+                <div className="vt-inputrow">
+                  {(d.duration_unit || "days") !== "continue" && <input id={`n-${idx}`} className="vt-narrow" inputMode="numeric" aria-label="Number" value={d.duration ?? ""} onChange={(e) => setDetail(idx, { duration: e.target.value.replace(/\D/g, "").slice(0, 3) })} />}
+                  <select aria-label="Duration unit" value={d.duration_unit || "days"} onChange={(e) => setDetail(idx, { duration_unit: e.target.value })}>{DURATION_UNITS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+                </div>
+                {(d.duration_unit || "days") === "days" && <div className="vt-chips">{DURATION_CHIPS.map((n) => <button type="button" key={n} className={`vt-chip${Number(d.duration) === n ? " vt-chip-on" : ""}`} onClick={() => setDetail(idx, { duration: n, duration_unit: "days" })}>{n} days</button>)}</div>}
               </div>
               <div className="vt-grid2">
                 <div className="vt-field"><label htmlFor={`r-${idx}`}>Route</label>
                   <select id={`r-${idx}`} value={d.route || "Oral"} onChange={(e) => setDetail(idx, { route: e.target.value })}>{ROUTE.map((r) => <option key={r}>{r}</option>)}</select></div>
-                <div className="vt-field"><label htmlFor={`w-${idx}`}>Instructions</label>
-                  <select id={`w-${idx}`} value={d.when || ""} onChange={(e) => setDetail(idx, { when: e.target.value })}>{WHEN.map((r) => <option key={r} value={r}>{r || "None"}</option>)}</select></div>
+                <div className="vt-field"><label htmlFor={`rm-${idx}`}>Remarks</label>
+                  <input id={`rm-${idx}`} placeholder="e.g. With warm water" maxLength={300} value={d.remarks || ""} onChange={(e) => setDetail(idx, { remarks: e.target.value })} /></div>
               </div>
+              {hindiInstruction(d) && <p className="vt-hindi" lang="hi"><span>Hindi on the prescription</span>{hindiInstruction(d)}</p>}
             </li>
           );
         })}
