@@ -5,6 +5,7 @@ import { indiaDate } from "./carePlan.js";
 import { rxNumber, scheduleText, toCarePlan, validatePrescription } from "./prescription.js";
 import { prescribingWarnings, visitToPrescriptionRow } from "./visitRx.js";
 import { Button } from "./ui/Button.jsx";
+import { createPrescriptionLink } from "./prescriptionDelivery.js";
 
 
 const DOCTOR_NAME = "Dr. Ashwani Kansal";
@@ -25,7 +26,9 @@ export function SendScreen({ visit, patient, clinic, onEdit, onSent }) {
       setState({ busy: false, message: offline ? "You are offline. Nothing was sent; your draft is safe. Try again when connected." : "Could not send the prescription. Nothing was sent; your draft is safe." });
       return;
     }
-    onSent(data);
+    setState({ busy: true, message: "Preparing the link…" });
+    const link = await createPrescriptionLink(supabase, data, clinic, { phone: patient.mobile });
+    onSent(data, link);
   }
 
   return (
@@ -69,7 +72,7 @@ export function SendScreen({ visit, patient, clinic, onEdit, onSent }) {
   );
 }
 
-export function SentScreen({ rx, patient, clinic, onDone }) {
+export function SentScreen({ rx, patient, clinic, link = null, onDone }) {
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState("");
   const run = (label, fn) => async () => {
@@ -80,15 +83,14 @@ export function SentScreen({ rx, patient, clinic, onDone }) {
 
   return (
     <>
-      <div className="vt-sent" role="status"><CheckCircle2 size={28} /><div><strong>Sent {rxNumber(rx)}</strong><span>The patient can now see it in their app.</span></div></div>
+      <div className="vt-sent" role="status"><CheckCircle2 size={28} /><div><strong>Sent {rxNumber(rx)}</strong><span>The patient can now see it in their app.{link ? " A WhatsApp link is ready." : ""}</span></div></div>
       <div className="vt-actions">
         <Button loading={busy === "Send on WhatsApp"} disabled={!!busy} icon={<Share2 size={18} />} onClick={run("Send on WhatsApp", async () => {
           const pdfModule = await pdf();
           const delivery = await import("./prescriptionDelivery.js");
-          const blob = await pdfModule.prescriptionPdfBlob(rx, clinic, { phone: patient.mobile });
-          const link = await delivery.uploadPrescription(supabase, rx, blob);
-          if (link) {
-            const text = delivery.buildPatientMessage({ patientName: rx.patient_name, link });
+          const ready = link || await delivery.createPrescriptionLink(supabase, rx, clinic, { phone: patient.mobile });
+          if (ready) {
+            const text = delivery.buildPatientMessage({ patientName: rx.patient_name, link: ready });
             window.open(delivery.whatsappChatUrl(patient.mobile, text), "_blank", "noopener");
             setMsg(delivery.indianMobile(patient.mobile) ? "WhatsApp opened with the message and link. Tap send there." : "WhatsApp opened. This patient has no mobile number saved, so choose the chat yourself.");
             return;
