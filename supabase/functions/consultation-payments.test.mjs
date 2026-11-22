@@ -32,6 +32,9 @@ let providerOrderStatus = 200;
 let providerOrderBody;
 let eventLog = [];
 let eventLogStatus = 200;
+let patientAge = 40; // age on the signed-in patient's own record; undefined means no record
+let patientLookupStatus = 200;
+let patientLookups = [];
 const handledEvents = new Set();
 globalThis.fetch = async (input, options) => {
   const url = new URL(input);
@@ -54,6 +57,11 @@ globalThis.fetch = async (input, options) => {
     if (row.event_id && ["applied", "no_change", "ignored"].includes(row.outcome)) handledEvents.add(row.event_id);
     return new Response(null, { status: 201 });
   }
+  if (url.pathname === "/rest/v1/patient_records") {
+    patientLookups.push(url);
+    if (patientLookupStatus !== 200) return new Response("down", { status: patientLookupStatus });
+    return Response.json(patientAge === undefined ? [] : [{ age: patientAge }]);
+  }
   assert.equal(url.pathname, "/rest/v1/consultation_payments");
   writes.push({ url, method: options.method, body: JSON.parse(options.body) });
   return Response.json(writeResult, { status });
@@ -62,18 +70,68 @@ globalThis.fetch = async (input, options) => {
 await import("./create-consultation-order/index.ts");
 assert.equal((await send({ amount: 99 })).status, 400);
 assert.equal((await send({ amount: 100 })).status, 400);
-assert.equal((await send({ amount: 70000, currency: "USD" })).status, 400);
-assert.equal((await send({ amount: 70000, receipt: "x".repeat(41) })).status, 400);
-assert.equal((await send({ amount: 70000 }, { Authorization: "" })).status, 401);
+assert.equal((await send({ amount: 80000, currency: "USD" })).status, 400);
+assert.equal((await send({ amount: 80000, receipt: "x".repeat(41) })).status, 400);
+assert.equal((await send({ amount: 80000 }, { Authorization: "" })).status, 401);
 providerOrderStatus = 503;
-assert.equal((await send({ amount: 70000 })).status, 500);
+assert.equal((await send({ amount: 80000 })).status, 500);
 providerOrderStatus = 200;
 status = 503;
-assert.equal((await send({ amount: 70000 })).status, 503);
+assert.equal((await send({ amount: 80000 })).status, 503);
 status = 200;
-assert.equal((await send({ amount: 70000, receipt: "clinic-test-1" })).status, 200);
+assert.equal((await send({ amount: 80000, receipt: "clinic-test-1" })).status, 200);
 assert.equal(providerOrderBody.receipt, "clinic-test-1");
 assert.equal(writes.at(-1).body.patient.user_id, "owner");
+
+
+// Pricing: online consultation by age (Rs 800 general, Rs 600 from age 60), clinic visit a fixed Rs 700.
+// The server works the price out from the patient's own record; the amount sent must match it.
+const createFor = async (age, amount, clinic) => {
+  patientAge = age;
+  providerOrderBody = undefined;
+  return send({ amount, ...(clinic ? { clinic } : {}) });
+};
+assert.equal((await createFor(40, 80000)).status, 200);
+assert.equal(providerOrderBody.amount, 80000);
+assert.equal(providerOrderBody.notes.fee_tier, "general");
+assert.equal((await createFor(59, 80000)).status, 200);
+assert.equal((await createFor(60, 60000)).status, 200);          // age 60 is the first senior age
+assert.equal(providerOrderBody.amount, 60000);
+assert.equal(providerOrderBody.notes.fee_tier, "senior");
+assert.equal((await createFor(82, 60000)).status, 200);
+for (const [age, wrong] of [[40, 60000], [59, 60000], [40, 70000], [60, 80000], [75, 80000], [75, 70000]]) {
+  providerOrderBody = undefined;
+  const rejected = await createFor(age, wrong);
+  assert.equal(rejected.status, 400, `age ${age} must not be able to pay ${wrong}`);
+  assert.equal(providerOrderBody, undefined);                       // no Razorpay order was created
+  assert.equal((await rejected.json()).expected_amount, age >= 60 ? 60000 : 80000);
+}
+// No record, or no age on it, pays the general fee; a failed lookup charges nothing.
+assert.equal((await createFor(undefined, 80000)).status, 200);
+assert.equal((await createFor(undefined, 60000)).status, 400);
+assert.equal((await createFor(0, 80000)).status, 200);
+assert.equal((await createFor(null, 80000)).status, 200);
+patientLookupStatus = 500;
+providerOrderBody = undefined;
+assert.equal((await createFor(40, 80000)).status, 503);
+assert.equal(providerOrderBody, undefined);
+patientLookupStatus = 200;
+// The lookup is by the signed-in user (owner_id or the record id), never by anything the app sends.
+patientLookups = [];
+assert.equal((await send({ amount: 80000, patient: { user_id: "other", age: 70 } })).status, 200);
+assert.match(patientLookups.at(-1).searchParams.get("or"), /owner_id\.eq\.owner,id\.eq\.owner/);
+// A clinic visit is a fixed Rs 700 whatever the age, and needs no age lookup.
+patientLookups = [];
+const visit = { id: "clinic-2", name: "Clinic", purpose: "clinic_visit" };
+assert.equal((await createFor(82, 70000, visit)).status, 200);
+assert.equal(providerOrderBody.notes.fee_tier, "visit");
+assert.equal((await createFor(40, 70000, visit)).status, 200);
+assert.equal((await createFor(40, 80000, visit)).status, 400);
+assert.equal((await createFor(82, 60000, visit)).status, 400);
+assert.equal(patientLookups.length, 0);
+// Calling an online consultation a visit gains nothing: the visit fee never unlocks a consultation,
+// and the stored purpose is what the app reads.
+patientAge = 40;
 
 await import("./verify-consultation-payment/index.ts");
 writes = [];
@@ -90,8 +148,21 @@ payment.status = "captured";
 payment.currency = "USD";
 assert.equal((await send(verification)).status, 400);
 payment.currency = "INR";
+// The payment must equal the order our server priced, and be an amount the clinic really charges.
+payment.amount = 80000; order.amount = 60000;
+assert.equal((await send(verification)).status, 400);
+payment.amount = 60000; order.amount = 80000;
+assert.equal((await send(verification)).status, 400);
+payment.amount = 50000; order.amount = 50000;
+assert.equal((await send(verification)).status, 400);
+payment.amount = 70000; order.amount = 70000;
 assert.equal((await send(verification)).status, 500);
 writeResult = [{ payment_status: "PAID_CONFIRMED" }];
+for (const amount of [60000, 70000, 80000]) {
+  payment.amount = amount; order.amount = amount;
+  assert.equal((await send(verification)).status, 200, `verify accepts a matching Rs ${amount / 100} payment`);
+}
+payment.amount = 70000; order.amount = 70000;
 assert.equal((await send({ ...verification, patient: { user_id: "other" } })).status, 200);
 assert.equal(writes.at(-1).url.searchParams.get("patient->>user_id"), "eq.owner");
 assert.equal(writes.at(-1).body.patient, undefined);
@@ -159,6 +230,21 @@ payment.currency = "USD";
 assert.equal((await webhook("payment.captured")).status, 400);
 payment.currency = "INR";
 assert.equal(writes.length, 0);
+// Both consultation prices and the visit fee are accepted, and each update is pinned to the order's recorded amount.
+for (const amount of [60000, 70000, 80000]) {
+  payment.amount = amount; order.amount = amount; writes = [];
+  writeResult = [{ payment_status: "PAID_CONFIRMED" }];
+  assert.equal((await webhook("payment.captured")).status, 200, `webhook accepts Rs ${amount / 100}`);
+  assert.equal(writes.at(-1).url.searchParams.get("amount"), `eq.${amount}`);
+}
+// Any other amount is rejected without touching the order.
+for (const amount of [50000, 90000, 100]) {
+  payment.amount = amount; writes = [];
+  assert.equal((await webhook("payment.captured")).status, 400, `webhook rejects Rs ${amount / 100}`);
+  assert.equal(writes.length, 0);
+  assert.equal(lastLog().outcome, "rejected_amount");
+}
+payment.amount = 70000; order.amount = 70000;
 
 // Idempotency: a retry of an already-handled event ID is skipped without a PATCH.
 writes = [];

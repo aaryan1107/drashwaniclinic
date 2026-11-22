@@ -1,3 +1,5 @@
+import { isAllowedFeePaise } from "../_shared/consultationFee.js";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -54,7 +56,10 @@ Deno.serve(async (request) => {
     const paymentResponse = await fetch(`https://api.razorpay.com/v1/payments/${encodeURIComponent(paymentId)}`, { headers });
     if (!paymentResponse.ok) return json({ error: "Unable to fetch Razorpay payment." }, 502);
     const payment = await paymentResponse.json();
-    if (payment.order_id !== orderId || payment.amount !== 70000 || payment.currency !== "INR") {
+    // The order was created by our server at the correct price, so the payment must equal it, and it must
+    // be one of the amounts the clinic actually charges.
+    if (payment.order_id !== orderId || payment.amount !== order.amount || !isAllowedFeePaise(payment.amount)
+        || payment.currency !== "INR") {
       return json({ error: "Payment does not match the consultation order." }, 400);
     }
     if (payment.status === "authorized") {

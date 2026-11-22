@@ -2,10 +2,11 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Activity, Bell, CalendarCheck, Pill } from "lucide-react";
+import { VISIT_FEE_RUPEES } from "./booking.js";
 import "./welcome.css";
 
 const STEPS = [
-  [CalendarCheck, "Book a clinic visit", "Pick a day and time, then pay the ₹700 fee in the app. Your slot is confirmed as soon as the payment goes through."],
+  [CalendarCheck, "Book a clinic visit", `Pick a day and time, then pay the ₹${VISIT_FEE_RUPEES} fee in the app. Your slot is confirmed as soon as the payment goes through.`],
   [Activity, "Log your readings", "Add blood sugar, blood pressure, weight and HbA1c so Dr Ashwani can see how you are doing between visits."],
   [Pill, "See your prescriptions", "Medicines and instructions from your visit appear here, ready to read or download."],
   [Bell, "Reminders and help", "Turn on reminders for medicines and follow-ups, and ask the clinic assistant if you get stuck."]

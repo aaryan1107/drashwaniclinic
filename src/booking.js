@@ -1,5 +1,7 @@
 // Pure helpers for the patient Book tab: a clinic visit paid for at booking.
-export const VISIT_FEE_RUPEES = 700;
+// The visit fee and the payment marker live in one shared module that the payment functions also use.
+import { VISIT_FEE_RUPEES, VISIT_PAYMENT_PURPOSE } from "../supabase/functions/_shared/consultationFee.js";
+export { VISIT_FEE_RUPEES, VISIT_PAYMENT_PURPOSE };
 
 export const BOOKING_REASONS = [
   "Diabetes follow-up",
@@ -12,9 +14,6 @@ export const BOOKING_REASONS = [
   "Medicine side effects"
 ];
 
-// Payment marker stored on consultation_payments.clinic so a visit payment never unlocks
-// the WhatsApp consultation flow, which reads the same table.
-export const VISIT_PAYMENT_PURPOSE = "clinic_visit";
 
 const minutesOf = (slot) => {
   const match = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i.exec(String(slot).trim());

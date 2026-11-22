@@ -1,3 +1,5 @@
+import { VISIT_PAYMENT_PURPOSE, consultationFeeTier, expectedFeePaise } from "../_shared/consultationFee.js";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -35,8 +37,18 @@ Deno.serve(async (request) => {
     if (!Number.isSafeInteger(amount) || amount < 100) {
       return json({ error: "Amount must be an integer of at least 100 paise." }, 400);
     }
-    if (amount !== 70000 || currency !== "INR") {
-      return json({ error: "The online consultation fee is fixed at ₹700 in INR." }, 400);
+
+    // The server decides the price. A clinic visit has one fixed fee; an online consultation is priced
+    // by the age on the patient's own record. The amount the app sends must match, or nothing is charged.
+    const isVisit = body.clinic?.purpose === VISIT_PAYMENT_PURPOSE;
+    const age = isVisit ? { ok: true, value: null } : await lookupPatientAge(authUser.id);
+    if (!age.ok) return json({ error: "Could not check the fee for your account. No payment was requested." }, 503);
+    const expected = expectedFeePaise({ purpose: isVisit ? VISIT_PAYMENT_PURPOSE : "online_consultation", age: age.value });
+    if (amount !== expected || currency !== "INR") {
+      return json({
+        error: `The fee for this payment is ₹${expected / 100} in INR. Reopen the screen and try again.`,
+        expected_amount: expected
+      }, 400);
     }
 
     const receipt = body.receipt ?? `consult_${crypto.randomUUID().replaceAll("-", "")}`;
@@ -65,7 +77,8 @@ Deno.serve(async (request) => {
           purpose: "doctor_consultation",
           clinic: body.clinic?.name || "",
           patient: patient.name || "",
-          patient_id: authUser.id
+          patient_id: authUser.id,
+          fee_tier: isVisit ? "visit" : consultationFeeTier(age.value)
         }
       })
     });
@@ -95,6 +108,27 @@ Deno.serve(async (request) => {
     return json({ error: "Server error while creating consultation order." }, 500);
   }
 });
+
+// The patient's age from their own record (owner_id, or the record id for self-registered patients).
+// A missing record or age is not an error: it simply pays the general fee. A failed lookup is, so the
+// price is never guessed.
+async function lookupPatientAge(userId: string): Promise<{ ok: boolean; value: number | null }> {
+  const supabaseUrl = Deno.env.get("PROJECT_URL");
+  const serviceKey = Deno.env.get("SERVICE_ROLE_KEY");
+  if (!supabaseUrl || !serviceKey) return { ok: false, value: null };
+
+  const id = encodeURIComponent(userId);
+  const response = await fetch(
+    `${supabaseUrl}/rest/v1/patient_records?select=age&or=(owner_id.eq.${id},id.eq.${id})&order=updated_at.desc&limit=1`,
+    { headers: { "apikey": serviceKey, "Authorization": `Bearer ${serviceKey}` } }
+  ).catch(() => null);
+  if (!response?.ok) return { ok: false, value: null };
+
+  const rows = await response.json().catch(() => null);
+  if (!Array.isArray(rows)) return { ok: false, value: null };
+  const age = Number(rows[0]?.age);
+  return { ok: true, value: Number.isFinite(age) && age > 0 ? age : null };
+}
 
 async function getAuthenticatedUser(request: Request) {
   const supabaseUrl = Deno.env.get("PROJECT_URL");

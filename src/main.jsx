@@ -71,6 +71,9 @@ import { useClinicNavigation } from "./useClinicNavigation";
 import BookVisit from "./BookVisit.jsx";
 import { CLINIC_ASSISTANT_SCOPE, clinicAssistantIntent, formatAssistantPayment, formatAssistantPrescription } from "./clinicAssistant.js";
 import { VISIT_FEE_RUPEES, VISIT_PAYMENT_PURPOSE, bookingRow } from "./booking.js";
+import {
+  GENERAL_FEE_RUPEES, SENIOR_FEE_RUPEES, SENIOR_MIN_AGE, consultationFeeRupees, feeSummary
+} from "../supabase/functions/_shared/consultationFee.js";
 import ClinicMesh, { ClinicMotion } from "./ClinicMesh";
 import { WelcomeHero, ConditionCards } from "./WelcomeHero.jsx";
 import PatientTutorial, { shouldShowTutorial } from "./PatientTutorial.jsx";
@@ -78,7 +81,6 @@ import PatientTutorial, { shouldShowTutorial } from "./PatientTutorial.jsx";
 const RAZORPAY_KEY_ID = import.meta.env.VITE_RAZORPAY_KEY_ID || "";
 const RAZORPAY_API_BASE = import.meta.env.VITE_RAZORPAY_API_BASE || "/api";
 const RAZORPAY_PAYMENT_LINK = (import.meta.env.VITE_RAZORPAY_PAYMENT_LINK || "https://razorpay.me/@drashwanisfamilyclinicdiagnos").trim();
-const ONLINE_CONSULTATION_FEE = "700";
 const CLINIC_HOTLINE_NUMBER = "+91 7303399370";
 const DOCTOR_WHATSAPP_NUMBER = CLINIC_HOTLINE_NUMBER;
 const isRazorpayConfigured = Boolean(RAZORPAY_KEY_ID.trim());
@@ -95,7 +97,7 @@ const CONSULT_IN_FLIGHT_STATUSES = ["creating_order", "verifying"];
 const makeDefaultConsultPayment = () => ({
   status: "not_started",
   message: hasRazorpayPaymentLink
-    ? `Online consultation fee is Rs ${ONLINE_CONSULTATION_FEE}. Pay securely first; WhatsApp consultation unlocks only after payment is verified.`
+    ? `Online consultation fee is ${feeSummary()}. Pay securely first; WhatsApp consultation unlocks only after payment is verified.`
     : "Consultation payment will appear once the doctor sets a fee.",
   paymentId: "",
   paidAt: "",
@@ -239,7 +241,7 @@ const availabilityStateToRow = (availability) => ({
   clinic_id: availability.clinicId,
   online: availability.online,
   message: availability.message,
-  consultation_fee: Number(ONLINE_CONSULTATION_FEE),
+  consultation_fee: GENERAL_FEE_RUPEES,
   updated_by: availability.updatedBy || "Dr. Ashwani"
 });
 
@@ -635,11 +637,14 @@ function App() {
     reason: "Diabetes follow-up",
     status: "Pending doctor approval"
   });
-  const [consultationFee] = useState({
-    amount: ONLINE_CONSULTATION_FEE,
-    label: `Rs ${ONLINE_CONSULTATION_FEE}`,
-    updatedAt: "Clinic default"
-  });
+  // The online consultation fee depends on the patient's age (the server checks it again from their record).
+  const feePatient = currentUser?.id
+    ? patientRecords.find((patient) => patient.id === currentUser.id) || patientRecords.find((patient) => patient.ownerId === currentUser.id)
+    : null;
+  const consultationFee = useMemo(() => {
+    const rupees = consultationFeeRupees(feePatient?.age);
+    return { amount: rupees, label: `Rs ${rupees}`, updatedAt: "Clinic default" };
+  }, [feePatient?.age]);
   const [consultPayment, setConsultPayment] = useState(makeDefaultConsultPayment);
   const [patientReadings, setPatientReadings] = useState({
     fasting: "",
@@ -943,7 +948,7 @@ function App() {
 
     if (!amountRupees) {
       if (hasRazorpayPaymentLink) {
-        await openPaymentLink(`Opening the clinic Razorpay payment page. Pay Rs ${ONLINE_CONSULTATION_FEE} unless the clinic has shared a different fee. WhatsApp consultation unlocks only after payment is verified.`);
+        await openPaymentLink(`Opening the clinic Razorpay payment page. Pay Rs ${consultationFee.amount}. WhatsApp consultation unlocks only after payment is verified.`);
         return;
       }
 
@@ -1671,7 +1676,7 @@ function App() {
     const reference = `link_${globalThis.crypto?.randomUUID?.() || `${Date.now()}_${Math.random().toString(36).slice(2)}`}`;
     const { error } = await supabase.from("consultation_payments").insert({
       razorpay_order_id: reference,
-      amount: Math.round(Number(ONLINE_CONSULTATION_FEE) * 100),
+      amount: Math.round(Number(consultationFee.amount) * 100),
       currency: "INR",
       payment_method: "payment_link",
       payment_status: CONSULT_LINK_PENDING_STATUS,
@@ -2071,6 +2076,8 @@ function PatientMedicalInfo({ source, googleProfile, onBack, onDone }) {
     preferredMode: "Clinic visit"
   });
   const updateProfile = (key, value) => setProfile((current) => ({ ...current, [key]: value }));
+  // Consent is an explicit choice: unticked by default, and required to create the profile.
+  const [consented, setConsented] = useState(false);
   const toggleCondition = (condition) => {
     setProfile((current) => ({
       ...current,
@@ -2129,11 +2136,16 @@ function PatientMedicalInfo({ source, googleProfile, onBack, onDone }) {
       </div>
 
       <label className="consent-line">
-        <input type="checkbox" defaultChecked />
-        I consent to storing health data and follow-up reminders.
+        <input type="checkbox" checked={consented} onChange={(event) => setConsented(event.target.checked)} />
+        I consent to my health information being stored on servers outside India (South Korea) and used to look after my care, and to follow-up reminders.
       </label>
+      <p className="legal-links">
+        Read the <button type="button" className="legal-link" onClick={() => void privacyPage("privacy.html")}>Privacy policy</button> and
+        the <button type="button" className="legal-link" onClick={() => void privacyPage("terms.html")}>Terms of use</button>.
+        You can withdraw consent at any time.
+      </p>
 
-      <button className="primary-button" onClick={() => onDone(profile)}><Check size={18} /> Create patient app</button>
+      <button className="primary-button" disabled={!consented} onClick={() => onDone(profile)}><Check size={18} /> Create patient app</button>
     </section>
   );
 }
@@ -2170,6 +2182,8 @@ function ProfileButton({ user, role, theme, setTheme, onSignOut }) {
               </div>
               <ThemeChoices theme={theme} setTheme={setTheme} />
               <Popover.Close onClick={() => void privacyPage("privacy.html")}>Privacy policy</Popover.Close>
+              <Popover.Close onClick={() => void privacyPage("terms.html")}>Terms of use</Popover.Close>
+              <Popover.Close onClick={() => void privacyPage("refunds.html")}>Refund policy</Popover.Close>
               <Popover.Close onClick={() => void privacyPage("account-deletion.html")}>Request account deletion</Popover.Close>
               <Popover.Close onClick={onSignOut}>
                 <LogOut size={17} />
@@ -2387,7 +2401,7 @@ function LiveAvailabilityViewer({ availability, activeClinic, consultationFee, c
         <span><Clock size={15} /> {activeClinic.timing}</span>
         {isOnDuty && <span><MapPin size={15} /> {activeClinic.address}</span>}
         <span><Video size={15} /> Online consultation {availability.online ? "available" : "not available"}</span>
-        <span><ShieldCheck size={15} /> Consultation fee {feeAmount ? `Rs ${feeAmount}` : consultationFee.label}</span>
+        <span><ShieldCheck size={15} /> Consultation fee {feeAmount ? `Rs ${feeAmount}` : consultationFee.label}{feeAmount === SENIOR_FEE_RUPEES ? ` (age ${SENIOR_MIN_AGE}+)` : ""}</span>
       </div>
       {canStartConsultPayment ? (
         <div className={`payment-status-card ${consultPayment.status}`}>
@@ -2399,6 +2413,7 @@ function LiveAvailabilityViewer({ availability, activeClinic, consultationFee, c
               Open Razorpay payment page
             </a>
           )}
+          <button type="button" className="legal-link" onClick={() => void privacyPage("refunds.html")}>Refund policy</button>
         </div>
       ) : (
         <div className="payment-status-card booking-only">
@@ -3099,8 +3114,11 @@ function DoctorAvailabilityEditor({
         </div>
         <div className="locked-fee-card">
           <span>Online consultation fee</span>
-          <strong>Rs {ONLINE_CONSULTATION_FEE}</strong>
-          <small>Static fee locked for all online consultations.</small>
+          <strong>Rs {GENERAL_FEE_RUPEES}</strong>
+          <small>
+            Rs {SENIOR_FEE_RUPEES} for patients aged {SENIOR_MIN_AGE} and over, by the age in their profile.
+            A clinic visit booked in the app is Rs {VISIT_FEE_RUPEES}. These fees are fixed.
+          </small>
         </div>
         <small className="field-help">
           Patients must pay this fee through Razorpay before sending an online consultation request.
