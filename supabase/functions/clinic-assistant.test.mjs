@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import {
   EMERGENCY_REPLY, MEDICAL_REPLY, CLINICS, BOOKING_REASONS, MAX_HISTORY_TURNS,
   bookingDays, slotsFor, messageIsEmergency, messageNeedsDoctor, validateBookingDraft,
-  validateReadingsDraft, historyToMessages, CHAT_TOOLS, buildSystemInstruction, istDateValue
+  validateReadingsDraft, historyToMessages, CHAT_TOOLS, buildSystemInstruction, istDateValue,
+  bookingDayLabels, validateAgeUpdate
 } from "./_shared/clinicAssistantRules.js";
 
 // ---- Pure rules ----
@@ -35,7 +36,18 @@ assert.equal(bookingDays(lateEvening).length, 7);
 // Booking drafts accept only real slots and the app's reasons.
 const ok = validateBookingDraft({ date: "2026-11-24", time: "6:30 pm", reason: "report review" }, CLINICS[1], lateEvening);
 assert.equal(ok.ok, true);
-assert.deepEqual(ok.draft, { type: "booking_draft", clinicId: "clinic-2", clinicName: "Dr. Ashwani Family Clinic", date: "2026-11-24", time: "6:30 PM", reason: "Report review" });
+assert.deepEqual(ok.draft, { type: "booking_draft", clinicId: "clinic-2", clinicName: "Dr. Ashwani Family Clinic", date: "2026-11-24", time: "6:30 PM", reason: "Report review", feeRupees: 800 });
+// The draft carries the fee for the age on the record.
+assert.equal(validateBookingDraft({ date: "2026-11-24", time: "6:30 PM", reason: "Thyroid" }, CLINICS[1], lateEvening, 600).draft.feeRupees, 600);
+
+// Dates are labelled so the model can map "tomorrow" or a weekday to a real date.
+assert.deepEqual(bookingDayLabels(lateEvening).slice(0, 3), ["2026-11-23 (Mon, today)", "2026-11-24 (Tue, tomorrow)", "2026-11-25 (Wed)"]);
+
+// Age the patient states: whole years only, and only when it differs from the record.
+assert.deepEqual(validateAgeUpdate({ age: 65 }, null), { ok: true, draft: { type: "age_update", age: 65, feeRupees: 600 } });
+assert.equal(validateAgeUpdate({ age: "45" }, 65).draft.feeRupees, 800);
+assert.equal(validateAgeUpdate({ age: 65 }, 65).unchanged, true);
+for (const age of [0, 121, "sixty", 65.5, ""]) assert.equal(validateAgeUpdate({ age }, null).ok, false, String(age));
 assert.match(validateBookingDraft({ date: "2026-11-24", time: "6:15 PM", reason: "Thyroid" }, CLINICS[1], lateEvening).error, /not available/);
 // Patients may give their own reason; preset reasons are matched to the app's wording.
 assert.equal(validateBookingDraft({ date: "2026-11-24", time: "6:30 PM", reason: "  Back pain  " }, CLINICS[1], lateEvening).draft.reason, "Back pain");
@@ -64,7 +76,11 @@ assert.ok(!JSON.stringify(history).includes("ignore rules"));
 assert.ok(CHAT_TOOLS.every((tool) => tool.type === "function" && tool.function.name && tool.function.parameters && !tool.function.type));
 
 // The prompt carries the regulator's limit and the real fees, and never a phone number.
-const prompt = buildSystemInstruction({ today: "2026-11-23", clinic: CLINICS[1], onDuty: true });
+const prompt = buildSystemInstruction({ today: "2026-11-23", clinic: CLINICS[1], onDuty: true, dayLabels: bookingDayLabels(lateEvening) });
+assert.match(prompt, /fee for this patient is Rs 800.*no age recorded/);
+assert.match(prompt, /2026-11-24 \(Tue, tomorrow\)/);
+assert.match(prompt, /Never ask the patient to type a date in a format/);
+assert.match(buildSystemInstruction({ today: "2026-11-23", clinic: CLINICS[1], onDuty: true, patientAge: 65 }), /fee for this patient is Rs 600.*\(65\)/);
 assert.match(prompt, /section 5\.4/);
 assert.match(prompt, /Never diagnose/);
 assert.match(prompt, /clinic visit booked in the app, and online consultation\): Rs 800, or Rs 600/);
@@ -145,7 +161,7 @@ response = await send({ message: `Book ${day} at ${slot} for thyroid`, history: 
 let result = await response.json();
 assert.equal(response.status, 200);
 assert.equal(result.source, "ai");
-assert.deepEqual(result.cards, [{ type: "booking_draft", clinicId: "clinic-2", clinicName: "Dr. Ashwani Family Clinic", date: day, time: slot, reason: "Thyroid" }]);
+assert.deepEqual(result.cards, [{ type: "booking_draft", clinicId: "clinic-2", clinicName: "Dr. Ashwani Family Clinic", date: day, time: slot, reason: "Thyroid", feeRupees: 800 }]);
 assert.equal(aiRequests.length, 2);
 const [first, second] = aiRequests.map((r) => r.body);
 assert.equal(first.model, "openai/gpt-oss-120b");
@@ -168,6 +184,26 @@ aiReplies = [call("prepare_visit_booking", { date: day, time: "6:15 PM", reason:
 result = await (await send({ message: "Book 6:15 tomorrow" })).json();
 assert.deepEqual(result.cards, []);
 assert.match(lastToolResult(aiRequests[1]).error, /not available/);
+
+// A 65-year-old on record gets the senior fee on the booking card and in the prompt, read with their own token.
+reset();
+dbRows.patient_records = [{ age: 65 }];
+aiReplies = [call("prepare_visit_booking", { date: day, time: slot, reason: "Fever" }), text("Your card is ready. The fee is Rs 600.")];
+result = await (await send({ message: `Book ${day} at ${slot}, fever` })).json();
+assert.equal(result.cards[0].feeRupees, 600);
+assert.equal(result.cards[0].reason, "Fever");
+assert.match(aiRequests[0].body.messages[0].content, /fee for this patient is Rs 600/);
+const ageLookup = dbRequests.find((r) => r.url.pathname === "/rest/v1/patient_records");
+assert.equal(ageLookup.headers.Authorization, "Bearer patient-token");
+assert.equal(ageLookup.url.searchParams.get("or"), "(owner_id.eq.patient-1,id.eq.patient-1)");
+
+// A stated age that differs from the record becomes a card to confirm; the fee is not changed by the chat.
+reset();
+aiReplies = [call("prepare_age_update", { age: 65 }), text("Tap Confirm on the card to save your age.")];
+result = await (await send({ message: "my age is 65 btw" })).json();
+assert.deepEqual(result.cards, [{ type: "age_update", age: 65, feeRupees: 600 }]);
+assert.match(lastToolResult(aiRequests[1]).note, /stays Rs 800.*Rs 600/);
+assert.ok(dbRequests.every((r) => r.method === "GET"), "the assistant never writes the age itself");
 
 // Prescriptions are read with the patient's own token (row-level security applies) and only their records.
 reset();

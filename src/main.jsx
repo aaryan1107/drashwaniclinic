@@ -632,7 +632,8 @@ function App() {
   const feePatient = currentUser?.id
     ? patientRecords.find((patient) => patient.id === currentUser.id) || patientRecords.find((patient) => patient.ownerId === currentUser.id)
     : null;
-  const feeAge = currentUser?.profileAge ?? feePatient?.age;
+  // Same order as the payment server: the patient record's age wins.
+  const feeAge = currentUser?.recordAge ?? feePatient?.age ?? currentUser?.profileAge;
   const consultationFee = useMemo(() => ({ amount: consultationFeeRupees(feeAge) }), [feeAge]);
   const [consultPayment, setConsultPayment] = useState(makeDefaultConsultPayment);
   const [patientReadings, setPatientReadings] = useState(emptyPatientReadings);
@@ -1121,14 +1122,16 @@ function App() {
       (!medicalProfile.consentedAt || Boolean(medicalProfile.intakeCompletedAt));
     let hasIntakeRecord = false;
     let hasWhatsapp = false;
+    let recordAge = null;
     if (hasConfirmedProfile) {
-      const { data, error } = await supabase.from("patient_records").select("id, whatsapp")
+      const { data, error } = await supabase.from("patient_records").select("id, whatsapp, age")
         .setHeader("Authorization", `Bearer ${session.access_token}`)
         .eq("id", dbProfile.id).eq("owner_id", dbProfile.id).maybeSingle();
       if (revision !== authRevision.current) return;
       if (error) throw error;
       hasIntakeRecord = data?.id === dbProfile.id;
       hasWhatsapp = Boolean(patientWhatsapp(data?.whatsapp));
+      recordAge = data?.age ?? null;
     }
 
     setCurrentUser({
@@ -1136,6 +1139,7 @@ function App() {
       role: "patient",
       tutorialSeen: user.user_metadata?.clinic_tutorial_seen === true,
       profileAge: medicalProfile?.age,
+      recordAge,
       name: dbProfile.full_name || "Clinic User",
       email: dbProfile.email,
       phone: dbProfile.phone,
@@ -1457,6 +1461,21 @@ function App() {
 
   // Book tab: take the visit fee with Razorpay Checkout, then save the booking with the payment ID.
   // Resolves to { state: "booked" | "pending" | "cancelled" | "error", message, paymentId }.
+  // Confirmed from the clinic assistant's age card. Writes the patient's own record (row-level security
+  // applies); the payment functions read the same column, so the fee follows it.
+  const updatePatientAge = async (age) => {
+    if (!currentUser?.id || !(Number.isInteger(age) && age >= 1 && age <= 120)) throw new Error("Invalid age");
+    const { data, error } = await supabase.from("patient_records").update({ age })
+      .eq("id", currentUser.id).eq("owner_id", currentUser.id).select("age").maybeSingle();
+    if (error || data?.age !== age) throw new Error("Age could not be saved");
+    const { data: profile } = await supabase.from("clinic_profiles").select("medical_profile").eq("id", currentUser.id).maybeSingle();
+    if (profile?.medical_profile) {
+      await supabase.from("clinic_profiles").update({ medical_profile: { ...profile.medical_profile, age: String(age) } }).eq("id", currentUser.id);
+    }
+    setCurrentUser((user) => (user?.id === currentUser.id ? { ...user, recordAge: age, profileAge: String(age) } : user));
+    setPatientRecords((records) => records.map((record) => (record.id === currentUser.id ? { ...record, age } : record)));
+  };
+
   const payAndBookVisit = async (visit) => {
     if (!currentUser?.id) return { state: "error", message: "Please sign in before booking a visit." };
     if (!bookingReason(visit.reason)) return { state: "error", message: "Enter a reason for your visit before paying." };
@@ -1635,7 +1654,7 @@ function App() {
     }
     const openSavedIntake = () => {
       if (handledAuthUser.current !== patientId) return;
-      setCurrentUser({ ...currentUser, name: saved.full_name, phone: saved.phone, profileAge });
+      setCurrentUser({ ...currentUser, name: saved.full_name, phone: saved.phone, profileAge, recordAge: Number(medicalProfile.age) || null });
       setIntakeDraft(null);
       setActiveTab("home");
       setScreen("patient");
@@ -1742,6 +1761,7 @@ function App() {
             onSubmitReadings={syncPatientReadingsToDoctor}
             patientRecords={patientRecords}
             consultationFee={consultationFee}
+            onUpdateAge={updatePatientAge}
             consultPayment={consultPayment}
             onPayConsult={startConsultationPayment}
           />
@@ -2096,6 +2116,7 @@ function PatientApp({
   onSubmitReadings,
   patientRecords,
   consultationFee,
+  onUpdateAge,
   consultPayment,
   onPayConsult
 }) {
@@ -2205,6 +2226,7 @@ function PatientApp({
           setAppointment={setAppointment}
           setPatientReadings={setPatientReadings}
           feeRupees={consultationFee.amount}
+          onUpdateAge={onUpdateAge}
         />}
       </div>
 
@@ -2466,7 +2488,26 @@ function UrgentCareBanner({ onDismiss }) {
 const CHAT_INTRO = "I’m the clinic assistant. I can show what your doctor prescribed, book a clinic visit, or fill in your readings for the doctor.";
 const READING_LABELS = { fasting: "Fasting sugar", postMeal: "Post-meal sugar", bp: "BP", weight: "Weight", hba1c: "HbA1c", symptoms: "Symptoms", note: "Note" };
 
-function PatientChat({ hidden, availability, activeClinic, userId, setActiveTab, setAppointment, setPatientReadings, feeRupees }) {
+// The patient confirms an age they told the assistant. Nothing is saved until they tap Confirm.
+function AgeUpdateCard({ card, onConfirm }) {
+  const [state, setState] = useState("idle");
+  const confirm = async () => {
+    setState("saving");
+    try { await onConfirm(card.age); setState("saved"); } catch { setState("error"); }
+  };
+  return (
+    <div className="chat-action-card chat-draft-card">
+      <strong>{state === "saved" ? "Age updated" : "Update your age · not saved yet"}</strong>
+      <p>Age {card.age} · visit and consultation fee ₹{card.feeRupees}</p>
+      {state === "error" && <p role="alert">Couldn’t save your age. Try again.</p>}
+      {state !== "saved" && (
+        <button type="button" disabled={state === "saving"} onClick={confirm}>{state === "saving" ? "Saving…" : "Confirm age"}</button>
+      )}
+    </div>
+  );
+}
+
+function PatientChat({ hidden, availability, activeClinic, userId, setActiveTab, setAppointment, setPatientReadings, feeRupees, onUpdateAge }) {
   const threadRef = useRef(null);
   const context = useRef(null);
   const [messages, setMessages] = useState([{ role: "bot", text: CHAT_INTRO }]);
@@ -2600,6 +2641,7 @@ function PatientChat({ hidden, availability, activeClinic, userId, setActiveTab,
         }}>Review and pay in Book</button>
       </div>
     );
+    if (card.type === "age_update") return <AgeUpdateCard key={key} card={card} onConfirm={onUpdateAge} />;
     if (card.type === "readings_draft") return (
       <div className="chat-action-card chat-draft-card" key={key}>
         <strong>Readings · not submitted yet</strong>

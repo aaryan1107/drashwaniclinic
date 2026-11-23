@@ -10,7 +10,7 @@ import {
   CHAT_TOOLS,
   BOOKING_REASONS,
   CLINICS,
-  bookingDays,
+  bookingDayLabels,
   buildSystemInstruction,
   clinicById,
   historyToMessages,
@@ -18,10 +18,11 @@ import {
   messageIsEmergency,
   messageNeedsDoctor,
   slotsFor,
+  validateAgeUpdate,
   validateBookingDraft,
   validateReadingsDraft
 } from "../_shared/clinicAssistantRules.js";
-import { feeSummary } from "../_shared/consultationFee.js";
+import { consultationFeeRupees, feeSummary } from "../_shared/consultationFee.js";
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 // Best tool use first. Each model has its own free-tier quota, so the others take over when it is busy.
@@ -75,16 +76,16 @@ Deno.serve(async (request) => {
     headers: { apikey: anonKey, Authorization: `Bearer ${token}`, Accept: "application/json" }
   });
 
-  const availability = await loadAvailability(db);
+  const [availability, patientAge] = await Promise.all([loadAvailability(db), loadPatientAge(db, user.id)]);
   const clinic = clinicById(availability.clinic_id);
   const onDuty = availability.status === "On Duty";
   const cards: Card[] = [];
   const state = { urgent: false };
-  const tools = makeTools({ db, userId: user.id, clinic, onDuty, cards, state });
+  const tools = makeTools({ db, userId: user.id, clinic, onDuty, cards, state, patientAge });
 
   const models = (env("GROQ_MODEL") ? [env("GROQ_MODEL")] : []).concat(DEFAULT_MODELS)
     .filter((model, index, list) => list.indexOf(model) === index);
-  const systemInstruction = buildSystemInstruction({ today: istDateValue(), clinic, onDuty });
+  const systemInstruction = buildSystemInstruction({ today: istDateValue(), clinic, onDuty, patientAge, dayLabels: bookingDayLabels() });
   const messages: Json[] = historyToMessages(body?.history, message, systemInstruction);
   let retriedEmpty = false;
 
@@ -136,6 +137,19 @@ async function loadAvailability(db: (path: string) => Promise<Response>) {
     return (rows[0] || { status: "Off Duty", clinic_id: "clinic-2", online: false, message: "" }) as Json;
   } catch {
     return { status: "Off Duty", clinic_id: "clinic-2", online: false, message: "" } as Json;
+  }
+}
+
+// Same source as the payment functions: the age on the patient's own record (read with their token).
+async function loadPatientAge(db: (path: string) => Promise<Response>, userId: string) {
+  try {
+    const id = encodeURIComponent(userId);
+    const response = await db(`patient_records?select=age&or=(owner_id.eq.${id},id.eq.${id})&order=updated_at.desc&limit=1`);
+    const rows = response.ok ? await response.json() : [];
+    const age = Number(rows[0]?.age);
+    return Number.isInteger(age) && age > 0 ? age : null;
+  } catch {
+    return null;
   }
 }
 
@@ -206,7 +220,8 @@ function dedupeCards(cards: Card[]) {
   return kept.slice(0, 3).reverse();
 }
 
-function makeTools({ db, userId, clinic, onDuty, cards, state }: { db: (path: string) => Promise<Response>; userId: string; clinic: { id: string; name: string; area: string; timing: string }; onDuty: boolean; cards: Card[]; state: { urgent: boolean } }) {
+function makeTools({ db, userId, clinic, onDuty, cards, state, patientAge }: { db: (path: string) => Promise<Response>; userId: string; clinic: { id: string; name: string; area: string; timing: string }; onDuty: boolean; cards: Card[]; state: { urgent: boolean }; patientAge: number | null }) {
+  const feeRupees = consultationFeeRupees(patientAge);
   const uid = encodeURIComponent(userId);
   const rows = async (path: string) => {
     const response = await db(path);
@@ -246,16 +261,18 @@ function makeTools({ db, userId, clinic, onDuty, cards, state }: { db: (path: st
         doctor_on_duty: onDuty,
         visits_booked_at: clinic.name,
         fees: `${feeSummary()}, for a clinic visit booked in the app and for an online consultation, by the age on the patient's record`,
-        bookable_dates: bookingDays(),
+        age_on_record: patientAge,
+        this_patient_fee_rupees: feeRupees,
+        bookable_dates: bookingDayLabels(),
         visit_reasons: BOOKING_REASONS
       };
     },
     async get_available_slots(args: Json) {
       const date = String(args.date || "");
-      return { clinic: clinic.name, date, slots: slotsFor(clinic, date), bookable_dates: bookingDays() };
+      return { clinic: clinic.name, date, slots: slotsFor(clinic, date), bookable_dates: bookingDayLabels() };
     },
     async prepare_visit_booking(args: Json) {
-      const result = validateBookingDraft(args, clinic);
+      const result = validateBookingDraft(args, clinic, new Date(), feeRupees);
       if (!result.ok) return { prepared: false, error: result.error };
       cards.push(result.draft as Card);
       return { prepared: true, note: "The booking card is ready. The patient must open it, check it and pay to book. Nothing is booked yet.", ...result.draft };
@@ -268,6 +285,12 @@ function makeTools({ db, userId, clinic, onDuty, cards, state }: { db: (path: st
       return { prepared: true, critical: result.critical, note: result.critical
         ? "These values are in the urgent range. Tell the patient to call 112 or go to the nearest emergency department now, then submit the readings."
         : "The readings card is ready. The patient must open it and submit it. Nothing is saved yet." };
+    },
+    async prepare_age_update(args: Json) {
+      const result = validateAgeUpdate(args, patientAge);
+      if (!result.ok) return { prepared: false, error: result.error };
+      cards.push(result.draft as Card);
+      return { prepared: true, note: `The patient must tap Confirm on the card to save age ${result.draft.age}. Until then the fee stays Rs ${feeRupees}; after they confirm it is Rs ${result.draft.feeRupees}.` };
     },
     async open_app_screen(args: Json) {
       const screen = String(args.screen || "");
