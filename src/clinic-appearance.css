@@ -28,8 +28,10 @@
   --welcome-card: var(--clinic-panel-fill);
   --welcome-card-line: var(--line);
   --welcome-portrait-height: clamp(146px, 24dvh, 204px);
-  gap: clamp(12px, 2dvh, 18px);
-  padding: 10px max(20px, env(safe-area-inset-left), env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom));
+  --welcome-gutter: max(clamp(12px, 4.7vw, 20px), env(safe-area-inset-left), env(safe-area-inset-right));
+  --welcome-gap: clamp(8px, 1.5dvh, 14px);
+  gap: var(--welcome-gap);
+  padding: 10px var(--welcome-gutter) 0;
   color: var(--ink);
   background: transparent;
 }
@@ -372,33 +374,6 @@
   .welcome-feature-arrow { display: none; }
 }
 
-@media (orientation: landscape) and (max-height: 500px) and (min-width: 640px) {
-  .phone-shell:has(.clinic-welcome) { width: min(100%, 800px); }
-
-  .clinic-welcome.intro-screen {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    grid-template-areas: "bar bar" "doctor care" "doctor features" "actions actions";
-    align-content: start;
-    gap: 6px 16px;
-    padding-top: 5px;
-    padding-bottom: max(4px, env(safe-area-inset-bottom));
-    --welcome-portrait-height: 178px;
-  }
-
-  .welcome-bar { grid-area: bar; }
-  .welcome-doctor { grid-area: doctor; }
-  .welcome-actions { grid-area: actions; }
-  .welcome-care { grid-area: care; }
-  .welcome-features { grid-area: features; }
-  .welcome-care li { min-height: 42px; gap: 2px; padding: 3px; font-size: .75rem; }
-  .welcome-care-icon { width: 21px; height: 21px; }
-  .welcome-care-icon svg { width: 15px; height: 15px; }
-  .welcome-features ul { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; }
-  .welcome-feature-trigger { grid-template-columns: 1fr; justify-items: center; gap: 2px; padding: 4px 2px; text-align: center; font-size: .72rem; }
-  .welcome-feature-arrow { display: none; }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .welcome-doctor { animation: none; }
   .profile-menu .appearance-motion { display: none; }
@@ -414,21 +389,9 @@
   border-color: var(--line);
 }
 
-@media (max-width: 440px) and (orientation: portrait) {
-  .phone-shell:has(.clinic-welcome) {
-    padding-top: 0;
-  }
-
-  /* Same top inset as every other screen (shell 28px + screen 18px), so the top bar does not jump. */
-  .clinic-welcome.intro-screen {
-    padding-top: calc(18px + max(28px, env(safe-area-inset-top)));
-  }
-}
-
-@media (max-width: 440px) and (orientation: portrait) and (max-height: 610px) {
-  .clinic-welcome.intro-screen {
-    padding-top: calc(6px + max(12px, env(safe-area-inset-top)));
-  }
+@media (max-width: 440px), (max-height: 500px) and (orientation: landscape) {
+  .phone-shell:has(.clinic-welcome) { padding-top: 0; }
+  .clinic-welcome.intro-screen { padding-top: max(10px, env(safe-area-inset-top)); }
 }
 
 .patient-shortcuts h3 {
@@ -481,8 +444,7 @@
 }
 
 .welcome-bar {
-  position: sticky;
-  top: env(safe-area-inset-top, 0px);
+  position: relative;
   z-index: 8;
 }
 
