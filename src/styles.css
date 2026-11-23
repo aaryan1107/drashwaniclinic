@@ -5025,3 +5025,41 @@ textarea:focus-visible,
   margin-top: 4px;
   padding: 0;
 }
+
+/* Clinic assistant: drafts the patient reviews in Book or Updates, the AI notice and the report link. */
+.chat-draft-card p {
+  margin: 0;
+  white-space: pre-line;
+  color: var(--ink);
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+.chat-draft-card small {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.chat-draft-card button,
+.chat-action-card > button {
+  min-height: 44px;
+}
+
+.chat-disclosure {
+  margin: 0 0 10px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: var(--soft-blue);
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.chat-report {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 6px 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  text-decoration: underline;
+}

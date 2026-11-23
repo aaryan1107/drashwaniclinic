@@ -30,6 +30,7 @@ Play account holder: Tanu Kansal (to match the Razorpay merchant account). Listi
 | Financial info | User payment info | No | | | Card, UPI and bank details are entered on Razorpay's checkout and the app never accesses them (payment-processor exemption in the help page) |
 | Financial info | Purchase history (order id, amount, status) | Yes | No | Required to take the fee | App functionality; Fraud prevention, security, and compliance. **Confirm** this is the right type |
 | App activity | Other actions (sign-in record) | Yes | No | Required | Fraud prevention, security, and compliance. **Confirm** |
+| Messages | Other in-app messages (clinic assistant chat) | Yes, processed but not stored by the app | **Confirm** (sent to Groq as a service provider) | Optional | App functionality |
 | Photos and videos | Photos | No | | | Only a link to the Google profile photo is stored. **Confirm** that a stored photo link does not count |
 | Device or other IDs | Device or other IDs | No | | | No advertising id or device id is collected |
 | Location, Contacts, Messages, Audio, Files and docs, Calendar, Web browsing | all | No | | | Not collected |
@@ -40,6 +41,7 @@ Declare no data shared. The help page says transfers to a service provider that 
 - Supabase (database, sign-in, server functions), which stores everything above.
 - Razorpay (payment processor), which receives the patient's name, email and contact number to create the order and takes the payment details directly.
 - Google, only for sign-in when the user chooses it.
+- Groq (AI model hosting, United States), only when the user sends a clinic assistant message. It processes the message and the records looked up for the reply on the clinic's behalf. Groq does not train on API content, and Zero Data Retention must be on in Groq's Data Controls before go-live.
 
 **Confirm** this reading with the current form. If there is any doubt, the cautious choice is to declare sharing with Razorpay (Purpose: App functionality), and the policy already names every recipient.
 
@@ -62,6 +64,7 @@ State these facts and pick the option labels in Play Console that match them. Th
 - **Financial features:** the app collects two fees: an online consultation fee (Rs 800, or Rs 600 for patients aged 60 and over) and a clinic visit booking fee (Rs 700). It offers no loans, wallets, trading or crypto.
 - **Payments:** online consultations and clinic visit bookings are paid through Razorpay, outside Google Play Billing. **Confirm** against the current Play Payments policy that this is allowed for a real-world medical service.
 - **App access instructions:** the app needs a login. Create dedicated review accounts (a patient with no real data) and enter their instructions in Play Console and in Razorpay's website review. Never reuse the old test doctor account or any real patient's login.
+- **AI-generated content:** the clinic assistant generates text replies with an open-weight model (gpt-oss) hosted by Groq. Play's AI-Generated Content policy requires a way to report or flag offensive output in the app: every assistant reply has **Report this reply**, which opens an email to the privacy contact with the reply text. It must never produce medical advice; the prompt, the fixed replies and `supabase/functions/clinic-assistant.test.mjs` enforce that. **Confirm** the current wording of the policy before submitting.
 - **News, government, COVID, gambling, user-generated content:** not applicable.
 
 ## Keep this in step with the app

@@ -3,16 +3,8 @@
 import { VISIT_FEE_RUPEES, VISIT_PAYMENT_PURPOSE } from "../supabase/functions/_shared/consultationFee.js";
 export { VISIT_FEE_RUPEES, VISIT_PAYMENT_PURPOSE };
 
-export const BOOKING_REASONS = [
-  "Diabetes follow-up",
-  "Thyroid",
-  "Blood pressure",
-  "Weight management",
-  "Fatty liver",
-  "Report review",
-  "Prescription renewal",
-  "Medicine side effects"
-];
+// One list for the Book screen and the clinic assistant.
+export { BOOKING_REASONS } from "../supabase/functions/_shared/clinicAssistantRules.js";
 
 
 const minutesOf = (slot) => {

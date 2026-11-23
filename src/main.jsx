@@ -69,8 +69,9 @@ import "./clinic-theme.css";
 import "./clinic-brand.css";
 import { useClinicNavigation } from "./useClinicNavigation";
 import BookVisit from "./BookVisit.jsx";
-import { CLINIC_ASSISTANT_SCOPE, clinicAssistantIntent, formatAssistantPayment, formatAssistantPrescription } from "./clinicAssistant.js";
-import { VISIT_FEE_RUPEES, VISIT_PAYMENT_PURPOSE, bookingRow } from "./booking.js";
+import { CLINIC_ASSISTANT_SCOPE, clinicAssistantIntent, formatAssistantPayment, formatAssistantPrescription, askClinicAssistant, assistantHistory } from "./clinicAssistant.js";
+import { AI_DISCLOSURE } from "../supabase/functions/_shared/clinicAssistantRules.js";
+import { VISIT_FEE_RUPEES, VISIT_PAYMENT_PURPOSE, bookingRow, longDate } from "./booking.js";
 import {
   GENERAL_FEE_RUPEES, SENIOR_FEE_RUPEES, SENIOR_MIN_AGE, consultationFeeRupees, feeSummary
 } from "../supabase/functions/_shared/consultationFee.js";
@@ -2289,6 +2290,8 @@ function PatientApp({
           activeClinic={activeClinic}
           userId={userId}
           setActiveTab={setActiveTab}
+          setAppointment={setAppointment}
+          setPatientReadings={setPatientReadings}
         />}
       </div>
 
@@ -2603,10 +2606,13 @@ function PatientStoriesCarousel() {
   );
 }
 
-function PatientChat({ hidden, availability, activeClinic, userId, setActiveTab }) {
+const CHAT_INTRO = "I’m the clinic assistant. I can show what your doctor prescribed, book a clinic visit, or fill in your readings for the doctor.";
+const READING_LABELS = { fasting: "Fasting sugar", postMeal: "Post-meal sugar", bp: "BP", weight: "Weight", hba1c: "HbA1c", symptoms: "Symptoms", note: "Note" };
+
+function PatientChat({ hidden, availability, activeClinic, userId, setActiveTab, setAppointment, setPatientReadings }) {
   const threadRef = useRef(null);
   const context = useRef(null);
-  const [messages, setMessages] = useState([{ role: "bot", text: CLINIC_ASSISTANT_SCOPE }]);
+  const [messages, setMessages] = useState([{ role: "bot", text: CHAT_INTRO }]);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -2627,6 +2633,18 @@ function PatientChat({ hidden, availability, activeClinic, userId, setActiveTab 
     if (hasAnyKeyword(lower, EMERGENCY_KEYWORDS) || hasAnyKeyword(lower, HIGH_RISK_KEYWORDS) || hasCriticalReadings({ text })) {
       addReply("If you may be having a medical emergency, call 112 or seek urgent medical care now. Please do not wait for a chat reply.");
       return;
+    }
+
+    // The AI assistant answers first. If it is switched off or unavailable, the app's own rules answer below.
+    if (userId) {
+      setBusy(true);
+      const ai = await askClinicAssistant(supabase, text, assistantHistory(messages));
+      setBusy(false);
+      if (ai) {
+        context.current = null;
+        setMessages((items) => [...items, { role: "bot", text: ai.reply, cards: ai.cards, ai: ai.source === "ai" }]);
+        return;
+      }
     }
 
     const intent = clinicAssistantIntent(text, context.current?.topic);
@@ -2698,16 +2716,60 @@ function PatientChat({ hidden, availability, activeClinic, userId, setActiveTab 
     }
   }
 
-  const tabLabels = { book: "Open Book", care: "Open Prescriptions", updates: "Open Updates" };
+  const tabLabels = { book: "Open Book", care: "Open Prescriptions", updates: "Open Updates", library: "Open Library", home: "Go to Home" };
+  const openPrescription = (recordId) => {
+    setActiveTab("care");
+    if (recordId) requestAnimationFrame(() => {
+      const record = document.getElementById(`patient-rx-${recordId}`);
+      record?.scrollIntoView({ block: "nearest" });
+      record?.focus({ preventScroll: true });
+    });
+  };
+  const renderCard = (card, key) => {
+    if (card.type === "prescription") return (
+      <div className="chat-action-card chat-draft-card" key={key}>
+        <p className="clinic-chat-message">{formatAssistantPrescription(card.rx)}</p>
+        <small>Exactly as the doctor wrote it.</small>
+        <button type="button" onClick={() => openPrescription(card.rx.id)}>Open this prescription</button>
+      </div>
+    );
+    if (card.type === "booking_draft") return (
+      <div className="chat-action-card chat-draft-card" key={key}>
+        <strong>Clinic visit · not booked yet</strong>
+        <p>{card.clinicName}<br />{longDate(card.date)} at {card.time}<br />{card.reason} · ₹{card.feeRupees}</p>
+        <button type="button" onClick={() => {
+          setAppointment((current) => ({ ...current, mode: "Clinic visit", date: card.date, time: card.time, reason: card.reason }));
+          setActiveTab("book");
+        }}>Review and pay in Book</button>
+      </div>
+    );
+    if (card.type === "readings_draft") return (
+      <div className="chat-action-card chat-draft-card" key={key}>
+        <strong>Readings · not submitted yet</strong>
+        <p>{Object.entries(card.values).map(([field, value]) => `${READING_LABELS[field] || field}: ${value}`).join("\n")}</p>
+        <button type="button" onClick={() => {
+          setPatientReadings((current) => ({ ...current, ...card.values }));
+          setActiveTab("updates");
+        }}>Review and submit in Updates</button>
+      </div>
+    );
+    if (card.type === "open" && tabLabels[card.screen]) return (
+      <div className="chat-action-card" key={key}>
+        <button type="button" onClick={() => setActiveTab(card.screen)}>{tabLabels[card.screen]}</button>
+      </div>
+    );
+    return null;
+  };
   return (
     <div className="chat-panel smart-chat" hidden={hidden}>
       <div className="chat-context-card">
         <span><Bot size={19} /></span>
-        <div><strong>Clinic chatbot</strong><small>Prescriptions, payments and booking</small></div>
+        <div><strong>Clinic assistant</strong><small>Prescriptions, booking and readings</small></div>
         <button type="button" onClick={() => setActiveTab("book")}><CalendarCheck size={16} /> Book</button>
       </div>
+      <p className="chat-disclosure">{AI_DISCLOSURE}</p>
       <div className="chat-quick-prompts">
-        {["Show my prescription", "Check payment status", "Book a visit", "Doctor availability"].map((prompt) => (
+        {["Show my prescription", "Book a visit", "Log my sugar reading", "Check payment status"].map((prompt) => (
           <button key={prompt} type="button" disabled={busy} onClick={() => void sendMessage(prompt)}>{prompt}</button>
         ))}
       </div>
@@ -2716,24 +2778,21 @@ function PatientChat({ hidden, availability, activeClinic, userId, setActiveTab 
           <div className={`message-row ${message.role}`} key={index}>
             <div className="message-avatar">{message.role === "bot" ? "A" : "Y"}</div>
             <div className={`bubble ${message.role}`}>
-              <span>{message.role === "bot" ? "Clinic chatbot" : "You"}</span>
+              <span>{message.role === "bot" ? "Clinic assistant" : "You"}</span>
               <p className="clinic-chat-message">{message.text}</p>
+              {message.cards?.map(renderCard)}
+              {message.ai && <a className="chat-report" href={`mailto:aaryankansal06@gmail.com?subject=${encodeURIComponent("Clinic assistant reply report")}&body=${encodeURIComponent(`This reply looked wrong or harmful:\n\n${message.text}`)}`}>Report this reply</a>}
               {message.tab && <div className="chat-action-card">
-                <button type="button" onClick={() => {
-                  setActiveTab(message.tab);
-                  if (message.recordId) requestAnimationFrame(() => {
-                    const record = document.getElementById(`patient-rx-${message.recordId}`);
-                    record?.scrollIntoView({ block: "nearest" });
-                    record?.focus({ preventScroll: true });
-                  });
-                }}>{message.recordId ? "Open this prescription" : tabLabels[message.tab]}</button>
+                <button type="button" onClick={() => message.recordId ? openPrescription(message.recordId) : setActiveTab(message.tab)}>
+                  {message.recordId ? "Open this prescription" : tabLabels[message.tab]}
+                </button>
               </div>}
             </div>
           </div>
         ))}
       </div>
       <form className="chat-input" onSubmit={(event) => { event.preventDefault(); void sendMessage(draft); }}>
-        <input aria-label="Message clinic chatbot" placeholder={busy ? "Checking your record…" : "Message clinic chatbot"}
+        <input aria-label="Message clinic assistant" maxLength={1000} placeholder={busy ? "Thinking…" : "Message clinic assistant"}
           value={draft} onChange={(event) => setDraft(event.target.value)} disabled={busy} />
         <button type="submit" aria-label="Send message" disabled={busy || !draft.trim()}><Send size={18} /></button>
       </form>

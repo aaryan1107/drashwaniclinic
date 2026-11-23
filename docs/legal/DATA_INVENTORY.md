@@ -64,11 +64,13 @@ Private visit notes (`visits.notes_private`) are never returned to patients and 
 | WhatsApp | `wa.me` | Only when a link is tapped | The message text the user or doctor chooses | `src/main.jsx` |
 | Google Maps | `maps.app.goo.gl` | Directions link for a clinic | Nothing from the app | `clinics` in `src/main.jsx` |
 | ABHA | `healthid.ndhm.gov.in` | A link to look up an ABHA number | Nothing from the app | `src/main.jsx` |
+| Groq (AI model hosting, US) | `api.groq.com` | Runs the model that writes the clinic assistant's replies, only when the patient sends a chat message | The message, up to 6 earlier plain-text turns of the same chat, and the records the assistant looks up for that reply (the patient's prescriptions, care plan, bookings, latest payment, clinic availability). Groq's Services Agreement bars training on inputs and outputs. By default Groq keeps request logs up to 30 days for abuse and reliability, so the function refuses to run unless the `GROQ_ZERO_RETENTION` secret is `confirmed` (Zero Data Retention turned on in Groq's Data Controls). | `supabase/functions/clinic-assistant/index.ts` |
 
 ## 4. Not used (and guarded by the test)
 
 - Analytics, advertising, attribution and crash-reporting libraries: none in `package.json`.
-- AI services: the app does not call one. `supabase/functions/clinic-ai-assistant` exists in the repository and calls OpenAI, but it is not deployed and is not called from `src`. It is listed in `DISABLED_FUNCTIONS` in `src/legal.test.mjs`. Enabling it requires updating the policy, the Play forms and this file first.
+- AI services: only the clinic assistant, which calls Groq's chat completions API from the `clinic-assistant` Edge Function (see Recipients). It reads records with the patient's own token, so row-level security limits it to that patient's rows, and it never writes to the database: bookings and readings come back as drafts that the patient confirms in the app. The old OpenAI function (`clinic-ai-assistant`) was removed on 23 November 2026. `src/legal.test.mjs` fails if any other AI service is added, or if the assistant loses the zero-retention check or the patient-token reads. The assistant first used Google's Gemini API; it moved to Groq on 23 November 2026, before going live, because Gemini's free tier trains on content.
+- Assistant chats are not saved by the app. They live in the chat screen's memory until the patient leaves.
 - Location, contacts, microphone, camera, files, SMS: not requested. The merged Android manifest (checked 22 November 2026) declares only `INTERNET`, `POST_NOTIFICATIONS`, `RECEIVE_BOOT_COMPLETED` and `WAKE_LOCK`. The last three come from the local-notifications plugin so care reminders can be shown and restored after a phone restart. `SCHEDULE_EXACT_ALARM` is removed in `android/app/src/main/AndroidManifest.xml`.
 - Selling or sharing data for advertising: none.
 

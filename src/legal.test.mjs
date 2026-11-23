@@ -15,7 +15,7 @@ const OPERATOR = "Tanu Kansal, trading as Dr Ashwanis Family Clinic Diagnostic C
 const CONTACT_NAME = "Aaryan Kansal";
 const CONTACT_EMAIL = "aaryankansal06@gmail.com";
 const ADDRESS = "1st Floor, Shop Number 1011, Ace City Square Market, Ace City Road, Jalalpur, Greater Noida, Uttar Pradesh 203207, India";
-const EFFECTIVE = "Effective 22 November 2026 (version 1.0)";
+const EFFECTIVE = "Effective 23 November 2026 (version 1.1)";
 
 const PAGES = {
   "privacy.html": [
@@ -43,10 +43,11 @@ const HOST_NAMES = [
   [/^wa\.me$/, "WhatsApp"],
   [/(^|\.)pages\.dev$/, "Cloudflare"],
   [/^maps\.app\.goo\.gl$/, "Google Maps"],
-  [/(^|\.)ndhm\.gov\.in$/, "ABHA"]
+  [/(^|\.)ndhm\.gov\.in$/, "ABHA"],
+  [/^api\.groq\.com$/, "Groq"]
 ];
 const IGNORED_HOSTS = [/^localhost$/, /(^|\.)w3\.org$/, /(^|\.)schema\.org$/, /^127\.0\.0\.1$/];
-const DISABLED_FUNCTIONS = ["clinic-ai-assistant"]; // exists in the repo, not deployed, not called
+const DISABLED_FUNCTIONS = []; // functions in the repo that are not deployed and not called
 const TRACKER = /analytics|sentry|posthog|mixpanel|amplitude|crashlytics|firebase|gtag|segment|appsflyer|adjust|onesignal|admob|facebook/i;
 
 // A private address that was removed from the app; the words are split so this file does not repeat it.
@@ -220,10 +221,26 @@ check("code hosts are named recipients", () => {
   need(!unnamed.size, `privacy page does not name: ${[...unnamed].join(", ")}`);
 });
 
-// 8. No AI call
-check("no AI call from the app", () => {
-  const hits = walk("src", (f) => /\.(js|jsx)$/.test(f) && !/\.test\./.test(f)).filter((f) => /clinic-ai-assistant|openai/i.test(read(f)));
-  need(!hits.length, `AI reference in ${hits.join(", ")}; update the policy before enabling it`);
+// 8. The only AI is the disclosed clinic assistant, with the safeguards the policy promises
+check("AI only through the disclosed clinic assistant", () => {
+  const code = [
+    ...walk("src", (f) => /\.(js|jsx)$/.test(f) && !/\.test\./.test(f)),
+    ...walk("supabase/functions", (f) => /\.(ts|js)$/.test(f) && !/\.test\./.test(f))
+  ];
+  const other = code.filter((f) => /api\.openai\.com|anthropic\.com|api\.mistral|cohere\.ai|ollama|generativelanguage\.googleapis\.com/i.test(read(f)));
+  need(!other.length, `undisclosed AI service in ${other.join(", ")}; update the policy before enabling it`);
+  const callers = code.filter((f) => /api\.groq\.com/.test(read(f)));
+  need(callers.every((f) => f.includes("supabase/functions/clinic-assistant/")), `Groq called outside the clinic assistant function: ${callers.join(", ")}`);
+  if (!callers.length) return;
+  const fn = read("supabase/functions/clinic-assistant/index.ts");
+  need(/GROQ_ZERO_RETENTION/.test(fn), "the assistant must refuse to run until Groq zero data retention is confirmed");
+  need(!/SERVICE_ROLE_KEY/.test(fn), "the assistant must read records with the patient's own token, not the service role");
+  const privacy = pages["privacy.html"] ? visible(pages["privacy.html"]) : "";
+  for (const phrase of ["Groq", "clinic assistant", "not used to train AI", "Zero Data Retention"]) {
+    need(privacy.includes(phrase), `privacy page does not say "${phrase}"`);
+  }
+  const terms = pages["terms.html"] ? visible(pages["terms.html"]) : "";
+  need(/clinic assistant/i.test(terms) && terms.includes("does not diagnose"), "terms must describe the clinic assistant and its limits");
 });
 
 // 9. No trackers

@@ -12,14 +12,14 @@
 <main id="main">
   <p class="brand">Dr. Ashwani Family Clinic</p>
   <h1>Privacy policy</h1>
-  <p class="meta">Effective 22 November 2026 (version 1.0)</p>
+  <p class="meta">Effective 23 November 2026 (version 1.1)</p>
   <div class="summary">
     <p>In short</p>
     <ul>
       <li>We collect your name and contact details, your health information, your appointments and your consultation payments.</li>
       <li>This is health information. It is stored so your doctor can look after you, and for nothing else.</li>
       <li>Only your doctor, approved front-desk staff and the app administrator can see it, and each only for the reasons below.</li>
-      <li>We do not sell it, use it for advertising, or send it to any AI service.</li>
+      <li>We do not sell it or use it for advertising. If you use the clinic assistant chat, your messages and the records it looks up are sent to Groq, an AI service in the United States, only to write the reply, and are not used to train AI.</li>
       <li>You can ask us to correct it, give you a copy, or delete your account at any time.</li>
     </ul>
   </div>
@@ -40,6 +40,7 @@
       <tr><td>Readings</td><td>The readings, reports, symptoms and notes you submit through the app.</td></tr>
       <tr><td>Appointments</td><td>Your name, phone number, the clinic, the type, date and time of the visit, the reason, the status, and whether the fee was paid.</td></tr>
       <tr><td>Payments</td><td>For online consultations and clinic visit bookings: the order and payment reference, the amount, the payment method type, the status, and your name, email and contact number. Your card, UPI or bank details are entered on Razorpay&#39;s own checkout and are never seen or stored by us. If a payment is refunded we record the refund amount and date. We also keep a log of the payment notifications Razorpay sends us: the event type, the payment and refund references, the amount and the result.</td></tr>
+      <tr><td>Assistant chats</td><td>If you use the clinic assistant: your messages, the last few messages of the same chat, and the records the assistant looks up to answer you (your prescriptions, care plan, bookings, latest payment and the clinic&#39;s availability). We do not save the chat. It stays on your screen until you leave the app.</td></tr>
       <tr><td>Doctor records</td><td>Prescriptions, care plans and follow-up dates, and the doctor&#39;s visit records: vitals, history, symptoms, diagnosis, examination findings, lab tests, notes and follow-up. Visit records also keep a log of who created, edited or sent them.</td></tr>
     </tbody>
   </table>
@@ -52,6 +53,7 @@
     <li><strong>To give you care:</strong> so your doctor can review your health, write prescriptions and care plans, and plan follow-ups.</li>
     <li><strong>To book appointments:</strong> to confirm a clinic visit or an online consultation.</li>
     <li><strong>To take and reconcile fees:</strong> to collect the online consultation fee and the clinic visit booking fee, unlock the consultation or confirm the booking after payment, and deal with refunds.</li>
+    <li><strong>To answer you in the clinic assistant:</strong> to show what your doctor prescribed, fill in a booking or your readings for you to check, and answer questions about the app. Using the assistant is optional.</li>
     <li><strong>To keep the service secure:</strong> to prevent misuse and investigate problems, using the sign-in record and visit logs.</li>
     <li><strong>To meet legal duties:</strong> including medical record-keeping, tax and payment rules.</li>
   </ul>
@@ -62,7 +64,7 @@
     <li>We do not sell your personal data, and we do not rent it or trade it.</li>
     <li>We do not use it for advertising or marketing, and we do not send marketing messages. The only messages are care reminders and follow-ups that you turn on.</li>
     <li>We do not use it for analytics or profiling. The app contains no analytics, advertising or crash-tracking tools.</li>
-    <li>We do not use it to train AI, and we do not send it to any AI service.</li>
+    <li>We do not use it to train AI. The only AI service we use is the clinic assistant described under Who receives it. It never diagnoses, gives medical advice or changes medicines, and it cannot book or pay for anything without you confirming in the app.</li>
     <li>We do not share it with insurers, employers, banks or data brokers.</li>
     <li>We do not use it for any purpose other than the ones listed under Why we use it. If that ever needs to change, we will update this policy and ask for your consent first.</li>
   </ul>
@@ -73,6 +75,7 @@
     <li><strong>Supabase</strong> provides the database, sign-in and the server functions where your records are stored. Supabase may use its own sub-processors, which it lists on its website.</li>
     <li><strong>Google</strong> processes your sign-in only if you choose Continue with Google. Google learns that you signed in to this app.</li>
     <li><strong>Razorpay</strong> processes your consultation and clinic visit payments. We receive the payment reference, amount and status.</li>
+    <li><strong>Groq</strong> runs the AI model that writes the clinic assistant&#39;s replies, only when you send a message in the assistant. It receives your message, the last few messages of that chat and the records the assistant looks up to answer you. Under its terms Groq does not use this content to train AI models, and we have turned on Groq&#39;s Zero Data Retention setting, so it does not keep the content after the reply is written. Groq processes the content in the United States, outside India.</li>
     <li><strong>Cloudflare</strong> hosts the web version of the app and these pages. Like any website host, it sees ordinary request information such as your IP address.</li>
     <li><strong>WhatsApp</strong> is used only when you tap a WhatsApp link, or when the doctor messages you on the number you gave. WhatsApp handles those messages under its own policy.</li>
     <li><strong>Google Maps</strong> opens only when you tap a directions link for a clinic.</li>
