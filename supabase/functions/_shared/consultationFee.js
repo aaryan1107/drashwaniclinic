@@ -2,13 +2,11 @@
 // Imported by the app (Vite) and by the Supabase Edge Functions, so the price shown, the price
 // charged and the price accepted can never disagree. Plain JavaScript so Deno, Node and Vite all load it.
 
-// Online consultation: by the patient's age.
+// Both fees (online consultation and clinic visit booked in the app) follow the patient's age.
 export const GENERAL_FEE_RUPEES = 800;
 export const SENIOR_FEE_RUPEES = 600;
 export const SENIOR_MIN_AGE = 60; // age 60 and over pays the senior fee
 
-// Clinic visit booked and paid in the app: one fixed fee.
-export const VISIT_FEE_RUPEES = 700;
 // Stored on consultation_payments.clinic so a visit payment never unlocks the WhatsApp consultation.
 export const VISIT_PAYMENT_PURPOSE = "clinic_visit";
 
@@ -25,15 +23,20 @@ export const isSenior = (age) => {
 // An unknown or missing age pays the general fee.
 export const consultationFeeRupees = (age) => (isSenior(age) ? SENIOR_FEE_RUPEES : GENERAL_FEE_RUPEES);
 export const consultationFeeTier = (age) => (isSenior(age) ? "senior" : "general");
+// A clinic visit booked in the app costs the same as an online consultation.
+export const visitFeeRupees = consultationFeeRupees;
 
 // The one amount the server will accept for this kind of payment, in paise.
 export function expectedFeePaise({ purpose, age } = {}) {
-  const rupees = purpose === VISIT_PAYMENT_PURPOSE ? VISIT_FEE_RUPEES : consultationFeeRupees(age);
+  const rupees = purpose === VISIT_PAYMENT_PURPOSE ? visitFeeRupees(age) : consultationFeeRupees(age);
   return rupees * 100;
 }
 
 // Every amount a genuine order can have. The webhook and verify checks use this as a backstop.
-export const ALLOWED_FEE_PAISE = [SENIOR_FEE_RUPEES, VISIT_FEE_RUPEES, GENERAL_FEE_RUPEES].map((rupees) => rupees * 100);
+// 70000 is the old fixed Rs 700 visit fee: orders created before 23 November 2026 must still verify,
+// capture and refund. New orders are priced by expectedFeePaise, which never returns it.
+export const LEGACY_FEE_PAISE = [70000];
+export const ALLOWED_FEE_PAISE = [SENIOR_FEE_RUPEES * 100, ...LEGACY_FEE_PAISE, GENERAL_FEE_RUPEES * 100];
 export const isAllowedFeePaise = (amount) => ALLOWED_FEE_PAISE.includes(amount);
 
 export const feeSummary = () =>

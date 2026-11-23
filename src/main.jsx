@@ -4,7 +4,7 @@ import { DoctorPrescriptions, PatientPrescriptions, ReceptionPrescriptions } fro
 import { Browser } from "@capacitor/browser";
 import { Capacitor } from "@capacitor/core";
 import { Popover } from "@base-ui/react/popover";
-import React, { lazy, Suspense, useContext, useMemo, useState, useEffect, useRef } from "react";
+import React, { lazy, Suspense, useContext, useLayoutEffect, useMemo, useState, useEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
 const Visit = lazy(() => import("./Visit.jsx"));
 const AppointmentSheet = lazy(() => import("./AppointmentSheet.jsx"));
@@ -67,17 +67,21 @@ import "./styles.css";
 import "./clinic-appearance.css";
 import "./clinic-theme.css";
 import "./clinic-brand.css";
+import "./polish.css";
 import { useClinicNavigation } from "./useClinicNavigation";
 import BookVisit from "./BookVisit.jsx";
+import { dayTimeline, loadByDay, loadFromCounts, recommendSlot, reservedOnDay } from "./slotLoad.js";
 import { CLINIC_ASSISTANT_SCOPE, clinicAssistantIntent, formatAssistantPayment, formatAssistantPrescription, askClinicAssistant, assistantHistory } from "./clinicAssistant.js";
 import { AI_DISCLOSURE } from "../supabase/functions/_shared/clinicAssistantRules.js";
-import { VISIT_FEE_RUPEES, VISIT_PAYMENT_PURPOSE, bookingRow, longDate } from "./booking.js";
+import { VISIT_PAYMENT_PURPOSE, bookingRow, longDate } from "./booking.js";
 import {
   GENERAL_FEE_RUPEES, SENIOR_FEE_RUPEES, SENIOR_MIN_AGE, consultationFeeRupees, feeSummary
 } from "../supabase/functions/_shared/consultationFee.js";
 import ClinicMesh, { ClinicMotion } from "./ClinicMesh";
 import { WelcomeHero, ConditionCards } from "./WelcomeHero.jsx";
 import PatientTutorial, { shouldShowTutorial } from "./PatientTutorial.jsx";
+import PatientMedicalInfo from "./MedicalProfile.jsx";
+import { profileToRecordFields } from "./medicalProfile.js";
 
 const RAZORPAY_KEY_ID = import.meta.env.VITE_RAZORPAY_KEY_ID || "";
 const RAZORPAY_API_BASE = import.meta.env.VITE_RAZORPAY_API_BASE || "/api";
@@ -169,7 +173,7 @@ const clinics = [
   },
   {
     id: "clinic-2",
-    name: "Dr. Ashwani Family Clinic",
+    name: "Dr Ashwani Family Clinic",
     short: "Ace City Square",
     address: "1st Floor, Shop Number 1011, Ace City Square Market, Ace City Road, Jalalpur, Greater Noida, Uttar Pradesh 203207, India",
     timing: "6:00 PM - 9:30 PM",
@@ -576,15 +580,24 @@ function getClinicTheme() {
     : window.matchMedia("(prefers-color-scheme: dark)").matches ? "charcoal" : "light";
 }
 
+const emptyPatientReadings = {
+  fasting: "", postMeal: "", bp: "", weight: "", hba1c: "", reportName: "",
+  symptoms: "", note: "", updatedAt: "Not submitted yet"
+};
+
 function App() {
   const [screen, setScreen] = useState("intro");
   const [authMode, setAuthMode] = useState("signin");
   const [googleProfile, setGoogleProfile] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
+  const [intakeDraft, setIntakeDraft] = useState(null);
   const [authMessage, setAuthMessage] = useState("");
   const directAuth = useRef(false);
   const recoveringPassword = useRef(false);
   const handledAuthUser = useRef(null);
+  const recordSession = useRef(null);
+  const recordRequest = useRef(0);
+  const intakeSaving = useRef(null);
   const [theme, setTheme] = useState(getClinicTheme);
   const [meshPaused, setMeshPaused] = useState(() => localStorage.getItem("clinic-mesh-motion") === "paused");
   function toggleMeshMotion() {
@@ -606,7 +619,9 @@ function App() {
   const [patientRecords, setPatientRecords] = useState(patients);
   const [selectedPatientId, setSelectedPatientId] = useState(patients[0]?.id ?? null);
   const navigation = useClinicNavigation({
-    scope: authMode === "reset" && screen === "auth" ? "recovery" : currentUser?.id || "guest",
+    scope: screen === "patientMedicalInfo" ? `${currentUser?.id}:intake` :
+      authMode === "reset" && screen === "auth" ? "recovery" : currentUser?.id || "guest",
+    isBackBlocked: () => intakeSaving.current === currentUser?.id,
     route: {
       screen,
       ...(screen === "auth" ? { authMode } : {}),
@@ -647,17 +662,7 @@ function App() {
     return { amount: rupees, label: `Rs ${rupees}`, updatedAt: "Clinic default" };
   }, [feePatient?.age]);
   const [consultPayment, setConsultPayment] = useState(makeDefaultConsultPayment);
-  const [patientReadings, setPatientReadings] = useState({
-    fasting: "",
-    postMeal: "",
-    bp: "",
-    weight: "",
-    hba1c: "",
-    reportName: "",
-    symptoms: "",
-    note: "",
-    updatedAt: "Not submitted yet"
-  });
+  const [patientReadings, setPatientReadings] = useState(emptyPatientReadings);
   const [educationPosts, setEducationPosts] = useState(() =>
     education.map(([title, body], index) => ({
       id: `seed-${index}`,
@@ -692,8 +697,18 @@ function App() {
     }
   };
 
+  const resetRecordSession = (userId) => {
+    if (recordSession.current === userId) return;
+    recordSession.current = userId;
+    recordRequest.current += 1;
+    setPatientRecords(patients);
+    setSelectedPatientId(patients[0]?.id ?? null);
+    setPatientReadings(emptyPatientReadings);
+  };
+
   const loadPatientRecords = async (user = currentUser) => {
     if (!user?.id) return;
+    const request = ++recordRequest.current;
 
     const query = supabase
       .from("patient_records")
@@ -704,6 +719,7 @@ function App() {
       ? await query
       : await query.eq("owner_id", user.id);
 
+    if (recordSession.current !== user.id || recordRequest.current !== request) return;
     if (error) {
       if (!isMissingSupabaseTableError(error)) {
         console.warn("Patient records load failed:", error.message);
@@ -785,6 +801,7 @@ function App() {
   };
 
   const updatePatientRecord = (patientId, patch) => {
+    recordRequest.current += 1;
     const cleanPatch = Object.fromEntries(
       Object.entries(patch).filter(([, value]) => value !== undefined)
     );
@@ -1106,10 +1123,10 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (currentUser?.id) {
+    if (currentUser?.id && (screen === "patient" || screen === "doctor")) {
       loadPatientRecords(currentUser);
     }
-  }, [currentUser?.id, currentUser?.role]);
+  }, [currentUser?.id, currentUser?.role, screen]);
 
   const logAuthAction = async (user, role, action) => {
     if (!user?.id) return;
@@ -1164,13 +1181,21 @@ function App() {
 
     if (error) throw error;
     await logAuthAction(user, role, "sign_in");
-    return { ...profile, hasMedicalProfile: Object.keys(existing?.medical_profile || {}).length > 0 };
+    return { ...profile, medicalProfile: existing?.medical_profile };
   };
 
   const applySupabaseUser = async (user, extra = {}) => {
-    const dbProfile = await upsertClinicProfile(user, extra);
-    if (!dbProfile) return;
+    if (!user?.id) return;
     handledAuthUser.current = user.id;
+    if (recordSession.current && recordSession.current !== user.id) {
+      setScreen("auth");
+      setCurrentUser(null);
+      setIntakeDraft(null);
+      resetRecordSession(null);
+    }
+    const dbProfile = await upsertClinicProfile(user, extra);
+    if (!dbProfile || handledAuthUser.current !== user.id) return;
+    resetRecordSession(dbProfile.id);
 
     const uiProfile = {
       name: dbProfile.full_name || "Clinic User",
@@ -1211,6 +1236,19 @@ function App() {
       return;
     }
 
+    const medicalProfile = dbProfile.medicalProfile;
+    // Wizard drafts from the earlier split-write path need confirmation by the atomic save.
+    const hasConfirmedProfile = Object.keys(medicalProfile || {}).length > 0 &&
+      (!medicalProfile.consentedAt || Boolean(medicalProfile.intakeCompletedAt));
+    let hasIntakeRecord = false;
+    if (hasConfirmedProfile) {
+      const { data, error } = await supabase.from("patient_records").select("id")
+        .eq("id", dbProfile.id).eq("owner_id", dbProfile.id).maybeSingle();
+      if (handledAuthUser.current !== dbProfile.id) return;
+      if (error) throw error;
+      hasIntakeRecord = data?.id === dbProfile.id;
+    }
+
     setCurrentUser({
       id: dbProfile.id,
       role: "patient",
@@ -1220,7 +1258,8 @@ function App() {
       avatar: dbProfile.avatar_url,
       provider: dbProfile.provider
     });
-    setScreen(extra.skipMedicalProfile || dbProfile.hasMedicalProfile ? "patient" : "patientMedicalInfo");
+    setIntakeDraft(hasIntakeRecord ? null : dbProfile.medicalProfile);
+    setScreen(hasIntakeRecord ? "patient" : "patientMedicalInfo");
   };
 
   const showGoogleError = (message) => {
@@ -1251,7 +1290,9 @@ function App() {
       if (event === "SIGNED_OUT") {
         recoveringPassword.current = false;
         handledAuthUser.current = null;
+        resetRecordSession(null);
         setCurrentUser(null);
+        setIntakeDraft(null);
         setScreen("auth");
       }
       if (!session && (event === "INITIAL_SESSION" || event === "SIGNED_OUT")) {
@@ -1261,17 +1302,16 @@ function App() {
       if (handledAuthUser.current === session.user.id) return;
       handledAuthUser.current = session.user.id;
 
-      const needsMedicalProfile = window.localStorage.getItem("clinicAuthNeedsMedicalProfile") === "1";
       window.localStorage.removeItem("clinicAuthRole");
       window.localStorage.removeItem("clinicAuthNeedsMedicalProfile");
 
       // Supabase holds its auth lock while notifying listeners.
       window.setTimeout(async () => {
-        if (!mounted || recoveringPassword.current) return;
+        if (!mounted || recoveringPassword.current || handledAuthUser.current !== session.user.id) return;
         try {
-          await applySupabaseUser(session.user, { skipMedicalProfile: !needsMedicalProfile });
+          await applySupabaseUser(session.user);
         } catch (error) {
-          if (!mounted) return;
+          if (!mounted || handledAuthUser.current !== session.user.id) return;
           handledAuthUser.current = null;
           setScreen("auth");
           setAuthMessage(friendlyAuthError(error));
@@ -1385,8 +1425,7 @@ function App() {
       await applySupabaseUser(data.user, {
         fullName,
         phone: normalizedPhone || phone,
-        provider: "email",
-        skipMedicalProfile: mode !== "signup"
+        provider: "email"
       });
     } catch (error) {
       setAuthMessage(friendlyAuthError(error));
@@ -1429,8 +1468,7 @@ function App() {
       if (error) throw error;
       await applySupabaseUser(data.user, {
         phone: normalizedPhone,
-        provider: "phone",
-        skipMedicalProfile: false
+        provider: "phone"
       });
     } catch (error) {
       setAuthMessage(friendlyAuthError(error));
@@ -1540,7 +1578,7 @@ function App() {
     try {
       await loadRazorpayCheckout();
       order = await createConsultationOrder({
-        amountRupees: VISIT_FEE_RUPEES,
+        amountRupees: consultationFee.amount,
         patient,
         clinic: { id: activeClinic.id, name: activeClinic.name, purpose: VISIT_PAYMENT_PURPOSE, date: visit.date, time: visit.time }
       });
@@ -1692,59 +1730,43 @@ function App() {
     if (error) throw error;
   };
 
-  const enterPatient = async (medicalProfile = {}) => {
-    const nextUser = currentUser || {
-      role: "patient",
-      name: medicalProfile.fullName || googleProfile?.name || "Clinic Patient",
-      email: googleProfile?.email || "",
-      avatar: googleProfile?.avatar || "",
-      provider: googleProfile ? "Google" : "Clinic account"
-    };
+  const enterPatient = async (medicalProfile) => {
+    const patientId = currentUser?.id;
+    if (!patientId || currentUser.role !== "patient") throw new Error("Patient session is required");
 
-    setCurrentUser(nextUser);
-
-    if (nextUser.id) {
-      await supabase
-        .from("clinic_profiles")
-        .update({
-          full_name: medicalProfile.fullName || nextUser.name || "Clinic Patient",
-          phone: medicalProfile.phone || nextUser.phone || null,
-          medical_profile: medicalProfile
-        })
-        .eq("id", nextUser.id);
-
-      await persistPatientVitals({
-        id: nextUser.id,
-        name: medicalProfile.fullName || nextUser.name || "Clinic Patient",
-        age: Number(medicalProfile.age) || 0,
-        gender: medicalProfile.gender || "Patient",
-        mobile: medicalProfile.phone || nextUser.phone || "",
-        whatsapp: medicalProfile.whatsapp || medicalProfile.phone || nextUser.phone || "",
-        abha: medicalProfile.abha || "Not linked",
-        source: nextUser.provider || "Patient app",
-        conditions: medicalProfile.conditions || [],
-        latest: medicalProfile.fasting ? `Fasting ${ensureUnit(medicalProfile.fasting, "mg/dL")}` : "Medical intake completed",
-        risk: medicalProfile.conditions?.includes("Diabetes") || medicalProfile.conditions?.includes("High BP") ? "Medium" : "Low",
-        vitals: {
-          fasting: ensureUnit(medicalProfile.fasting, "mg/dL"),
-          postMeal: "",
-          bp: medicalProfile.bp || "",
-          weight: ensureUnit(medicalProfile.weight, "kg"),
-          hba1c: medicalProfile.hba1c ? `${stripUnit(medicalProfile.hba1c, "%")}%` : "",
-          thyroid: ""
-        },
-        history: medicalProfile.conditions || [],
-        labs: [],
-        symptoms: [],
-        medicines: [],
-        notes: `Preferred consult mode: ${medicalProfile.preferredMode || "Clinic visit"}`,
+    const recordFields = profileToRecordFields(medicalProfile);
+    const name = medicalProfile.fullName || currentUser.name || "Clinic Patient";
+    const phone = medicalProfile.phone || currentUser.phone || "";
+    const { data: saved, error } = await supabase.rpc("clinic_save_patient_intake", {
+      p_patient_id: patientId,
+      p_profile: medicalProfile,
+      p_record: patientToRecordRow({
+        id: patientId,
+        name,
+        age: Number(medicalProfile.age),
+        gender: medicalProfile.gender,
+        mobile: phone,
+        whatsapp: medicalProfile.whatsapp || phone,
+        abha: medicalProfile.abha,
+        source: currentUser.provider,
+        ...recordFields,
+        history: [...recordFields.history, `Patient intake: ${recordFields.notes}`],
+        notes: null,
+        latest: recordFields.vitals.fasting ? `Fasting ${recordFields.vitals.fasting}` : "Medical intake completed",
         followUp: "Not scheduled",
         lastVisit: "Medical intake"
-      }, nextUser.id);
-    }
-
-    setScreen("patient");
-    setActiveTab("home");
+      })
+    });
+    if (error || saved?.patient_id !== patientId) throw new Error("Patient intake could not be saved");
+    const openSavedIntake = () => {
+      if (handledAuthUser.current !== patientId) return;
+      setCurrentUser({ ...currentUser, name: saved.full_name, phone: saved.phone });
+      setIntakeDraft(null);
+      setActiveTab("home");
+      setScreen("patient");
+    };
+    if (saved.earlier_details_saved) return openSavedIntake;
+    openSavedIntake();
   };
 
   const signOut = async () => {
@@ -1792,10 +1814,16 @@ function App() {
         )}
         {screen === "patientMedicalInfo" && (
           <PatientMedicalInfo
+            key={currentUser?.id}
             source={googleProfile ? "google" : "signup"}
             googleProfile={googleProfile}
             onBack={() => setScreen("auth")}
+            initialProfile={intakeDraft}
             onDone={enterPatient}
+            onSavingChange={(saving) => {
+              if (saving) intakeSaving.current = currentUser?.id;
+              else if (intakeSaving.current === currentUser?.id) intakeSaving.current = null;
+            }}
           />
         )}
         {screen === "patient" && (
@@ -2061,96 +2089,6 @@ function GoogleLogo() {
   );
 }
 
-function PatientMedicalInfo({ source, googleProfile, onBack, onDone }) {
-  const conditionOptions = ["Diabetes", "Obesity", "Thyroid", "Fatty liver", "High BP", "Cholesterol", "Neuropathy", "Weight"];
-  const [profile, setProfile] = useState({
-    fullName: googleProfile?.name || "",
-    phone: "",
-    whatsapp: "",
-    age: "",
-    gender: "Male",
-    conditions: ["Diabetes"],
-    fasting: "",
-    hba1c: "",
-    bp: "",
-    weight: "",
-    preferredMode: "Clinic visit"
-  });
-  const updateProfile = (key, value) => setProfile((current) => ({ ...current, [key]: value }));
-  // Consent is an explicit choice: unticked by default, and required to create the profile.
-  const [consented, setConsented] = useState(false);
-  const toggleCondition = (condition) => {
-    setProfile((current) => ({
-      ...current,
-      conditions: current.conditions.includes(condition)
-        ? current.conditions.filter((item) => item !== condition)
-        : [...current.conditions, condition]
-    }));
-  };
-
-  return (
-    <section className="screen signup-screen">
-      <TopAction title="Medical profile" onBack={onBack} />
-      <h2>{source === "google" ? "Complete your health profile" : "Add medical details"}</h2>
-      <p className="screen-copy">These details help the clinic manage follow-ups and help Dr. Ashwani review your case.</p>
-
-      {googleProfile && (
-        <div className="integration-card google-connected">
-          <span className="google-dot">G</span>
-          <div>
-            <strong>Google connected</strong>
-            <small>{googleProfile.email} will be linked after consent.</small>
-          </div>
-        </div>
-      )}
-
-      <div className="form-card">
-        <label>Full name<input value={profile.fullName} onChange={(event) => updateProfile("fullName", event.target.value)} placeholder="Patient full name" /></label>
-        <label>Mobile number<input value={profile.phone} onChange={(event) => updateProfile("phone", event.target.value)} placeholder="+91 98765 43210" /></label>
-        <label>WhatsApp number<input value={profile.whatsapp} onChange={(event) => updateProfile("whatsapp", event.target.value)} placeholder="+91 98765 43210" /></label>
-        <div className="two-col">
-          <label>Age<input value={profile.age} onChange={(event) => updateProfile("age", event.target.value)} placeholder="52" /></label>
-          <label>Gender<select value={profile.gender} onChange={(event) => updateProfile("gender", event.target.value)}><option>Male</option><option>Female</option><option>Other</option></select></label>
-        </div>
-      </div>
-
-      <div className="chip-panel">
-        <strong>Existing conditions</strong>
-        <div className="chip-wrap">
-          {conditionOptions.map((item) => (
-            <label className="chip-check" key={item}>
-              <input type="checkbox" checked={profile.conditions.includes(item)} onChange={() => toggleCondition(item)} />
-              <span>{item}</span>
-            </label>
-          ))}
-        </div>
-      </div>
-
-      <div className="form-card compact-form">
-        <div className="two-col">
-          <label>Fasting sugar<input value={profile.fasting} onChange={(event) => updateProfile("fasting", event.target.value)} placeholder="mg/dL" /></label>
-          <label>HbA1c<input value={profile.hba1c} onChange={(event) => updateProfile("hba1c", event.target.value)} placeholder="%" /></label>
-          <label>BP<input value={profile.bp} onChange={(event) => updateProfile("bp", event.target.value)} placeholder="128/82" /></label>
-          <label>Weight<input value={profile.weight} onChange={(event) => updateProfile("weight", event.target.value)} placeholder="kg" /></label>
-        </div>
-        <label>Preferred consult mode<select value={profile.preferredMode} onChange={(event) => updateProfile("preferredMode", event.target.value)}><option>Clinic visit</option><option>WhatsApp consultation</option><option>Online consultation</option></select></label>
-      </div>
-
-      <label className="consent-line">
-        <input type="checkbox" checked={consented} onChange={(event) => setConsented(event.target.checked)} />
-        I consent to my health information being stored on servers outside India (South Korea) and used to look after my care, and to follow-up reminders.
-      </label>
-      <p className="legal-links">
-        Read the <button type="button" className="legal-link" onClick={() => void privacyPage("privacy.html")}>Privacy policy</button> and
-        the <button type="button" className="legal-link" onClick={() => void privacyPage("terms.html")}>Terms of use</button>.
-        You can withdraw consent at any time.
-      </p>
-
-      <button className="primary-button" disabled={!consented} onClick={() => onDone(profile)}><Check size={18} /> Create patient app</button>
-    </section>
-  );
-}
-
 function privacyPage(path) {
   // The pages ship inside the app build, so they open on the phone with no internet or separate deploy.
   window.location.assign(`/${path}`);
@@ -2224,6 +2162,16 @@ function PatientApp({
     : null;
   const bookingDays = useMemo(() => getAppointmentDays(), []);
   const getSlotsForClinic = React.useCallback((dateValue) => getSlotsFromClinicTiming(activeClinic, dateValue), [activeClinic]);
+  // Booked-patient counts per slot (counts only, no names). Stays null until the database function exists.
+  const [slotLoad, setSlotLoad] = useState(null);
+  useEffect(() => {
+    if (activeTab !== "book" || !userId || !bookingDays.length) return undefined;
+    let cancelled = false;
+    supabase.rpc("clinic_slot_load", {
+      p_clinic: activeClinic.id, p_from: bookingDays[0].dateValue, p_to: bookingDays[bookingDays.length - 1].dateValue
+    }).then(({ data, error }) => { if (!cancelled) setSlotLoad(error ? null : loadFromCounts(data || [])); });
+    return () => { cancelled = true; };
+  }, [activeTab, userId, activeClinic.id, bookingDays]);
   const [tutorialOpen, setTutorialOpen] = useState(false);
   useEffect(() => { setTutorialOpen(shouldShowTutorial(userId)); }, [userId]);
 
@@ -2279,6 +2227,8 @@ function PatientApp({
               todayValue={getTodayDateValue()}
               getSlots={getSlotsForClinic}
               onPayAndBook={onPayAndBook}
+              load={slotLoad}
+              feeRupees={consultationFee.amount}
             />
           )}
           {activeTab === "library" && <EducationLibrary posts={educationPosts} />}
@@ -2292,6 +2242,7 @@ function PatientApp({
           setActiveTab={setActiveTab}
           setAppointment={setAppointment}
           setPatientReadings={setPatientReadings}
+          feeRupees={consultationFee.amount}
         />}
       </div>
 
@@ -2402,7 +2353,7 @@ function LiveAvailabilityViewer({ availability, activeClinic, consultationFee, c
       <div className="clinic-detail-list">
         <span><Clock size={15} /> {activeClinic.timing}</span>
         {isOnDuty && <span><MapPin size={15} /> {activeClinic.address}</span>}
-        <span><Video size={15} /> Online consultation {availability.online ? "available" : "not available"}</span>
+        {availability.online && <span><Video size={15} /> Online consultation available</span>}
         <span><ShieldCheck size={15} /> Consultation fee {feeAmount ? `Rs ${feeAmount}` : consultationFee.label}{feeAmount === SENIOR_FEE_RUPEES ? ` (age ${SENIOR_MIN_AGE}+)` : ""}</span>
       </div>
       {canStartConsultPayment ? (
@@ -2417,12 +2368,12 @@ function LiveAvailabilityViewer({ availability, activeClinic, consultationFee, c
           )}
           <button type="button" className="legal-link" onClick={() => void privacyPage("refunds.html")}>Refund policy</button>
         </div>
-      ) : (
+      ) : availability.online ? (
         <div className="payment-status-card booking-only">
           <strong>Booking only right now</strong>
           <p>Online consultations are unavailable right now. You can still request a clinic visit.</p>
         </div>
-      )}
+      ) : null}
       <div className="split-actions">
         {isOnDuty ? (
           <a
@@ -2484,14 +2435,14 @@ function HealthUpdates({ readings, setReadings, onSubmitReadings }) {
         </div>
 
         <div className="two-col">
-          <label>Fasting sugar<input inputMode="numeric" value={draft.fasting} onChange={(event) => updateDraft("fasting", event.target.value)} placeholder="142" /></label>
-          <label>Post-meal sugar<input inputMode="numeric" value={draft.postMeal} onChange={(event) => updateDraft("postMeal", event.target.value)} placeholder="186" /></label>
+          <label>Fasting sugar<input inputMode="numeric" value={draft.fasting} onChange={(event) => updateDraft("fasting", event.target.value)} placeholder="mg/dL" /></label>
+          <label>Post-meal sugar<input inputMode="numeric" value={draft.postMeal} onChange={(event) => updateDraft("postMeal", event.target.value)} placeholder="mg/dL" /></label>
         </div>
         <div className="two-col">
-          <label>BP<input value={draft.bp} onChange={(event) => updateDraft("bp", event.target.value)} placeholder="128/82" /></label>
-          <label>Weight<input inputMode="decimal" value={draft.weight} onChange={(event) => updateDraft("weight", event.target.value)} placeholder="84.2" /></label>
+          <label>BP<input value={draft.bp} onChange={(event) => updateDraft("bp", event.target.value)} placeholder="Top / bottom" /></label>
+          <label>Weight<input inputMode="decimal" value={draft.weight} onChange={(event) => updateDraft("weight", event.target.value)} placeholder="kg" /></label>
         </div>
-        <label>HbA1c<input inputMode="decimal" value={draft.hba1c} onChange={(event) => updateDraft("hba1c", event.target.value)} placeholder="7.4" /></label>
+        <label>HbA1c<input inputMode="decimal" value={draft.hba1c} onChange={(event) => updateDraft("hba1c", event.target.value)} placeholder="%" /></label>
         <label className="file-upload-field">
           <span>Report upload</span>
           <input
@@ -2510,8 +2461,8 @@ function HealthUpdates({ readings, setReadings, onSubmitReadings }) {
             <span>{draft.reportName}</span>
           </div>
         )}
-        <label>Symptoms<input value={draft.symptoms} onChange={(event) => updateDraft("symptoms", event.target.value)} placeholder="Weakness, dizziness, burning feet..." /></label>
-        <label>Note for doctor<input value={draft.note} onChange={(event) => updateDraft("note", event.target.value)} placeholder="Medicine timing, diet change, missed dose..." /></label>
+        <label>Symptoms<input value={draft.symptoms} onChange={(event) => updateDraft("symptoms", event.target.value)} placeholder="e.g. weakness, dizziness" /></label>
+        <label>Note for doctor<input value={draft.note} onChange={(event) => updateDraft("note", event.target.value)} placeholder="e.g. missed doses" /></label>
 
         <button className="primary-button" onClick={submitReadings} disabled={saving}>
           <Check size={18} /> {saving ? "Saving..." : "Submit readings"}
@@ -2609,7 +2560,7 @@ function PatientStoriesCarousel() {
 const CHAT_INTRO = "I’m the clinic assistant. I can show what your doctor prescribed, book a clinic visit, or fill in your readings for the doctor.";
 const READING_LABELS = { fasting: "Fasting sugar", postMeal: "Post-meal sugar", bp: "BP", weight: "Weight", hba1c: "HbA1c", symptoms: "Symptoms", note: "Note" };
 
-function PatientChat({ hidden, availability, activeClinic, userId, setActiveTab, setAppointment, setPatientReadings }) {
+function PatientChat({ hidden, availability, activeClinic, userId, setActiveTab, setAppointment, setPatientReadings, feeRupees }) {
   const threadRef = useRef(null);
   const context = useRef(null);
   const [messages, setMessages] = useState([{ role: "bot", text: CHAT_INTRO }]);
@@ -2736,7 +2687,7 @@ function PatientChat({ hidden, availability, activeClinic, userId, setActiveTab,
     if (card.type === "booking_draft") return (
       <div className="chat-action-card chat-draft-card" key={key}>
         <strong>Clinic visit · not booked yet</strong>
-        <p>{card.clinicName}<br />{longDate(card.date)} at {card.time}<br />{card.reason} · ₹{card.feeRupees}</p>
+        <p>{card.clinicName}<br />{longDate(card.date)} at {card.time}<br />{card.reason} · ₹{feeRupees}</p>
         <button type="button" onClick={() => {
           setAppointment((current) => ({ ...current, mode: "Clinic visit", date: card.date, time: card.time, reason: card.reason }));
           setActiveTab("book");
@@ -2776,7 +2727,7 @@ function PatientChat({ hidden, availability, activeClinic, userId, setActiveTab,
       <div className="chat-thread" ref={threadRef} aria-live="polite">
         {messages.map((message, index) => (
           <div className={`message-row ${message.role}`} key={index}>
-            <div className="message-avatar">{message.role === "bot" ? "A" : "Y"}</div>
+            <div className="message-avatar" aria-hidden="true">{message.role === "bot" ? <Bot size={16} /> : "Y"}</div>
             <div className={`bubble ${message.role}`}>
               <span>{message.role === "bot" ? "Clinic assistant" : "You"}</span>
               <p className="clinic-chat-message">{message.text}</p>
@@ -2851,6 +2802,21 @@ function DoctorApp({
     [patients]
   );
   const selectedPatient = patients.find((patient) => patient.id === selectedPatientId) || patients[0];
+  // Today's reserved patients at the active clinic, read straight from the bookings table (the doctor may read them).
+  const [todayBookings, setTodayBookings] = useState(null);
+  useEffect(() => {
+    if (doctorTab !== "today") return undefined;
+    let cancelled = false;
+    const date = getTodayDateValue();
+    supabase.from("appointment_requests")
+      .select("appointment_date,appointment_time,status,payment_status")
+      .eq("clinic_id", activeClinic.id).eq("appointment_date", date)
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        setTodayBookings(error ? null : { date, load: loadByDay(data || []), slots: getSlotsFromClinicTiming(activeClinic, date) });
+      });
+    return () => { cancelled = true; };
+  }, [doctorTab, activeClinic]);
 
   return (
     <section className="screen app-screen doctor-mode">
@@ -2878,7 +2844,7 @@ function DoctorApp({
       </header>
 
       <div className="scroll-area" key={doctorTab}>
-        {doctorTab === "today" && <DoctorToday stats={stats} alerts={alerts} setDoctorTab={setDoctorTab} />}
+        {doctorTab === "today" && <DoctorToday stats={stats} alerts={alerts} setDoctorTab={setDoctorTab} bookings={todayBookings} />}
         {doctorTab === "availability" && (
           <DoctorAvailabilityEditor
             availability={availability}
@@ -2983,7 +2949,24 @@ function DoctorEducationEditor({ posts, onPublishPost }) {
   );
 }
 
-function DoctorToday({ stats, alerts = [], setDoctorTab }) {
+function TodayBookings({ bookings }) {
+  const total = reservedOnDay(bookings.load, bookings.date);
+  const timeline = dayTimeline(bookings.load, bookings.date);
+  const best = recommendSlot(bookings.slots, bookings.load, bookings.date);
+  return (
+    <section className="doctor-bookings" aria-label="Booked today">
+      <div className="doctor-bookings-head">
+        <strong>{total === 0 ? "No patients booked yet today" : `${total} patient${total === 1 ? "" : "s"} booked today`}</strong>
+        {best && <span>Best time for a new booking: <b>{best.slot}</b></span>}
+      </div>
+      {timeline.length > 0 && (
+        <ul>{timeline.map(({ slot, reserved }) => <li key={slot}><span>{slot}</span><b>{reserved}</b></li>)}</ul>
+      )}
+    </section>
+  );
+}
+
+function DoctorToday({ stats, alerts = [], setDoctorTab, bookings = null }) {
   return (
     <div className="stack">
       <div className="doctor-stats">
@@ -2995,6 +2978,7 @@ function DoctorToday({ stats, alerts = [], setDoctorTab }) {
           </div>
         ))}
       </div>
+      {bookings && <TodayBookings bookings={bookings} />}
       <button type="button" className="doctor-duty-cta" onClick={() => setDoctorTab("availability")}>
         <span className="doctor-duty-icon"><MapPin size={21} aria-hidden="true" /></span>
         <span className="doctor-duty-copy">
@@ -3170,17 +3154,6 @@ function DoctorAvailabilityEditor({
             </div>
           </div>
         </div>
-        <div className="locked-fee-card">
-          <span>Online consultation fee</span>
-          <strong>Rs {GENERAL_FEE_RUPEES}</strong>
-          <small>
-            Rs {SENIOR_FEE_RUPEES} for patients aged {SENIOR_MIN_AGE} and over, by the age in their profile.
-            A clinic visit booked in the app is Rs {VISIT_FEE_RUPEES}. These fees are fixed.
-          </small>
-        </div>
-        <small className="field-help">
-          Patients must pay this fee through Razorpay before sending an online consultation request.
-        </small>
       </div>
 
       <DoctorPendingPayments />
@@ -3539,8 +3512,25 @@ const doctorTabs = [
 
 function FloatingTabs({ items, current, onSelect, label, doctor = false }) {
   const index = items.findIndex(([key]) => key === current);
+  const navRef = useRef(null);
+  // The highlight is placed from the real position of the selected button, so it stays under the right tab
+  // whatever the number of tabs, the screen width or the font size.
+  useLayoutEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return undefined;
+    const place = () => {
+      const active = nav.querySelector("button.active");
+      if (!active) return;
+      nav.style.setProperty("--pill-x", `${active.offsetLeft}px`);
+      nav.style.setProperty("--pill-w", `${active.offsetWidth}px`);
+    };
+    place();
+    const observer = typeof ResizeObserver === "function" ? new ResizeObserver(place) : null;
+    observer?.observe(nav);
+    return () => observer?.disconnect();
+  }, [current, items.length]);
   return (
-    <nav className={`bottom-nav${doctor ? " doctor-nav" : ""}`} aria-label={label}
+    <nav ref={navRef} className={`bottom-nav${doctor ? " doctor-nav" : ""}`} aria-label={label}
       style={{ "--tabs": items.length, "--selected-tab": Math.max(0, index) }}>
       <span className="floating-tab-selection" data-visible={index >= 0} aria-hidden="true" />
       {items.map(([key, Icon, text]) => (

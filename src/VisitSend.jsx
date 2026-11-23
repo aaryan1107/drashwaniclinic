@@ -5,6 +5,7 @@ import { indiaDate } from "./carePlan.js";
 import { rxNumber, scheduleText, toCarePlan, validatePrescription } from "./prescription.js";
 import { prescribingWarnings, visitToPrescriptionRow } from "./visitRx.js";
 import { Button } from "./ui/Button.jsx";
+import { createPrescriptionLink } from "./prescriptionDelivery.js";
 
 
 const DOCTOR_NAME = "Dr. Ashwani Kansal";
@@ -25,7 +26,9 @@ export function SendScreen({ visit, patient, clinic, onEdit, onSent }) {
       setState({ busy: false, message: offline ? "You are offline. Nothing was sent; your draft is safe. Try again when connected." : "Could not send the prescription. Nothing was sent; your draft is safe." });
       return;
     }
-    onSent(data);
+    setState({ busy: true, message: "Preparing the link…" });
+    const link = await createPrescriptionLink(supabase, data, clinic, { phone: patient.mobile });
+    onSent(data, link);
   }
 
   return (
@@ -44,7 +47,15 @@ export function SendScreen({ visit, patient, clinic, onEdit, onSent }) {
       <article className="vt-rx-preview" aria-label="Prescription preview">
         <header><strong>{row.patient_name}</strong><span>{[row.patient_age && `${row.patient_age} y`, row.patient_gender].filter(Boolean).join(" · ")}</span></header>
         <p><b>Diagnosis:</b> {row.diagnosis || "Not recorded"}</p>
-        <ol>{row.medicines.map((m) => <li key={m.id}><b>{m.name}</b> · {m.dose} · {scheduleText(m)}{m.frequency !== "instructions" ? ` · ${m.start} to ${m.end}` : ""}{m.notes ? ` · ${m.notes}` : ""}</li>)}</ol>
+        <ol className="vt-rx-list">{row.medicines.map((m) => (
+          <li key={m.id}>
+            <b>{m.name}</b>{m.form ? ` (${m.form.toLowerCase()})` : ""}
+            {m.generic && <small className="vt-generic">{m.generic}</small>}
+            <span>{[m.dose !== "As directed" && m.dose, m.pattern || (m.frequency !== "instructions" ? scheduleText(m) : ""), m.timing, m.duration_text].filter(Boolean).join(" · ") || m.notes}</span>
+            {m.remarks && <span>Remarks: {m.remarks}</span>}
+            {m.hindi && <span className="vt-hindi-line" lang="hi">{m.hindi}</span>}
+          </li>
+        ))}</ol>
         {row.instructions && <pre className="vt-pre">{row.instructions}</pre>}
         <p><b>Follow-up:</b> {row.follow_up_date || "Not set"}</p>
         <p className="vt-note">Private notes are not included. Once sent, the patient can see this prescription in their app and it cannot be edited (only voided).</p>
@@ -61,7 +72,7 @@ export function SendScreen({ visit, patient, clinic, onEdit, onSent }) {
   );
 }
 
-export function SentScreen({ rx, patient, clinic, onDone }) {
+export function SentScreen({ rx, patient, clinic, link = null, onDone }) {
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState("");
   const run = (label, fn) => async () => {
@@ -72,11 +83,23 @@ export function SentScreen({ rx, patient, clinic, onDone }) {
 
   return (
     <>
-      <div className="vt-sent" role="status"><CheckCircle2 size={28} /><div><strong>Sent {rxNumber(rx)}</strong><span>The patient can now see it in their app.</span></div></div>
+      <div className="vt-sent" role="status"><CheckCircle2 size={28} /><div><strong>Sent {rxNumber(rx)}</strong><span>The patient can now see it in their app.{link ? " A WhatsApp link is ready." : ""}</span></div></div>
       <div className="vt-actions">
-        <Button loading={busy === "Share"} disabled={!!busy} icon={<Share2 size={18} />} onClick={run("Share", async () => { const r = await (await pdf()).sharePrescriptionPdf(rx, clinic, { phone: patient.mobile }); if (r.via === "download-and-whatsapp") setMsg("PDF downloaded. WhatsApp opened: attach the downloaded PDF to the chat."); })}>Share on WhatsApp</Button>
-        <Button intent="secondary" loading={busy === "Print"} disabled={!!busy} icon={<Printer size={18} />} onClick={run("Print", async () => (await pdf()).printPrescriptionPdf(rx, clinic))}>Print</Button>
-        <Button intent="secondary" loading={busy === "Download"} disabled={!!busy} icon={<Download size={18} />} onClick={run("Download", async () => (await pdf()).savePrescriptionPdf(rx, clinic))}>Download PDF</Button>
+        <Button loading={busy === "Send on WhatsApp"} disabled={!!busy} icon={<Share2 size={18} />} onClick={run("Send on WhatsApp", async () => {
+          const pdfModule = await pdf();
+          const delivery = await import("./prescriptionDelivery.js");
+          const ready = link || await delivery.createPrescriptionLink(supabase, rx, clinic, { phone: patient.mobile });
+          if (ready) {
+            const text = delivery.buildPatientMessage({ patientName: rx.patient_name, link: ready });
+            window.open(delivery.whatsappChatUrl(patient.mobile, text), "_blank", "noopener");
+            setMsg(delivery.indianMobile(patient.mobile) ? "WhatsApp opened with the message and link. Tap send there." : "WhatsApp opened. This patient has no mobile number saved, so choose the chat yourself.");
+            return;
+          }
+          const r = await pdfModule.sharePrescriptionPdf(rx, clinic, { phone: patient.mobile });
+          if (r.via === "download-and-whatsapp") setMsg("A link is not available yet, so the PDF was downloaded and WhatsApp opened. Attach the downloaded PDF to the chat.");
+        })}>Send on WhatsApp</Button>
+        <Button intent="secondary" loading={busy === "Print"} disabled={!!busy} icon={<Printer size={18} />} onClick={run("Print", async () => (await pdf()).printPrescriptionPdf(rx, clinic, { phone: patient.mobile }))}>Print</Button>
+        <Button intent="secondary" loading={busy === "Download"} disabled={!!busy} icon={<Download size={18} />} onClick={run("Download", async () => (await pdf()).savePrescriptionPdf(rx, clinic, { phone: patient.mobile }))}>Download PDF</Button>
         <Button intent="secondary" loading={busy === "Update care plan"} disabled={!!busy} onClick={run("Update care plan", async () => {
           if (!window.confirm("Replace this patient's care plan with these medicines? Their reminders will update.")) return;
           const { publishCarePlan } = await import("./CarePlan.jsx");

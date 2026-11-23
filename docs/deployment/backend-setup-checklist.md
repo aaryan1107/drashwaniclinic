@@ -27,7 +27,7 @@ It adds:
 - Persistent doctor/patient records: `patient_records`
 - Persistent appointment requests: `appointment_requests`
 - Payment read policies for `consultation_payments`
-- Online consultation fee Rs 800, or Rs 600 for patients aged 60 and over; clinic visit booking Rs 700 (set in `supabase/functions/_shared/consultationFee.js`)
+- Online consultation fee Rs 800, or Rs 600 for patients aged 60 and over; clinic visit booking the same, Rs 800 or Rs 600 by age (set in `supabase/functions/_shared/consultationFee.js`)
 - RLS policies based on approved doctor email, not editable user metadata
 
 ## Required Supabase Auth Setup
@@ -97,9 +97,9 @@ VITE_RAZORPAY_PAYMENT_LINK=https://razorpay.me/@drashwanisfamilyclinicdiagnos
 
 ## Razorpay Flow
 
-- The price is set by the server, never by the app: an online consultation is Rs 800, or Rs 600 when the age on the patient's own record is 60 or over (a missing age pays Rs 800); a clinic visit booking is Rs 700.
+- The price is set by the server, never by the app: an online consultation is Rs 800, or Rs 600 when the age on the patient's own record is 60 or over (a missing age pays Rs 800); a clinic visit booking follows the same rule.
 - Frontend creates a Razorpay order through `create-consultation-order`.
-- The order function rejects unauthenticated users and any amount other than that patient's price (80000 or 60000 paise for an online consultation, 70000 for a clinic visit). If the age lookup fails it creates no order. The verify function requires the payment to equal the order it created.
+- The order function rejects unauthenticated users and any amount other than that patient's price (80000, or 60000 for age 60 and over, paise for an online consultation or a clinic visit). If the age lookup fails it creates no order. The verify function requires the payment to equal the order it created.
 - Razorpay Checkout verifies through `verify-consultation-payment`.
 - WhatsApp consult unlocks only after verification returns success.
 - If live Checkout keys are missing, the hosted Razorpay payment link can open, but the doctor/admin must manually verify the receipt.
@@ -132,7 +132,7 @@ Razorpay Dashboard > Account & Settings > Webhooks > Add new webhook:
 Safety rules the webhook keeps:
 
 - The `x-razorpay-signature` HMAC is checked on the raw body before anything is parsed.
-- State-changing events must be 60000, 70000 or 80000 paise in `INR`, and the update only applies to an order whose recorded amount equals the event's amount, or they are rejected.
+- State-changing events must be 60000 or 80000 paise in `INR`, and the update only applies to an order whose recorded amount equals the event's amount, or they are rejected.
 - Statuses only move forward (`ORDER_CREATED` -> `CAPTURE_PENDING` -> `PAID_CONFIRMED` -> `REFUNDED`), so late or replayed events cannot downgrade a payment. `REFUNDED` is final.
 - Each delivery is recorded in `razorpay_webhook_events` by `x-razorpay-event-id`. Razorpay's retries of an event that was already handled are skipped; a delivery that failed to save is retried normally. Only Razorpay IDs, amounts and outcomes are stored, and only doctors can read the table.
 

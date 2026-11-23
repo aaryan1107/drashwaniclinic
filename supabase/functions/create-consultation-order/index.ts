@@ -41,7 +41,7 @@ Deno.serve(async (request) => {
     // The server decides the price. A clinic visit has one fixed fee; an online consultation is priced
     // by the age on the patient's own record. The amount the app sends must match, or nothing is charged.
     const isVisit = body.clinic?.purpose === VISIT_PAYMENT_PURPOSE;
-    const age = isVisit ? { ok: true, value: null } : await lookupPatientAge(authUser.id);
+    const age = await lookupPatientAge(authUser.id);
     if (!age.ok) return json({ error: "Could not check the fee for your account. No payment was requested." }, 503);
     const expected = expectedFeePaise({ purpose: isVisit ? VISIT_PAYMENT_PURPOSE : "online_consultation", age: age.value });
     if (amount !== expected || currency !== "INR") {
@@ -78,7 +78,7 @@ Deno.serve(async (request) => {
           clinic: body.clinic?.name || "",
           patient: patient.name || "",
           patient_id: authUser.id,
-          fee_tier: isVisit ? "visit" : consultationFeeTier(age.value)
+          fee_tier: isVisit ? `visit_${consultationFeeTier(age.value)}` : consultationFeeTier(age.value)
         }
       })
     });

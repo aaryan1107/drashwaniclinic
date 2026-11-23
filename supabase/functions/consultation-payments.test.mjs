@@ -12,8 +12,8 @@ const env = {
 let handle;
 globalThis.Deno = { env: { get: (name) => env[name] }, serve: (handler) => { handle = handler; } };
 
-const payment = { order_id: "order_1", amount: 70000, currency: "INR", method: "upi", status: "captured" };
-const order = { id: "order_1", amount: 70000, currency: "INR", notes: { purpose: "doctor_consultation", patient_id: "owner" } };
+const payment = { order_id: "order_1", amount: 80000, currency: "INR", method: "upi", status: "captured" };
+const order = { id: "order_1", amount: 80000, currency: "INR", notes: { purpose: "doctor_consultation", patient_id: "owner" } };
 const hmac = (secret, message) => createHmac("sha256", secret).update(message).digest("hex");
 const send = (body, extra = {}) => handle(new Request("https://functions.example", {
   method: "POST", headers: { Authorization: "Bearer test", "Content-Type": "application/json", ...extra },
@@ -84,7 +84,7 @@ assert.equal(providerOrderBody.receipt, "clinic-test-1");
 assert.equal(writes.at(-1).body.patient.user_id, "owner");
 
 
-// Pricing: online consultation by age (Rs 800 general, Rs 600 from age 60), clinic visit a fixed Rs 700.
+// Pricing: online consultation and clinic visit both by age (Rs 800 general, Rs 600 from age 60).
 // The server works the price out from the patient's own record; the amount sent must match it.
 const createFor = async (age, amount, clinic) => {
   patientAge = age;
@@ -120,15 +120,19 @@ patientLookupStatus = 200;
 patientLookups = [];
 assert.equal((await send({ amount: 80000, patient: { user_id: "other", age: 70 } })).status, 200);
 assert.match(patientLookups.at(-1).searchParams.get("or"), /owner_id\.eq\.owner,id\.eq\.owner/);
-// A clinic visit is a fixed Rs 700 whatever the age, and needs no age lookup.
+// A clinic visit costs the same as an online consultation: by the age on the patient's own record.
 patientLookups = [];
 const visit = { id: "clinic-2", name: "Clinic", purpose: "clinic_visit" };
-assert.equal((await createFor(82, 70000, visit)).status, 200);
-assert.equal(providerOrderBody.notes.fee_tier, "visit");
-assert.equal((await createFor(40, 70000, visit)).status, 200);
-assert.equal((await createFor(40, 80000, visit)).status, 400);
-assert.equal((await createFor(82, 60000, visit)).status, 400);
-assert.equal(patientLookups.length, 0);
+assert.equal((await createFor(82, 60000, visit)).status, 200);
+assert.equal(providerOrderBody.notes.fee_tier, "visit_senior");
+assert.equal((await createFor(60, 60000, visit)).status, 200);
+assert.equal((await createFor(40, 80000, visit)).status, 200);
+assert.equal(providerOrderBody.notes.fee_tier, "visit_general");
+assert.equal((await createFor(undefined, 80000, visit)).status, 200);
+for (const [age, wrong] of [[40, 60000], [82, 80000], [40, 70000], [82, 70000]]) {
+  assert.equal((await createFor(age, wrong, visit)).status, 400, `visit at age ${age} must not be able to pay ${wrong}`);
+}
+assert.ok(patientLookups.length > 0, "the visit fee is checked against the patient's own record");
 // Calling an online consultation a visit gains nothing: the visit fee never unlocks a consultation,
 // and the stored purpose is what the app reads.
 patientAge = 40;
@@ -155,14 +159,14 @@ payment.amount = 60000; order.amount = 80000;
 assert.equal((await send(verification)).status, 400);
 payment.amount = 50000; order.amount = 50000;
 assert.equal((await send(verification)).status, 400);
-payment.amount = 70000; order.amount = 70000;
+payment.amount = 80000; order.amount = 80000;
 assert.equal((await send(verification)).status, 500);
 writeResult = [{ payment_status: "PAID_CONFIRMED" }];
 for (const amount of [60000, 70000, 80000]) {
   payment.amount = amount; order.amount = amount;
   assert.equal((await send(verification)).status, 200, `verify accepts a matching Rs ${amount / 100} payment`);
 }
-payment.amount = 70000; order.amount = 70000;
+payment.amount = 80000; order.amount = 80000;
 assert.equal((await send({ ...verification, patient: { user_id: "other" } })).status, 200);
 assert.equal(writes.at(-1).url.searchParams.get("patient->>user_id"), "eq.owner");
 assert.equal(writes.at(-1).body.patient, undefined);
@@ -215,12 +219,12 @@ assert.equal(writes.at(-1).url.searchParams.get("payment_status"), null);
 assert.equal(writes.at(-1).url.searchParams.get("or"),
   "(payment_status.eq.ORDER_CREATED,and(payment_status.in.(AUTHORIZED,CAPTURE_PENDING),razorpay_payment_id.eq.pay_1))");
 
-// order.paid takes the amount from the order entity and is held to the Rs 700 / INR fee.
+// order.paid takes the amount from the order entity and is held to the Rs 800 / INR fee.
 writes = [];
 writeResult = [{ payment_status: "PAID_CONFIRMED" }];
-assert.equal((await signedSend(event("order.paid", { order: { entity: { ...order, amount_paid: 70000 } } }))).status, 200);
+assert.equal((await signedSend(event("order.paid", { order: { entity: { ...order, amount_paid: 80000 } } }))).status, 200);
 assert.equal(writes.at(-1).body.payment_status, "PAID_CONFIRMED");
-assert.equal(writes.at(-1).body.amount, 70000);
+assert.equal(writes.at(-1).body.amount, 80000);
 assert.equal(writes.at(-1).url.searchParams.get("razorpay_order_id"), "eq.order_1");
 writes = [];
 assert.equal((await signedSend(event("order.paid", { order: { entity: { ...order, amount_paid: 100 } } }))).status, 400);
@@ -244,7 +248,7 @@ for (const amount of [50000, 90000, 100]) {
   assert.equal(writes.length, 0);
   assert.equal(lastLog().outcome, "rejected_amount");
 }
-payment.amount = 70000; order.amount = 70000;
+payment.amount = 80000; order.amount = 80000;
 
 // Idempotency: a retry of an already-handled event ID is skipped without a PATCH.
 writes = [];
@@ -280,15 +284,15 @@ const refundEvent = (amountRefunded, refundStatus) => event("refund.processed", 
 });
 writes = [];
 writeResult = [{ payment_status: "REFUNDED" }];
-assert.equal((await signedSend(refundEvent(70000, "full"))).status, 200);
+assert.equal((await signedSend(refundEvent(80000, "full"))).status, 200);
 let refundWrite = writes.at(-1);
 assert.equal(refundWrite.body.payment_status, "REFUNDED");
-assert.equal(refundWrite.body.amount_refunded, 70000);
+assert.equal(refundWrite.body.amount_refunded, 80000);
 assert.equal(refundWrite.body.refunded_at !== undefined, true);
 assert.equal(refundWrite.body.amount, undefined);
 assert.equal(refundWrite.url.searchParams.get("razorpay_payment_id"), "eq.pay_1");
 assert.equal(refundWrite.url.searchParams.get("payment_status"), "in.(AUTHORIZED,CAPTURE_PENDING,PAID_CONFIRMED,FAILED)");
-assert.equal(refundWrite.url.searchParams.get("or"), "(amount_refunded.is.null,amount_refunded.lt.70000)");
+assert.equal(refundWrite.url.searchParams.get("or"), "(amount_refunded.is.null,amount_refunded.lt.80000)");
 assert.equal(lastLog().razorpay_refund_id, "rfnd_1");
 assert.equal(lastLog().payment_status, "REFUNDED");
 // A partial refund records the amount but keeps the consultation unlocked.
@@ -302,7 +306,7 @@ assert.equal(refundWrite.url.searchParams.get("or"), "(amount_refunded.is.null,a
 writes = [];
 payment.amount = 50000;
 assert.equal((await signedSend(refundEvent(50000, "full"))).status, 400);
-payment.amount = 70000;
+payment.amount = 80000;
 assert.equal(writes.length, 0);
 // PAID_CONFIRMED can never be written over REFUNDED.
 assert.equal(priorStatesFrom("PAID_CONFIRMED").includes("REFUNDED"), false);
@@ -313,8 +317,8 @@ for (const name of ["refund.created", "refund.failed", "payment.dispute.created"
   "payment.dispute.lost", "payment.dispute.closed"]) {
   writes = [];
   const extra = name.startsWith("refund")
-    ? { refund: { entity: { id: "rfnd_2", payment_id: "pay_1", amount: 70000, currency: "INR" } } }
-    : { dispute: { entity: { id: "disp_1", payment_id: "pay_1", amount: 70000, currency: "INR" } } };
+    ? { refund: { entity: { id: "rfnd_2", payment_id: "pay_1", amount: 80000, currency: "INR" } } }
+    : { dispute: { entity: { id: "disp_1", payment_id: "pay_1", amount: 80000, currency: "INR" } } };
   const response = await signedSend(event(name, extra));
   assert.equal(response.status, 200, name);
   assert.equal((await response.json()).handled, false, name);
@@ -330,8 +334,8 @@ assert.equal(lastLog().razorpay_order_id, null);
 // Every subscribed event gets a 200 for a valid fee payment, so Razorpay never disables the hook.
 writeResult = [{ payment_status: "PAID_CONFIRMED" }];
 for (const name of WEBHOOK_EVENTS) {
-  const extra = name === "order.paid" ? { order: { entity: { ...order, amount_paid: 70000 } } }
-    : name === "refund.processed" ? refundEvent(70000, "full").payload : {};
+  const extra = name === "order.paid" ? { order: { entity: { ...order, amount_paid: 80000 } } }
+    : name === "refund.processed" ? refundEvent(80000, "full").payload : {};
   const response = await signedSend(event(name, extra));
   assert.equal(response.status, 200, name);
 }

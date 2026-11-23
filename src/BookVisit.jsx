@@ -2,7 +2,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CalendarCheck, Check, Clock, MapPin } from "lucide-react";
 import { Button } from "./ui/Button.jsx";
-import { BOOKING_REASONS, VISIT_FEE_RUPEES, bookingWhatsAppUrl, dayLabel, groupSlots, longDate, savedVisitState } from "./booking.js";
+import { recommendSlot, reservedAt, slotState } from "./slotLoad.js";
+import { BOOKING_REASONS, bookingWhatsAppUrl, dayLabel, groupSlots, longDate, savedVisitState } from "./booking.js";
 import { supabase } from "./supabase.js";
 import "./book.css";
 
@@ -32,7 +33,7 @@ function SavedVisitCard({ visit, state }) {
   );
 }
 
-export default function BookVisit({ appointment, setAppointment, clinic, onDuty, days, todayValue, getSlots, onPayAndBook, userId }) {
+export default function BookVisit({ appointment, setAppointment, clinic, onDuty, days, todayValue, getSlots, onPayAndBook, userId, load, feeRupees }) {
   const [paying, setPaying] = useState(false);
   const [result, setResult] = useState(null);
   const [saved, setSaved] = useState([]);
@@ -85,6 +86,7 @@ export default function BookVisit({ appointment, setAppointment, clinic, onDuty,
   );
   const slots = slotsByDay[appointment.date] || [];
   const timeChosen = slots.includes(appointment.time);
+  const recommended = recommendSlot(slots, load, appointment.date);
   const update = (patch) => setAppointment((current) => ({ ...current, ...patch }));
 
   const pickDay = (dateValue) => {
@@ -127,7 +129,7 @@ export default function BookVisit({ appointment, setAppointment, clinic, onDuty,
     <div className="bk">
       {saved.length > 0 && <Button intent="secondary" block onClick={() => setBookAnother(false)}>View my bookings</Button>}
       {savedError && <p role="alert">Couldn’t load your saved bookings. <button type="button" onClick={() => setRefresh((value) => value + 1)}>Try again</button></p>}
-      <p className="bk-intro">Pick a day and time to see Dr Ashwani at the clinic. Your slot is booked once the ₹{VISIT_FEE_RUPEES} fee is paid.</p>
+      <p className="bk-intro">Pick a day and time to see Dr Ashwani at the clinic. Your slot is booked once the ₹{feeRupees} fee is paid.</p>
 
       <section className="bk-clinic" aria-label="Clinic">
         <span className="bk-clinic-icon" aria-hidden="true"><CalendarCheck size={20} /></span>
@@ -159,19 +161,28 @@ export default function BookVisit({ appointment, setAppointment, clinic, onDuty,
 
       <section className="bk-step" aria-labelledby="bk-time">
         <h3 id="bk-time" className="bk-eyebrow">2 · Time</h3>
+        {recommended && load && (
+          <p className="bk-recommend">Quietest time: <strong>{recommended.slot}</strong>{recommended.reserved ? ` (${recommended.reserved} booked)` : " (no one booked yet)"}</p>
+        )}
         {slots.length === 0 ? (
           <p className="bk-empty">No slots left on this day. Pick another day.</p>
         ) : groupSlots(slots).map((group) => (
           <div key={group.label} className="bk-slot-group" role="radiogroup" aria-label={`${group.label} slots`}>
             <span className="bk-slot-label">{group.label}</span>
             <div className="bk-slots">
-              {group.slots.map((time) => (
-                <button key={time} type="button" role="radio" aria-checked={appointment.time === time}
-                  className={`bk-slot${appointment.time === time ? " is-on" : ""}`} onClick={() => update({ time })}>
-                  {time}
-                </button>
-              ))}
-            </div>
+              {group.slots.map((time) => {
+                const count = reservedAt(load, appointment.date, time);
+                const state = slotState(count);
+                const best = recommended?.slot === time;
+                return (
+                  <button key={time} type="button" role="radio" aria-checked={appointment.time === time}
+                    className={`bk-slot${appointment.time === time ? " is-on" : ""}${best ? " is-best" : ""}`} onClick={() => update({ time })}>
+                    <span>{time}</span>
+                    {load && <small className={`bk-load bk-load-${state}`}>{best ? "Recommended" : count === 0 ? "Open" : `${count} booked`}</small>}
+                  </button>
+                );
+              })}
+              </div>
           </div>
         ))}
       </section>
@@ -194,7 +205,7 @@ export default function BookVisit({ appointment, setAppointment, clinic, onDuty,
           <div><dt>Day</dt><dd>{longDate(appointment.date)}</dd></div>
           <div><dt>Time</dt><dd>{timeChosen ? appointment.time : "Pick a time"}</dd></div>
           <div><dt>Reason</dt><dd>{appointment.reason}</dd></div>
-          <div className="bk-fee"><dt>Consultation fee</dt><dd>₹{VISIT_FEE_RUPEES}</dd></div>
+          <div className="bk-fee"><dt>Consultation fee</dt><dd>₹{feeRupees}</dd></div>
         </dl>
       </section>
 
@@ -205,7 +216,7 @@ export default function BookVisit({ appointment, setAppointment, clinic, onDuty,
       )}
 
       <Button block loading={paying} disabled={!timeChosen} onClick={payAndBook}>
-        {paying ? "Opening secure payment…" : `Pay ₹${VISIT_FEE_RUPEES} and book`}
+        {paying ? "Opening secure payment…" : `Pay ₹${feeRupees} and book`}
       </Button>
       <p className="bk-note">Payments are handled by Razorpay. If a payment fails, nothing is booked, and Razorpay returns any money that was deducted.</p>
     </div>

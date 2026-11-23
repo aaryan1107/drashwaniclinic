@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  GENERAL_FEE_RUPEES, SENIOR_FEE_RUPEES, SENIOR_MIN_AGE, VISIT_FEE_RUPEES
+  GENERAL_FEE_RUPEES, SENIOR_FEE_RUPEES, SENIOR_MIN_AGE
 } from "../supabase/functions/_shared/consultationFee.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -52,7 +52,7 @@ const TRACKER = /analytics|sentry|posthog|mixpanel|amplitude|crashlytics|firebas
 
 // A private address that was removed from the app; the words are split so this file does not repeat it.
 const REMOVED_ADDRESS_WORDS = [["La", "Resid" + "entia"], ["Tech", "Zone"]].map((words) => words.join(" "));
-const PRICES = new Set([GENERAL_FEE_RUPEES, SENIOR_FEE_RUPEES, VISIT_FEE_RUPEES]);
+const PRICES = new Set([GENERAL_FEE_RUPEES, SENIOR_FEE_RUPEES]);
 
 const failures = [];
 const check = (name, fn) => {
@@ -182,7 +182,7 @@ if (pages["privacy.html"]) {
 if (pages["terms.html"]) {
   check("terms pricing and delivery", () => {
     const t = visible(pages["terms.html"]);
-    for (const rupees of [GENERAL_FEE_RUPEES, SENIOR_FEE_RUPEES, VISIT_FEE_RUPEES]) need(t.includes(`Rs ${rupees}`), `missing "Rs ${rupees}"`);
+    for (const rupees of [GENERAL_FEE_RUPEES, SENIOR_FEE_RUPEES]) need(t.includes(`Rs ${rupees}`), `missing "Rs ${rupees}"`);
     need(t.includes(`aged ${SENIOR_MIN_AGE} and over`), `missing "aged ${SENIOR_MIN_AGE} and over"`);
     need(/no physical goods/i.test(t), 'missing "no physical goods"');
     need(/id="pricing-delivery"/.test(pages["terms.html"]), 'missing id="pricing-delivery"');
@@ -191,7 +191,7 @@ if (pages["terms.html"]) {
 if (pages["refunds.html"]) {
   check("refunds state both fees", () => {
     const t = visible(pages["refunds.html"]);
-    for (const rupees of [GENERAL_FEE_RUPEES, SENIOR_FEE_RUPEES, VISIT_FEE_RUPEES]) need(t.includes(`Rs ${rupees}`), `missing "Rs ${rupees}"`);
+    for (const rupees of [GENERAL_FEE_RUPEES, SENIOR_FEE_RUPEES]) need(t.includes(`Rs ${rupees}`), `missing "Rs ${rupees}"`);
     need(/clinic visit/i.test(t), 'does not mention the clinic visit fee');
   });
 }

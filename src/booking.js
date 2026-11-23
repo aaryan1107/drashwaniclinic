@@ -1,7 +1,7 @@
 // Pure helpers for the patient Book tab: a clinic visit paid for at booking.
 // The visit fee and the payment marker live in one shared module that the payment functions also use.
-import { VISIT_FEE_RUPEES, VISIT_PAYMENT_PURPOSE } from "../supabase/functions/_shared/consultationFee.js";
-export { VISIT_FEE_RUPEES, VISIT_PAYMENT_PURPOSE };
+import { VISIT_PAYMENT_PURPOSE, visitFeeRupees } from "../supabase/functions/_shared/consultationFee.js";
+export { VISIT_PAYMENT_PURPOSE, visitFeeRupees };
 
 // One list for the Book screen and the clinic assistant.
 export { BOOKING_REASONS } from "../supabase/functions/_shared/clinicAssistantRules.js";

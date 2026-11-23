@@ -21,7 +21,7 @@ import {
   validateBookingDraft,
   validateReadingsDraft
 } from "../_shared/clinicAssistantRules.js";
-import { VISIT_FEE_RUPEES, feeSummary } from "../_shared/consultationFee.js";
+import { feeSummary } from "../_shared/consultationFee.js";
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 // Best tool use first. Each model has its own free-tier quota, so the others take over when it is busy.
@@ -245,8 +245,7 @@ function makeTools({ db, userId, clinic, onDuty, cards, state }: { db: (path: st
         clinics: CLINICS,
         doctor_on_duty: onDuty,
         visits_booked_at: clinic.name,
-        clinic_visit_fee_rupees: VISIT_FEE_RUPEES,
-        online_consultation_fee: feeSummary(),
+        fees: `${feeSummary()}, for a clinic visit booked in the app and for an online consultation, by the age on the patient's record`,
         bookable_dates: bookingDays(),
         visit_reasons: BOOKING_REASONS
       };

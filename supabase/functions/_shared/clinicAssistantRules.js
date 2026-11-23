@@ -1,6 +1,6 @@
 // Rules for the clinic chatbot. Pure JavaScript, so it runs in the Supabase Edge Function (Deno)
 // and under Node for tests. The sources behind each rule are listed in docs/ai/CLINIC_ASSISTANT_GUIDANCE.md.
-import { VISIT_FEE_RUPEES, feeSummary } from "./consultationFee.js";
+import { feeSummary } from "./consultationFee.js";
 
 export const ASSISTANT_NAME = "Clinic assistant";
 export const MAX_MESSAGE_CHARS = 1000;
@@ -143,7 +143,7 @@ export function validateBookingDraft(args, clinic, now = new Date()) {
   if (!slot) return { ok: false, error: slots.length ? `That time is not available. Free slots: ${slots.join(", ")}.` : "No slots are left on that day." };
   const matchedReason = BOOKING_REASONS.find((value) => value.toLowerCase() === reason.toLowerCase());
   if (!matchedReason) return { ok: false, error: `Choose one reason: ${BOOKING_REASONS.join(", ")}.` };
-  return { ok: true, draft: { type: "booking_draft", clinicId: clinic.id, clinicName: clinic.name, date, time: slot, reason: matchedReason, feeRupees: VISIT_FEE_RUPEES } };
+  return { ok: true, draft: { type: "booking_draft", clinicId: clinic.id, clinicName: clinic.name, date, time: slot, reason: matchedReason } };
 }
 
 const READING_FIELDS = {
@@ -299,7 +299,7 @@ export function buildSystemInstruction({ today, clinic, onDuty }) {
     "",
     "CLINIC FACTS",
     `- Visits are booked at ${clinic.name} (${clinic.area}), ${clinic.timing}. The doctor is ${onDuty ? "on duty now" : "off duty now"}.`,
-    `- Clinic visit fee: Rs ${VISIT_FEE_RUPEES}, paid in the app when booking. Online consultation: ${feeSummary()}.`,
+    `- Fees (clinic visit booked in the app, and online consultation): ${feeSummary()}, by the age on the patient's record. Paid in the app when booking.`,
     `- Bookable reasons: ${BOOKING_REASONS.join(", ")}.`
   ].join("\n");
 }
