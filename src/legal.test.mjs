@@ -15,7 +15,7 @@ const OPERATOR = "Tanu Kansal, trading as Dr Ashwanis Family Clinic Diagnostic C
 const CONTACT_NAME = "Aaryan Kansal";
 const CONTACT_EMAIL = "aaryankansal06@gmail.com";
 const ADDRESS = "1st Floor, Shop Number 1011, Ace City Square Market, Ace City Road, Jalalpur, Greater Noida, Uttar Pradesh 203207, India";
-const EFFECTIVE = "Effective 23 November 2026 (version 1.1)";
+const EFFECTIVE = "Effective 24 November 2026 (version 1.2)";
 
 const PAGES = {
   "privacy.html": [
@@ -28,7 +28,7 @@ const PAGES = {
     "Pricing and delivery", "Acceptable use", "Availability and changes", "Limits of liability", "Governing law", "Contact"
   ],
   "refunds.html": ["When you get a refund", "When you do not", "How to ask", "How long it takes"],
-  "account-deletion.html": ["How to ask", "How we verify you", "What we delete", "What we keep and why", "How long it takes"],
+  "account-deletion.html": ["How to delete your account", "What is deleted", "What we keep and why"],
   "about.html": ["About the clinic app", "Who runs it"],
   "contact.html": ["How to reach us", "Privacy requests and complaints"]
 };
@@ -139,6 +139,20 @@ for (const [name, html] of Object.entries(pages)) {
       }
     }
     for (const nav of NAV) need(hrefs.includes(nav), `footer navigation lacks ${nav}`);
+  });
+}
+
+// Deletion is self-service and immediate: the pages must say so, and must not promise the old email process.
+if (pages["account-deletion.html"] && pages["privacy.html"]) {
+  check("self-service deletion", () => {
+    const del = visible(pages["account-deletion.html"]);
+    const privacy = visible(pages["privacy.html"]);
+    need(/Delete account/.test(del) && /Type DELETE/.test(del), "deletion page must give the in-app steps");
+    need(/straight away/.test(del), "deletion page must say deletion is immediate");
+    need(/7 years/.test(del) && /7 years/.test(privacy), "the tax-register retention of payment records must be stated");
+    for (const [name, text] of [["account-deletion", del], ["privacy", privacy]]) {
+      need(!/3 years after your last visit|restricted form|within 30 days of verifying/.test(text), `${name} still describes the old manual deletion`);
+    }
   });
 }
 
