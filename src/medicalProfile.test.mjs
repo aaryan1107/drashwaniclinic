@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import {
-  bmi, bmiBand, emptyProfile, hasDiabetes, historyLines, medicineLines, moodScores, profileForStorage, profileToRecordFields, riskHint, stepProblems
+  bmi, bmiBand, emptyProfile, hasDiabetes, historyLines, medicineLines, moodScores, normalizePatientWhatsapp, profileForStorage, profileToRecordFields, riskHint, stepProblems
 } from "./medicalProfile.js";
 
 const filled = () => ({
@@ -39,8 +39,12 @@ assert.equal(bmiBand(null), "");
 
 // Step checks: only the first and last steps can block
 assert.deepEqual(stepProblems(1, emptyProfile()), []);
-assert.equal(stepProblems(0, emptyProfile()).length, 3);
+assert.equal(stepProblems(0, emptyProfile()).length, 4);
 assert.deepEqual(stepProblems(0, filled()), []);
+assert.deepEqual(stepProblems(0, { ...filled(), sameWhatsapp: false, whatsapp: "" }), ["Enter a valid Indian WhatsApp number."]);
+assert.equal(normalizePatientWhatsapp("0123456789"), "");
+assert.equal(normalizePatientWhatsapp("98765 43210"), "+919876543210");
+assert.equal(profileForStorage({ ...filled(), sameWhatsapp: false, whatsapp: "90000 00000" }).whatsapp, "+919000000000");
 assert.equal(stepProblems(3, { ...filled(), consent: false }).length, 1);
 assert.equal(stepProblems(3, { ...filled(), emergencyPhone: "123" }).length, 1);
 assert.deepEqual(stepProblems(3, filled()), []);
@@ -78,7 +82,7 @@ assert.ok(fields.notes.includes("Emergency contact: Meera, Wife, 9876500000"));
 
 // Stored copy
 const stored = profileForStorage(filled());
-assert.equal(stored.whatsapp, "+91 98765 43210");
+assert.equal(stored.whatsapp, "+919876543210");
 assert.equal(stored.medicines.length, 1);
 assert.deepEqual(stored.surgeries, ["Appendix removed, 2015"]);
 assert.ok(stored.consentedAt);
@@ -122,6 +126,13 @@ assert.equal(riskHint(filled()), "Medium");
 const deviceOnly = historyLines({ ...emptyProfile(), conditions: ["Type 2 diabetes"], diabetes: { ...emptyProfile().diabetes, device: "Sensor (CGM)" } }).join("\n");
 assert.ok(deviceOnly.includes("Diabetes: home device: sensor (cgm)"));
 const quiet = historyLines(emptyProfile()).join("\n");
+assert.equal(quiet, "");
+const blankFields = profileToRecordFields(emptyProfile());
+assert.equal(blankFields.notes, "");
+assert.equal(emptyProfile().gender, "");
+const partialMood = historyLines({ ...emptyProfile(), mood: { interest: "Several days", down: "Not at all" } }).join("\n");
+assert.match(partialMood, /low mood 1 of 6/);
+assert.doesNotMatch(partialMood, /worry/);
 for (const absent of ["Low sugar", "Mood screen", "Vaccines", "Medicines:", "Last checks"]) assert.ok(!quiet.includes(absent), `unexpected: ${absent}`);
 const female = { ...emptyProfile(), gender: "Female", planningPregnancy: "Yes" };
 assert.ok(historyLines(female).join("\n").includes("Planning pregnancy: yes"));

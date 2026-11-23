@@ -8,14 +8,14 @@ import {
   COST_SKIPPING, DIABETES_DURATIONS, DIABETES_TREATMENTS, DIET, FAMILY_HISTORY, HOME_CHECKS, HOME_DEVICES, HOSPITAL_STAYS,
   HYPO_AWARENESS, HYPO_FREQUENCY, LANGUAGES, LAST_CHECK, MISSED_DOSES, MOOD_ANSWERS, MOOD_QUESTIONS, PAST_INFECTIONS,
   PREGNANCY_PLANS, SEXUAL_HEALTH, SLEEP, SLEEP_SIGNS, SMOKING, SUPPORT, SYMPTOMS_NOW, VACCINES,
-  bmi, bmiBand, emptyMedicine, emptyProfile, hasDiabetes, profileForStorage, stepProblems
+  bmi, bmiBand, normalizePatientWhatsapp, emptyMedicine, emptyProfile, hasDiabetes, profileForStorage, stepProblems
 } from "./medicalProfile.js";
 import "./medical-profile.css";
 
 const STEPS = [
   ["About you", "Basic details so the clinic can reach you."],
-  ["Your health", "What you live with and how it is going."],
-  ["Medicines and allergies", "What you take, and what you must not take."],
+  ["Your health", "Conditions, recent readings and symptoms."],
+  ["Medicines and allergies", "Current medicines, allergies and past treatment."],
   ["Daily life and contacts", "Habits, an emergency contact and consent."]
 ];
 
@@ -46,7 +46,14 @@ function Choice({ options, value, onChange, legend }) {
   );
 }
 
-function Block({ title, hint, children }) {
+function Block({ title, hint, children, optional }) {
+  if (optional) return (
+    <details className="mp-block mp-optional">
+      <summary>{title}</summary>
+      {hint && <p className="mp-hint">{hint}</p>}
+      {children}
+    </details>
+  );
   return (
     <section className="mp-block">
       <h3>{title}</h3>
@@ -63,16 +70,21 @@ function AboutStep({ profile, set }) {
       <div className="form-card">
         <label>Full name<input value={profile.fullName} autoComplete="name" onChange={(e) => set("fullName", e.target.value)} placeholder="Patient full name" /></label>
         <label>Mobile number<input value={profile.phone} inputMode="tel" autoComplete="tel" onChange={(e) => set("phone", e.target.value)} placeholder="10 digit mobile number" /></label>
-        <label className="mp-check">
-          <input type="checkbox" checked={profile.sameWhatsapp} onChange={(e) => set("sameWhatsapp", e.target.checked)} />
-          WhatsApp is on the same number
-        </label>
-        {!profile.sameWhatsapp && (
-          <label>WhatsApp number<input value={profile.whatsapp} inputMode="tel" onChange={(e) => set("whatsapp", e.target.value)} placeholder="10 digit WhatsApp number" /></label>
-        )}
+        <fieldset className="mp-contact">
+          <legend>WhatsApp number <span>Required</span></legend>
+          <p className="mp-hint">The clinic uses this number to contact you about your care.</p>
+          <label className="mp-check">
+            <input type="checkbox" checked={profile.sameWhatsapp} onChange={(e) => set("sameWhatsapp", e.target.checked)} />
+            Use my mobile number for WhatsApp
+          </label>
+          {!profile.sameWhatsapp && (
+            <label>Different WhatsApp number<input value={profile.whatsapp} type="tel" required
+              onChange={(e) => set("whatsapp", e.target.value)} placeholder="10 digit WhatsApp number" /></label>
+          )}
+        </fieldset>
         <div className="two-col">
           <label>Age<input value={profile.age} inputMode="numeric" onChange={(e) => set("age", e.target.value.replace(/\D/g, "").slice(0, 3))} placeholder="Years" /></label>
-          <label>Gender<select value={profile.gender} onChange={(e) => set("gender", e.target.value)}><option>Male</option><option>Female</option><option>Other</option></select></label>
+          <label>Gender<select value={profile.gender} onChange={(e) => set("gender", e.target.value)}><option value="">Select if you wish</option><option>Male</option><option>Female</option><option>Other</option></select></label>
         </div>
       </div>
 
@@ -83,11 +95,11 @@ function AboutStep({ profile, set }) {
         </div>
         {value !== null && <p className="mp-bmi"><strong>BMI {value}</strong> <span>{bmiBand(value)}</span></p>}
         <div className="two-col">
-          <label>Blood group<select value={profile.bloodGroup} onChange={(e) => set("bloodGroup", e.target.value)}>{BLOOD_GROUPS.map((item) => <option key={item}>{item}</option>)}</select></label>
-          <label>Language<select value={profile.language} onChange={(e) => set("language", e.target.value)}>{LANGUAGES.map((item) => <option key={item}>{item}</option>)}</select></label>
+          <label>Blood group<select value={profile.bloodGroup} onChange={(e) => set("bloodGroup", e.target.value)}><option value="">Select if known</option>{BLOOD_GROUPS.map((item) => <option key={item}>{item}</option>)}</select></label>
+          <label>Language<select value={profile.language} onChange={(e) => set("language", e.target.value)}><option value="">Select if you wish</option>{LANGUAGES.map((item) => <option key={item}>{item}</option>)}</select></label>
         </div>
         {profile.gender === "Female" && (
-          <label>Pregnant or breastfeeding?<select value={profile.pregnant} onChange={(e) => set("pregnant", e.target.value)}><option>No</option><option>Pregnant</option><option>Breastfeeding</option></select></label>
+          <label>Pregnant or breastfeeding?<select value={profile.pregnant} onChange={(e) => set("pregnant", e.target.value)}><option value="">Select if you wish</option><option>No</option><option>Pregnant</option><option>Breastfeeding</option></select></label>
         )}
         {profile.gender === "Female" && !(Number(profile.age) > 50) && (
           <div className="mp-field"><span>Planning a pregnancy?</span><Choice legend="Planning pregnancy" options={PREGNANCY_PLANS} value={profile.planningPregnancy} onChange={(v) => set("planningPregnancy", v)} /></div>
@@ -111,11 +123,11 @@ function HealthStep({ profile, set }) {
             <Chips legend={group.label} options={group.items} value={profile.conditions} onChange={(next) => set("conditions", next)} />
           </div>
         ))}
-        <label>Anything else?<input value={profile.otherCondition} onChange={(e) => set("otherCondition", e.target.value)} placeholder="Another condition not listed" /></label>
+        <label>Other condition<input value={profile.otherCondition} onChange={(e) => set("otherCondition", e.target.value)} /></label>
       </Block>
 
       {diabetes && (
-        <Block title="About your diabetes" hint="Helps Dr Ashwani plan your first visit.">
+        <Block optional title="About your diabetes" hint="Helps Dr Ashwani plan your first visit.">
           <div className="mp-field"><span>Since when?</span><Choice legend="Diabetes duration" options={DIABETES_DURATIONS} value={profile.diabetes.duration} onChange={(v) => setDiabetes("duration", v)} /></div>
           <div className="mp-field"><span>Treatment now</span><Choice legend="Diabetes treatment" options={DIABETES_TREATMENTS} value={profile.diabetes.treatment} onChange={(v) => setDiabetes("treatment", v)} /></div>
           <div className="mp-field"><span>Check sugar at home?</span><Choice legend="Home sugar checks" options={HOME_CHECKS} value={profile.diabetes.homeChecks} onChange={(v) => setDiabetes("homeChecks", v)} /></div>
@@ -132,7 +144,7 @@ function HealthStep({ profile, set }) {
         </Block>
       )}
 
-      <Block title="Latest numbers" hint="From your last test or home reading. Skip what you do not have.">
+      <Block optional title="Latest numbers" hint="From your last test or home reading. Skip what you do not have.">
         <div className="mp-plain">
           <div className="two-col">
             <label>Fasting sugar<input value={profile.fasting} inputMode="decimal" onChange={(e) => set("fasting", e.target.value)} placeholder="mg/dL" /></label>
@@ -145,10 +157,10 @@ function HealthStep({ profile, set }) {
 
       <Block title="What are you feeling now?">
         <Chips legend="Current symptoms" options={SYMPTOMS_NOW} value={profile.symptoms} onChange={(next) => set("symptoms", next)} />
-        <label>In your own words<textarea rows={3} value={profile.reason} onChange={(e) => set("reason", e.target.value)} placeholder="Why are you joining the clinic app?" /></label>
+        <label>Reason for contacting the clinic<textarea rows={3} value={profile.reason} onChange={(e) => set("reason", e.target.value)} /></label>
       </Block>
 
-      <Block title="Mood and worry" hint="Over the last 2 weeks, how often have you been bothered by these? Only you and Dr Ashwani see the answers.">
+      <Block optional title="Mood and worry" hint="Over the last 2 weeks, how often have you been bothered by these? Only you and Dr Ashwani see the answers.">
         {MOOD_QUESTIONS.map(([key, question]) => (
           <div className="mp-field" key={key}>
             <span>{question}</span>
@@ -179,7 +191,7 @@ function MedicinesStep({ profile, set }) {
         {profile.medicines.map((item, index) => (
           <div className="mp-medicine" key={index}>
             <label>Medicine<input list={listId} value={item.name} onChange={(e) => setMedicine(index, "name", e.target.value)} placeholder="e.g. Metformin" /></label>
-            <label>Dose and timing<input value={item.dose} onChange={(e) => setMedicine(index, "dose", e.target.value)} placeholder="500 mg, twice a day" /></label>
+            <label>Dose and timing<input value={item.dose} onChange={(e) => setMedicine(index, "dose", e.target.value)} /></label>
             <button type="button" className="mp-icon" onClick={() => removeMedicine(index)} aria-label={`Remove medicine ${index + 1}`}><X size={18} /></button>
           </div>
         ))}
@@ -199,7 +211,7 @@ function MedicinesStep({ profile, set }) {
         <label>What happened?<input value={profile.allergyReaction} onChange={(e) => set("allergyReaction", e.target.value)} placeholder="Rash, swelling, breathing trouble" /></label>
       </Block>
 
-      <Block title="Past surgeries or hospital stays">
+      <Block optional title="Past surgeries or hospital stays">
         {profile.surgeries.map((item, index) => (
           <div className="mp-row" key={index}>
             <input aria-label={`Surgery or stay ${index + 1}`} value={item} onChange={(e) => setSurgery(index, e.target.value)} placeholder="What and when, e.g. Appendix removed 2015" />
@@ -209,12 +221,12 @@ function MedicinesStep({ profile, set }) {
         <Button intent="secondary" icon={<Plus size={18} />} onClick={() => set("surgeries", [...profile.surgeries, ""])}>Add surgery or stay</Button>
       </Block>
 
-      <Block title="Vaccines and past infections" hint="Optional. Tick what applies.">
+      <Block optional title="Vaccines and past infections" hint="Optional. Tick what applies.">
         <div className="mp-field"><span>Vaccines you have had</span><Chips legend="Vaccines" options={VACCINES} value={profile.vaccines} onChange={(next) => set("vaccines", next)} /></div>
         <div className="mp-field"><span>Past infections</span><Chips legend="Past infections" options={PAST_INFECTIONS} value={profile.pastInfections} onChange={(next) => set("pastInfections", next)} /></div>
       </Block>
 
-      <Block title="Family history" hint="Parents, brothers or sisters.">
+      <Block optional title="Family history" hint="Parents, brothers or sisters.">
         <Chips legend="Family history" options={FAMILY_HISTORY} value={profile.familyHistory} onChange={(next) => set("familyHistory", next)} />
         <label>Who?<input value={profile.familyNote} onChange={(e) => set("familyNote", e.target.value)} placeholder="e.g. Father had diabetes at 45" /></label>
       </Block>
@@ -225,18 +237,18 @@ function MedicinesStep({ profile, set }) {
 function LifeStep({ profile, set, problems }) {
   return (
     <>
-      <Block title="Habits">
-        <div className="mp-field"><span>Smoking</span><Choice legend="Smoking" options={SMOKING} value={profile.smoking} onChange={(v) => set("smoking", v || "Never")} /></div>
+      <Block optional title="Habits">
+        <div className="mp-field"><span>Smoking</span><Choice legend="Smoking" options={SMOKING} value={profile.smoking} onChange={(v) => set("smoking", v)} /></div>
         {profile.smoking === "Currently" && <label>Cigarettes or bidis a day<input value={profile.smokingPerDay} inputMode="numeric" onChange={(e) => set("smokingPerDay", e.target.value.replace(/\D/g, "").slice(0, 3))} placeholder="5" /></label>}
-        <div className="mp-field"><span>Alcohol</span><Choice legend="Alcohol" options={ALCOHOL} value={profile.alcohol} onChange={(v) => set("alcohol", v || "Never")} /></div>
+        <div className="mp-field"><span>Alcohol</span><Choice legend="Alcohol" options={ALCOHOL} value={profile.alcohol} onChange={(v) => set("alcohol", v)} /></div>
         <label className="mp-check"><input type="checkbox" checked={profile.chewsTobacco} onChange={(e) => set("chewsTobacco", e.target.checked)} />I chew tobacco or gutka</label>
-        <div className="mp-field"><span>Activity</span><Choice legend="Activity" options={ACTIVITY} value={profile.activity} onChange={(v) => set("activity", v || "Light walking")} /></div>
-        <div className="mp-field"><span>Diet</span><Choice legend="Diet" options={DIET} value={profile.diet} onChange={(v) => set("diet", v || "Vegetarian")} /></div>
+        <div className="mp-field"><span>Activity</span><Choice legend="Activity" options={ACTIVITY} value={profile.activity} onChange={(v) => set("activity", v)} /></div>
+        <div className="mp-field"><span>Diet</span><Choice legend="Diet" options={DIET} value={profile.diet} onChange={(v) => set("diet", v)} /></div>
         <div className="mp-field"><span>Who helps you with your health?</span><Choice legend="Support at home" options={SUPPORT} value={profile.support} onChange={(v) => set("support", v)} /></div>
-        <div className="mp-field"><span>Sleep</span><Choice legend="Sleep" options={SLEEP} value={profile.sleep} onChange={(v) => set("sleep", v || "7 to 8 hours")} /></div>
+        <div className="mp-field"><span>Sleep</span><Choice legend="Sleep" options={SLEEP} value={profile.sleep} onChange={(v) => set("sleep", v)} /></div>
       </Block>
 
-      <Block title="Emergency contact" hint="Someone the clinic can call if you cannot be reached.">
+      <Block optional title="Emergency contact" hint="Someone the clinic can call if you cannot be reached.">
         <div className="mp-plain">
           <label>Name<input value={profile.emergencyName} autoComplete="off" onChange={(e) => set("emergencyName", e.target.value)} placeholder="Contact name" /></label>
           <div className="two-col">
@@ -247,22 +259,27 @@ function LifeStep({ profile, set, problems }) {
       </Block>
 
       <Block title="How would you like to consult?">
-        <Choice legend="Preferred consult mode" options={CONSULT_MODES} value={profile.preferredMode} onChange={(v) => set("preferredMode", v || "Clinic visit")} />
+        <Choice legend="Preferred consult mode" options={CONSULT_MODES} value={profile.preferredMode} onChange={(v) => set("preferredMode", v)} />
       </Block>
 
       <label className="consent-line">
         <input type="checkbox" checked={profile.consent} onChange={(e) => set("consent", e.target.checked)} />
-        I agree to the clinic storing my health details and sending follow-up reminders.
+        I consent to my health information being stored on servers outside India (South Korea) and used to look after my care, and to follow-up reminders.
       </label>
+      <p className="legal-links">
+        Read the <button type="button" className="legal-link" onClick={() => window.location.assign("/privacy.html")}>Privacy policy</button> and
+        the <button type="button" className="legal-link" onClick={() => window.location.assign("/terms.html")}>Terms of use</button>.
+        You can withdraw consent at any time.
+      </p>
       <p className="mp-note"><ShieldCheck size={16} aria-hidden="true" /> Only you and Dr Ashwani can see this. It supports the doctor and does not replace a visit.</p>
       {problems.length > 0 && <ul className="mp-problems" role="alert">{problems.map((item) => <li key={item}>{item}</li>)}</ul>}
     </>
   );
 }
 
-export default function PatientMedicalInfo({ source, googleProfile, initialProfile, onBack, onDone, onSavingChange }) {
+export default function PatientMedicalInfo({ identity, initialProfile, onBack, onDone, onSavingChange }) {
   const [profile, setProfile] = useState(() => {
-    const defaults = emptyProfile(googleProfile);
+    const defaults = emptyProfile(identity);
     if (!initialProfile) return defaults;
     return {
       ...defaults,
@@ -293,6 +310,7 @@ export default function PatientMedicalInfo({ source, googleProfile, initialProfi
     if (submitting) return;
     const found = stepProblems(step, profile);
     if (found.length) { setProblems(found); return; }
+    if (last && !normalizePatientWhatsapp(profile.sameWhatsapp ? profile.phone : profile.whatsapp)) { goTo(0); return; }
     if (!last) { goTo(step + 1); return; }
     setSubmitting(true);
     onSavingChange?.(true);
@@ -321,18 +339,8 @@ export default function PatientMedicalInfo({ source, googleProfile, initialProfi
         {STEPS.map(([name], index) => <span key={name} className={index <= step ? "is-done" : ""} />)}
       </div>
       <p className="mp-step">Step {step + 1} of {STEPS.length}</p>
-      <h2>{step === 0 && source === "google" ? "Complete your health profile" : STEPS[step][0]}</h2>
+      <h2>{STEPS[step][0]}</h2>
       <p className="screen-copy">{STEPS[step][1]}</p>
-
-      {step === 0 && googleProfile && (
-        <div className="integration-card google-connected">
-          <span className="google-dot">G</span>
-          <div>
-            <strong>Google connected</strong>
-            <small>{googleProfile.email} will be linked after consent.</small>
-          </div>
-        </div>
-      )}
 
       {openSavedIntake ? (
         <p role="status">Your earlier intake was saved. Contact the clinic to update any additional details.</p>
@@ -342,7 +350,7 @@ export default function PatientMedicalInfo({ source, googleProfile, initialProfi
       <div className="mp-actions">
         {saveFailed && <p className="mp-problems" role="alert">We could not save your medical profile. Please try again.</p>}
         <Button block loading={submitting} icon={last ? <Check size={18} /> : null} onClick={openSavedIntake || next}>
-          {openSavedIntake ? "Continue to Home" : last ? (saveFailed ? "Retry save" : "Create patient app") : <>Continue <ArrowRight size={18} /></>}
+          {openSavedIntake ? "Continue to Home" : last ? (saveFailed ? "Retry save" : "Save medical profile") : <>Continue <ArrowRight size={18} /></>}
         </Button>
         {(step === 1 || step === 2) && <Button intent="ghost" block onClick={() => goTo(step + 1)}>Skip for now</Button>}
       </div>

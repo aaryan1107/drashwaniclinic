@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { bookingRow, bookingWhatsAppUrl, dayLabel, groupSlots, longDate, savedVisitState } from "./booking.js";
+import { BOOKING_REASON_LIMIT, bookingReason, bookingRow, bookingWhatsAppUrl, dayLabel, groupSlots, longDate, savedVisitState } from "./booking.js";
 
 assert.deepEqual(groupSlots(["8:00 AM", "11:30 AM", "12:00 PM", "4:30 PM", "5:00 PM", "7:30 PM"]), [
   { label: "Morning", slots: ["8:00 AM", "11:30 AM"] },
@@ -13,6 +13,11 @@ assert.equal(dayLabel("2026-11-19", "2026-11-19"), "Today");
 assert.equal(dayLabel("2026-11-20", "2026-11-19"), "Tomorrow");
 assert.equal(dayLabel("2026-11-23", "2026-11-19"), "Mon");
 assert.match(longDate("2026-11-20"), /20 Nov/);
+assert.equal(bookingReason("  Dizziness after meals  "), "Dizziness after meals");
+assert.equal(bookingReason("   "), "");
+assert.equal(bookingReason(null), "");
+assert.equal(bookingReason("a".repeat(BOOKING_REASON_LIMIT)).length, BOOKING_REASON_LIMIT);
+assert.equal(bookingReason("a".repeat(BOOKING_REASON_LIMIT + 1)), "");
 
 const base = {
   appointment: { date: "2026-11-20", time: "9:30 AM", reason: "Thyroid" },

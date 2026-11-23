@@ -56,3 +56,71 @@
 .app-stage .bottom-nav button[aria-current="page"],
 .app-stage .bottom-nav button:focus:not(:focus-visible),
 .app-stage .bottom-nav button:hover { background: transparent !important; box-shadow: none; }
+
+/* Use the same deeper surface for patient education and account forms in Charcoal. */
+.app-stage[data-clinic-theme="charcoal"] {
+  --clinic-charcoal-card: #141918;
+  --clinic-charcoal-control: #1b2321;
+}
+.app-stage[data-clinic-theme="charcoal"] :is(.auth-card, .article-card, .updates-form-card, .update-summary-card) {
+  background: var(--clinic-charcoal-card);
+  border: 1px solid #293633;
+}
+.app-stage[data-clinic-theme="charcoal"] .clinic-auth :is(.auth-mode, .google-button, input),
+.app-stage[data-clinic-theme="charcoal"] .patient-record-actions > button {
+  background: var(--clinic-charcoal-control);
+}
+.app-stage[data-clinic-theme="charcoal"] .article-card > span {
+  background: var(--clinic-charcoal-control);
+  color: var(--blue);
+}
+
+.clinic-policy-links {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0 14px;
+  color: var(--muted);
+  font-size: .8125rem;
+}
+.clinic-policy-links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: .2em;
+}
+
+.app-stage .patient-shortcuts .patient-shortcut-care { background: var(--room-sky); }
+.app-stage .patient-shortcuts .patient-shortcut-updates { background: var(--room-sage); }
+.app-stage .patient-shortcuts .patient-shortcut-book { background: var(--room-rose); }
+.app-stage .patient-shortcuts .patient-shortcut-chat { background: var(--room-amber); }
+.app-stage .patient-shortcut-updates > svg { color: var(--green); }
+.app-stage .patient-shortcut-book > svg { color: var(--rose); }
+.app-stage .patient-shortcut-chat > svg { color: var(--amber); }
+.app-stage .patient-shortcut:active { filter: brightness(.96); }
+
+.doctor-booking-reasons {
+  margin-top: 6px;
+  border-top: 1px solid var(--line);
+}
+.doctor-booking-reasons summary {
+  display: list-item;
+  align-content: center;
+  min-height: 44px;
+  cursor: pointer;
+  font-weight: 620;
+}
+.doctor-bookings .doctor-booking-reasons ul { display: grid; }
+.doctor-bookings .doctor-booking-reasons li {
+  justify-content: space-between;
+  border-radius: var(--clinic-control-radius, 12px);
+}
+.doctor-booking-reasons li > div { min-width: 0; }
+.doctor-booking-reasons li > span { flex: none; }
+.doctor-booking-reasons li p {
+  margin: 3px 0 0;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}

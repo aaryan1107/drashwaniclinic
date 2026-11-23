@@ -51,8 +51,33 @@ export function formatAssistantPayment(payment, visitPurpose) {
     case "PAID_CONFIRMED": return `${prefix} is confirmed.${reference}`;
     case "MANUALLY_VERIFIED": return `${prefix} was verified by the clinic.${reference}`;
     case "FAILED": return `${prefix} is marked failed.${reference}`;
+    case "REFUNDED": return `${prefix} was refunded.${reference}`;
     case "CAPTURE_PENDING":
     case "AUTHORIZED": return `${prefix} is awaiting capture. It has no payment confirmation yet.${reference}`;
     default: return `${prefix} has no payment confirmation yet.${reference}`;
+  }
+}
+
+// ---- AI assistant (Supabase Edge Function "clinic-assistant", model hosted by Groq) ----
+
+const CARD_TYPES = new Set(["prescription", "booking_draft", "readings_draft", "open"]);
+
+// The last few plain-text turns, so the assistant can follow the conversation.
+export function assistantHistory(messages, limit = 6) {
+  return messages.slice(1).filter((message) => message.text)
+    .map((message) => ({ role: message.role === "user" ? "user" : "assistant", text: message.text }))
+    .slice(-limit);
+}
+
+// Returns { reply, cards, source } or null when the assistant is off or failing,
+// in which case the chat falls back to the rules above.
+export async function askClinicAssistant(client, message, history) {
+  try {
+    const { data, error } = await client.functions.invoke("clinic-assistant", { body: { message, history } });
+    if (error || !data || typeof data.reply !== "string" || !data.reply.trim()) return null;
+    const cards = Array.isArray(data.cards) ? data.cards.filter((card) => card && CARD_TYPES.has(card.type)) : [];
+    return { reply: data.reply.trim(), cards, source: data.source === "ai" ? "ai" : "rules" };
+  } catch {
+    return null;
   }
 }

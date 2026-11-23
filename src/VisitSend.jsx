@@ -46,7 +46,7 @@ export function SendScreen({ visit, patient, clinic, onEdit, onSent }) {
       )}
       <article className="vt-rx-preview" aria-label="Prescription preview">
         <header><strong>{row.patient_name}</strong><span>{[row.patient_age && `${row.patient_age} y`, row.patient_gender].filter(Boolean).join(" · ")}</span></header>
-        <p><b>Diagnosis:</b> {row.diagnosis || "Not recorded"}</p>
+        {row.diagnosis && <p><b>Diagnosis:</b> {row.diagnosis}</p>}
         <ol className="vt-rx-list">{row.medicines.map((m) => (
           <li key={m.id}>
             <b>{m.name}</b>{m.form ? ` (${m.form.toLowerCase()})` : ""}
@@ -57,7 +57,7 @@ export function SendScreen({ visit, patient, clinic, onEdit, onSent }) {
           </li>
         ))}</ol>
         {row.instructions && <pre className="vt-pre">{row.instructions}</pre>}
-        <p><b>Follow-up:</b> {row.follow_up_date || "Not set"}</p>
+        {row.follow_up_date && <p><b>Follow-up:</b> {row.follow_up_date}</p>}
         <p className="vt-note">Private notes are not included. Once sent, the patient can see this prescription in their app and it cannot be edited (only voided).</p>
       </article>
       {allergyHits.length > 0 && (

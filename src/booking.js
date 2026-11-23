@@ -1,20 +1,13 @@
 // Pure helpers for the patient Book tab: a clinic visit paid for at booking.
-export const VISIT_FEE_RUPEES = 700;
+// The visit fee and the payment marker live in one shared module that the payment functions also use.
+import { VISIT_PAYMENT_PURPOSE, visitFeeRupees } from "../supabase/functions/_shared/consultationFee.js";
+export { VISIT_PAYMENT_PURPOSE, visitFeeRupees };
 
-export const BOOKING_REASONS = [
-  "Diabetes follow-up",
-  "Thyroid",
-  "Blood pressure",
-  "Weight management",
-  "Fatty liver",
-  "Report review",
-  "Prescription renewal",
-  "Medicine side effects"
-];
+// One list and one limit for the Book screen and the clinic assistant.
+import { BOOKING_REASONS, BOOKING_REASON_LIMIT, bookingReason } from "../supabase/functions/_shared/clinicAssistantRules.js";
+export { BOOKING_REASONS, BOOKING_REASON_LIMIT, bookingReason };
+import { indiaDate } from "./carePlan.js";
 
-// Payment marker stored on consultation_payments.clinic so a visit payment never unlocks
-// the WhatsApp consultation flow, which reads the same table.
-export const VISIT_PAYMENT_PURPOSE = "clinic_visit";
 
 const minutesOf = (slot) => {
   const match = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i.exec(String(slot).trim());
@@ -77,6 +70,23 @@ export function savedVisitState(visit, payment) {
   if (payment?.payment_status === "FAILED" || visit.payment_status === "FAILED") return "failed";
   if ([payment?.payment_status, visit.payment_status].includes("PAID_CONFIRMED")) return "booked";
   return "pending";
+}
+
+export function nextSavedVisit(saved, now = new Date()) {
+  const today = indiaDate(now);
+  const [hours, minutes] = now.toLocaleTimeString("en-GB", {
+    timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", hourCycle: "h23"
+  }).split(":").map(Number);
+  const currentMinutes = hours * 60 + minutes;
+  const time = (visit) => minutesOf(visit.appointment_time) ?? Infinity;
+
+  return saved.filter(({ visit, state }) => (
+    (state === "booked" || state === "pending") &&
+    (visit.appointment_date > today ||
+      (visit.appointment_date === today && time(visit) >= currentMinutes))
+  )).sort(({ visit: a }, { visit: b }) => (
+    a.appointment_date.localeCompare(b.appointment_date) || time(a) - time(b)
+  ))[0];
 }
 
 export function bookingWhatsAppUrl(visit) {

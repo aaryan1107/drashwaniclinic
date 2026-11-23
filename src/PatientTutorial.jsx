@@ -2,19 +2,21 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Activity, Bell, CalendarCheck, Pill } from "lucide-react";
+import { GENERAL_FEE_RUPEES, SENIOR_FEE_RUPEES, SENIOR_MIN_AGE } from "../supabase/functions/_shared/consultationFee.js";
 import "./welcome.css";
 
 const STEPS = [
-  [CalendarCheck, "Book a clinic visit", "Pick a day and time, then pay the ₹700 fee in the app. Your slot is confirmed as soon as the payment goes through."],
+  [CalendarCheck, "Book a clinic visit", `Pick a day and time, then pay the fee in the app (₹${GENERAL_FEE_RUPEES}, or ₹${SENIOR_FEE_RUPEES} if you are ${SENIOR_MIN_AGE} or over). Your slot is confirmed as soon as the payment goes through.`],
   [Activity, "Log your readings", "Add blood sugar, blood pressure, weight and HbA1c so Dr Ashwani can see how you are doing between visits."],
   [Pill, "See your prescriptions", "Medicines and instructions from your visit appear here, ready to read or download."],
-  [Bell, "Reminders and help", "Turn on reminders for medicines and follow-ups, and ask the clinic assistant if you get stuck."]
+  [Bell, "Medicine and follow-up reminders", "Turn on reminders for medicines and follow-ups from your care plan."]
 ];
 
+const seenThisSession = new Set();
 const seenKey = (userId) => `clinic-tutorial-seen:${userId}`;
 
-export function shouldShowTutorial(userId) {
-  if (!userId) return false;
+export function shouldShowTutorial(userId, seenOnAccount = false) {
+  if (!userId || seenOnAccount || seenThisSession.has(userId)) return false;
   try { return localStorage.getItem(seenKey(userId)) !== "1"; } catch { return false; }
 }
 
@@ -26,7 +28,8 @@ export default function PatientTutorial({ userId, onClose }) {
   const [Icon, title, body] = STEPS[step];
 
   const finish = () => {
-    try { localStorage.setItem(seenKey(userId), "1"); } catch { /* shows again next time */ }
+    seenThisSession.add(userId);
+    try { localStorage.setItem(seenKey(userId), "1"); } catch { /* Account preference still syncs. */ }
     onClose();
   };
 

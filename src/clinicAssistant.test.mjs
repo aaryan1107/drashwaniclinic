@@ -33,5 +33,6 @@ assert.match(rx, /Fixture · 1 tablet · Oral · As directed · With food/);
 assert.match(rx, /Recorded follow-up date: 2026-12-01/);
 assert.match(formatAssistantPayment({ payment_status: "AUTHORIZED" }, "clinic_visit"), /awaiting capture/);
 assert.match(formatAssistantPayment({ payment_status: "PAID_CONFIRMED", clinic: { purpose: "clinic_visit" } }, "clinic_visit"), /clinic visit payment is confirmed/);
+assert.match(formatAssistantPayment({ payment_status: "REFUNDED" }, "clinic_visit"), /was refunded/);
 assert.match(formatAssistantPayment(null, "clinic_visit"), /no clinic payment record/);
 console.log("Clinic assistant routing and record formatting passed.");

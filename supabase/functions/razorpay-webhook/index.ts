@@ -1,3 +1,5 @@
+import { isAllowedFeePaise } from "../_shared/consultationFee.js";
+
 // Razorpay webhook: confirms consultation payments server-side, even if the patient
 // closes the browser before the in-app verify call finishes.
 //
@@ -17,7 +19,6 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS"
 };
 
-const CONSULT_AMOUNT_PAISE = 70000;
 
 // Events to tick in the Razorpay Dashboard. State-changing events patch consultation_payments;
 // the rest are only recorded in the audit log for the doctor to review.
@@ -121,7 +122,7 @@ Deno.serve(async (request) => {
       });
     }
 
-    if (update.checkAmount && (update.amount !== CONSULT_AMOUNT_PAISE || update.currency !== "INR")) {
+    if (update.checkAmount && (!isAllowedFeePaise(update.amount) || update.currency !== "INR")) {
       await logEvent(db, { ...audit, outcome: "rejected_amount" });
       return json({ error: "Payment amount or currency does not match the consultation fee." }, 400);
     }
@@ -206,6 +207,9 @@ function targetQuery(orderId: string, update: Update) {
   } else {
     query.set("payment_status", `in.(${priorStates[String(update.patch.payment_status)]})`);
   }
+  // The event's amount must equal the amount recorded when the order was created, so an order made for one
+  // price can never be settled as another.
+  if (update.checkAmount && Number.isInteger(update.amount)) query.set("amount", `eq.${update.amount}`);
   query.set("select", "payment_status");
   return query;
 }

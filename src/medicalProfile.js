@@ -64,20 +64,20 @@ export const CONSULT_MODES = ["Clinic visit", "WhatsApp consultation", "Online c
 
 export const emptyMedicine = () => ({ name: "", dose: "" });
 
-export const emptyProfile = (googleProfile) => ({
-  fullName: googleProfile?.name || "",
+export const emptyProfile = (identity) => ({
+  fullName: identity?.name || "",
   phone: "",
   whatsapp: "",
   sameWhatsapp: true,
   age: "",
-  gender: "Male",
-  bloodGroup: "Not sure",
+  gender: "",
+  bloodGroup: "",
   heightCm: "",
   weight: "",
-  pregnant: "No",
+  pregnant: "",
   planningPregnancy: "",
   abha: "",
-  language: "English",
+  language: "",
   conditions: [],
   otherCondition: "",
   diabetes: {
@@ -106,22 +106,28 @@ export const emptyProfile = (googleProfile) => ({
   surgeries: [],
   familyHistory: [],
   familyNote: "",
-  smoking: "Never",
+  smoking: "",
   smokingPerDay: "",
-  alcohol: "Never",
+  alcohol: "",
   chewsTobacco: false,
-  activity: "Light walking",
-  diet: "Vegetarian",
-  sleep: "7 to 8 hours",
+  activity: "",
+  diet: "",
+  sleep: "",
   support: "",
   emergencyName: "",
   emergencyRelation: "",
   emergencyPhone: "",
-  preferredMode: "Clinic visit",
+  preferredMode: "",
   consent: false
 });
 
 export const digits = (value) => `${value || ""}`.replace(/\D/g, "");
+
+export function normalizePatientWhatsapp(value) {
+  const number = digits(value);
+  const national = number.length === 12 && number.startsWith("91") ? number.slice(2) : number;
+  return /^[6-9][0-9]{9}$/.test(national) ? `+91${national}` : "";
+}
 
 export const hasDiabetes = (profile) => profile.conditions.some((item) => DIABETES_CONDITIONS.includes(item));
 
@@ -150,7 +156,7 @@ export function stepProblems(step, profile) {
     if (digits(profile.phone).length < 10) problems.push("Enter a 10 digit mobile number.");
     const age = Number(profile.age);
     if (!(age >= 1 && age <= 120)) problems.push("Enter your age in years.");
-    if (!profile.sameWhatsapp && profile.whatsapp.trim() && digits(profile.whatsapp).length < 10) problems.push("Enter a 10 digit WhatsApp number or tick the same-number box.");
+    if (!normalizePatientWhatsapp(profile.sameWhatsapp ? profile.phone : profile.whatsapp)) problems.push("Enter a valid Indian WhatsApp number.");
   }
   if (step === 3) {
     if (profile.emergencyPhone.trim() && digits(profile.emergencyPhone).length < 10) problems.push("Enter a 10 digit emergency contact number.");
@@ -210,15 +216,20 @@ export function historyLines(profile) {
   clean(profile.surgeries).forEach((item) => lines.push(`Past surgery or hospital stay: ${item}`));
   if (profile.familyHistory.length) lines.push(`Family history: ${profile.familyHistory.join(", ")}${profile.familyNote.trim() ? ` (${profile.familyNote.trim()})` : ""}`);
   const lifestyle = [];
-  if (profile.smoking !== "Never") lifestyle.push(`smoking: ${profile.smoking.toLowerCase()}${profile.smoking === "Currently" && profile.smokingPerDay ? ` (${profile.smokingPerDay} a day)` : ""}`);
-  if (profile.alcohol !== "Never") lifestyle.push(`alcohol: ${profile.alcohol.toLowerCase()}`);
+  if (profile.smoking) lifestyle.push(`smoking: ${profile.smoking.toLowerCase()}${profile.smoking === "Currently" && profile.smokingPerDay ? ` (${profile.smokingPerDay} a day)` : ""}`);
+  if (profile.alcohol) lifestyle.push(`alcohol: ${profile.alcohol.toLowerCase()}`);
   if (profile.chewsTobacco) lifestyle.push("chews tobacco");
-  lifestyle.push(`activity: ${profile.activity.toLowerCase()}`, `diet: ${profile.diet.toLowerCase()}`, `sleep: ${profile.sleep.toLowerCase()}`);
-  lines.push(`Lifestyle: ${lifestyle.join(", ")}`);
+  if (profile.activity) lifestyle.push(`activity: ${profile.activity.toLowerCase()}`);
+  if (profile.diet) lifestyle.push(`diet: ${profile.diet.toLowerCase()}`);
+  if (profile.sleep) lifestyle.push(`sleep: ${profile.sleep.toLowerCase()}`);
+  if (lifestyle.length) lines.push(`Lifestyle: ${lifestyle.join(", ")}`);
   if (profile.sleepSigns.length) lines.push(`Sleep apnoea signs: ${profile.sleepSigns.join(", ")}`);
   const mood = moodScores(profile.mood);
   if (mood.any) {
-    const parts = [`low mood ${mood.low} of 6${mood.lowFlag ? " (at or above screening cut-off of 3)" : ""}`, `worry ${mood.worry} of 6${mood.worryFlag ? " (at or above screening cut-off of 3)" : ""}`];
+    const parts = [
+      profile.mood.interest && profile.mood.down && `low mood ${mood.low} of 6${mood.lowFlag ? " (at or above screening cut-off of 3)" : ""}`,
+      profile.mood.nervous && profile.mood.worry && `worry ${mood.worry} of 6${mood.worryFlag ? " (at or above screening cut-off of 3)" : ""}`
+    ].filter(Boolean);
     lines.push(`Mood screen: ${parts.join(", ")}${mood.lowFlag || mood.worryFlag ? ". Needs doctor review" : ""}`);
   }
   if (profile.sexualHealth && profile.sexualHealth !== "No concern") lines.push(`Sexual health: ${profile.sexualHealth.toLowerCase()}`);
@@ -226,7 +237,7 @@ export function historyLines(profile) {
   const value = bmi(profile.heightCm, profile.weight);
   if (profile.heightCm) lines.push(`Height ${profile.heightCm} cm${value ? `, BMI ${value} (${bmiBand(value).toLowerCase()})` : ""}`);
   if (profile.bloodGroup && profile.bloodGroup !== "Not sure") lines.push(`Blood group: ${profile.bloodGroup}`);
-  if (profile.gender === "Female" && profile.pregnant !== "No") lines.push(`Pregnancy: ${profile.pregnant.toLowerCase()}`);
+  if (profile.gender === "Female" && profile.pregnant && profile.pregnant !== "No") lines.push(`Pregnancy: ${profile.pregnant.toLowerCase()}`);
   if (profile.gender === "Female" && profile.planningPregnancy && profile.planningPregnancy !== "No") lines.push(`Planning pregnancy: ${profile.planningPregnancy.toLowerCase()}`);
   return lines;
 }
@@ -238,7 +249,9 @@ export function symptomLines(profile) {
 }
 
 export function noteText(profile) {
-  const parts = [`Preferred consult mode: ${profile.preferredMode}`, `Language: ${profile.language}`];
+  const parts = [];
+  if (profile.preferredMode) parts.push(`Preferred consult mode: ${profile.preferredMode}`);
+  if (profile.language) parts.push(`Language: ${profile.language}`);
   if (profile.emergencyName.trim() || profile.emergencyPhone.trim()) {
     parts.push(`Emergency contact: ${[profile.emergencyName.trim(), profile.emergencyRelation.trim(), profile.emergencyPhone.trim()].filter(Boolean).join(", ")}`);
   }
@@ -278,7 +291,7 @@ export function profileToRecordFields(profile) {
 export function profileForStorage(profile) {
   return {
     ...profile,
-    whatsapp: profile.sameWhatsapp ? profile.phone : profile.whatsapp,
+    whatsapp: normalizePatientWhatsapp(profile.sameWhatsapp ? profile.phone : profile.whatsapp),
     medicines: profile.medicines.filter((item) => item.name.trim()),
     surgeries: clean(profile.surgeries),
     consentedAt: new Date().toISOString()
