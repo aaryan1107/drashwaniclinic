@@ -37,7 +37,10 @@ const ok = validateBookingDraft({ date: "2026-11-24", time: "6:30 pm", reason: "
 assert.equal(ok.ok, true);
 assert.deepEqual(ok.draft, { type: "booking_draft", clinicId: "clinic-2", clinicName: "Dr. Ashwani Family Clinic", date: "2026-11-24", time: "6:30 PM", reason: "Report review" });
 assert.match(validateBookingDraft({ date: "2026-11-24", time: "6:15 PM", reason: "Thyroid" }, CLINICS[1], lateEvening).error, /not available/);
-assert.match(validateBookingDraft({ date: "2026-11-24", time: "6:30 PM", reason: "Back pain" }, CLINICS[1], lateEvening).error, /Choose one reason/);
+// Patients may give their own reason; preset reasons are matched to the app's wording.
+assert.equal(validateBookingDraft({ date: "2026-11-24", time: "6:30 PM", reason: "  Back pain  " }, CLINICS[1], lateEvening).draft.reason, "Back pain");
+assert.match(validateBookingDraft({ date: "2026-11-24", time: "6:30 PM", reason: " " }, CLINICS[1], lateEvening).error, /short reason/);
+assert.match(validateBookingDraft({ date: "2026-11-24", time: "6:30 PM", reason: "x".repeat(161) }, CLINICS[1], lateEvening).error, /short reason/);
 assert.match(validateBookingDraft({ date: "2026-12-30", time: "6:30 PM", reason: "Thyroid" }, CLINICS[1], lateEvening).error, /can be booked from/);
 
 // Reading drafts keep only stated, well-formed values, and flag the app's urgent thresholds.

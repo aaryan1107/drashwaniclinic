@@ -78,3 +78,93 @@
 .mp .chip-check { max-width: 100%; }
 .mp .chip-check span { height: auto; min-height: 44px; padding-block: 8px; text-align: left; line-height: 1.25; }
 .mp-choice button { height: auto; padding-block: 8px; text-align: left; line-height: 1.25; }
+
+.mp-contact {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 14px;
+  min-inline-size: 0;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--clinic-raised);
+}
+.mp-contact legend { padding-inline: 5px; font-weight: 700; }
+.mp-contact legend span { margin-inline-start: 6px; color: var(--muted); font-size: .78rem; font-weight: 500; }
+.mp-optional summary {
+  display: list-item;
+  min-height: 44px;
+  padding-block: 10px;
+  cursor: pointer;
+  font-weight: 700;
+}
+.mp-optional[open] summary { margin-bottom: 10px; border-bottom: 1px solid var(--line); }
+
+.clinic-session-loader {
+  display: grid;
+  min-height: 100%;
+  align-content: center;
+  justify-items: center;
+  gap: 18px;
+  padding: 32px;
+  color: var(--ink);
+  text-align: center;
+}
+.clinic-session-loader .clinic-mark { width: 62px; height: 62px; border-radius: 18px; }
+.clinic-session-loader h1 { margin: 0; font-size: clamp(1.25rem, 5vw, 1.6rem); }
+.clinic-session-track {
+  width: 88px;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: var(--line);
+}
+.clinic-session-track::before {
+  display: block;
+  width: 40%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--blue);
+  content: "";
+  animation: clinic-session-progress 1.2s ease-in-out infinite alternate;
+}
+@keyframes clinic-session-progress { to { transform: translateX(150%); } }
+@media (prefers-reduced-motion: reduce) {
+  .clinic-session-track::before { animation: none; width: 100%; }
+}
+
+.patient-record-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+.patient-record-actions > :is(a, button) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 52px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 650;
+  text-decoration: none;
+}
+.patient-record-actions > a { color: var(--blue); background: var(--soft-blue); }
+.patient-record-actions > p {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 12px;
+  border-radius: 14px;
+  background: var(--clinic-raised);
+  color: var(--muted);
+}
+.patient-record-actions svg { flex-shrink: 0; }
+.patient-record-heading { margin: 4px 0 0; font-size: 1.2rem; scroll-margin-top: 12px; }
+.patient-record-heading:focus { outline-offset: 4px; }
+.patient-abha[hidden] { display: none; }
+.patient-abha small { color: var(--muted); }
+.patient-visit-list { display: grid; gap: 12px; }
+.patient-visit-list p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }

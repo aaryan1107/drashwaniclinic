@@ -3,8 +3,10 @@
 import { VISIT_PAYMENT_PURPOSE, visitFeeRupees } from "../supabase/functions/_shared/consultationFee.js";
 export { VISIT_PAYMENT_PURPOSE, visitFeeRupees };
 
-// One list for the Book screen and the clinic assistant.
-export { BOOKING_REASONS } from "../supabase/functions/_shared/clinicAssistantRules.js";
+// One list and one limit for the Book screen and the clinic assistant.
+import { BOOKING_REASONS, BOOKING_REASON_LIMIT, bookingReason } from "../supabase/functions/_shared/clinicAssistantRules.js";
+export { BOOKING_REASONS, BOOKING_REASON_LIMIT, bookingReason };
+import { indiaDate } from "./carePlan.js";
 
 
 const minutesOf = (slot) => {
@@ -68,6 +70,23 @@ export function savedVisitState(visit, payment) {
   if (payment?.payment_status === "FAILED" || visit.payment_status === "FAILED") return "failed";
   if ([payment?.payment_status, visit.payment_status].includes("PAID_CONFIRMED")) return "booked";
   return "pending";
+}
+
+export function nextSavedVisit(saved, now = new Date()) {
+  const today = indiaDate(now);
+  const [hours, minutes] = now.toLocaleTimeString("en-GB", {
+    timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", hourCycle: "h23"
+  }).split(":").map(Number);
+  const currentMinutes = hours * 60 + minutes;
+  const time = (visit) => minutesOf(visit.appointment_time) ?? Infinity;
+
+  return saved.filter(({ visit, state }) => (
+    (state === "booked" || state === "pending") &&
+    (visit.appointment_date > today ||
+      (visit.appointment_date === today && time(visit) >= currentMinutes))
+  )).sort(({ visit: a }, { visit: b }) => (
+    a.appointment_date.localeCompare(b.appointment_date) || time(a) - time(b)
+  ))[0];
 }
 
 export function bookingWhatsAppUrl(visit) {

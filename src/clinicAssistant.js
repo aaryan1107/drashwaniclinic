@@ -51,6 +51,7 @@ export function formatAssistantPayment(payment, visitPurpose) {
     case "PAID_CONFIRMED": return `${prefix} is confirmed.${reference}`;
     case "MANUALLY_VERIFIED": return `${prefix} was verified by the clinic.${reference}`;
     case "FAILED": return `${prefix} is marked failed.${reference}`;
+    case "REFUNDED": return `${prefix} was refunded.${reference}`;
     case "CAPTURE_PENDING":
     case "AUTHORIZED": return `${prefix} is awaiting capture. It has no payment confirmation yet.${reference}`;
     default: return `${prefix} has no payment confirmation yet.${reference}`;

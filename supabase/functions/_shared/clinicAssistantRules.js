@@ -16,16 +16,25 @@ export const AI_DISCLOSURE = "Automated clinic assistant. It cannot give medical
 export const EMERGENCY_REPLY = "If you may be having a medical emergency, call 112 or go to the nearest emergency department now. Please do not wait for a chat reply.";
 export const MEDICAL_REPLY = "I can’t advise on symptoms, diagnosis or medicines. Only Dr. Ashwani Kansal can do that. I can show what the doctor has written on your prescription, or help you book a visit to discuss it.";
 
+// Suggestions shown on the Book screen. Patients may also type their own reason.
 export const BOOKING_REASONS = [
+  "New symptom",
+  "Follow-up visit",
+  "Report review",
+  "Prescription renewal",
   "Diabetes follow-up",
   "Thyroid",
   "Blood pressure",
   "Weight management",
   "Fatty liver",
-  "Report review",
-  "Prescription renewal",
   "Medicine side effects"
 ];
+export const BOOKING_REASON_LIMIT = 160;
+
+export function bookingReason(value) {
+  const reason = typeof value === "string" ? value.trim() : "";
+  return reason.length <= BOOKING_REASON_LIMIT ? reason : "";
+}
 
 // Public clinic details. No phone number: patients are asked to book and pay in the app.
 export const CLINICS = [
@@ -141,8 +150,9 @@ export function validateBookingDraft(args, clinic, now = new Date()) {
   const slots = slotsFor(clinic, date, now);
   const slot = slots.find((value) => value.toUpperCase() === time);
   if (!slot) return { ok: false, error: slots.length ? `That time is not available. Free slots: ${slots.join(", ")}.` : "No slots are left on that day." };
-  const matchedReason = BOOKING_REASONS.find((value) => value.toLowerCase() === reason.toLowerCase());
-  if (!matchedReason) return { ok: false, error: `Choose one reason: ${BOOKING_REASONS.join(", ")}.` };
+  const cleanReason = bookingReason(reason);
+  if (!cleanReason) return { ok: false, error: `Ask the patient for a short reason (up to ${BOOKING_REASON_LIMIT} characters), in their own words or one of: ${BOOKING_REASONS.join(", ")}.` };
+  const matchedReason = BOOKING_REASONS.find((value) => value.toLowerCase() === cleanReason.toLowerCase()) || cleanReason;
   return { ok: true, draft: { type: "booking_draft", clinicId: clinic.id, clinicName: clinic.name, date, time: slot, reason: matchedReason } };
 }
 
@@ -238,7 +248,7 @@ export const TOOL_DECLARATIONS = [
       properties: {
         date: { type: "string", description: "YYYY-MM-DD" },
         time: { type: "string", description: "A slot exactly as returned by get_available_slots, for example 6:30 PM" },
-        reason: { type: "string", enum: BOOKING_REASONS, description: "The reason for the visit" }
+        reason: { type: "string", description: `The reason for the visit in the patient's words (up to ${BOOKING_REASON_LIMIT} characters), or one of: ${BOOKING_REASONS.join(", ")}` }
       },
       required: ["date", "time", "reason"]
     }
@@ -300,6 +310,6 @@ export function buildSystemInstruction({ today, clinic, onDuty }) {
     "CLINIC FACTS",
     `- Visits are booked at ${clinic.name} (${clinic.area}), ${clinic.timing}. The doctor is ${onDuty ? "on duty now" : "off duty now"}.`,
     `- Fees (clinic visit booked in the app, and online consultation): ${feeSummary()}, by the age on the patient's record. Paid in the app when booking.`,
-    `- Bookable reasons: ${BOOKING_REASONS.join(", ")}.`
+    `- Visit reason: the patient's own words (short), or one of: ${BOOKING_REASONS.join(", ")}.`
   ].join("\n");
 }

@@ -25,8 +25,17 @@
 .bk-slots { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .bk-slot { min-height: 48px; border: 0; border-radius: var(--clinic-control-radius, 12px); background: var(--surface); color: var(--ink); font: inherit; font-size: .9375rem; font-weight: 600; font-variant-numeric: tabular-nums; cursor: pointer; transition: transform 120ms ease, background-color 180ms ease; }
 
+.bk-reason-card { display: grid; gap: 10px; padding: 14px; border-radius: var(--clinic-card-radius, 14px); background: var(--clinic-charcoal-card, var(--surface)); }
+.bk-reason-card label { font-weight: 650; }
+.bk-reason-card p { margin: 0; color: var(--muted); font-size: .8125rem; }
+.bk-reason-field { display: flex; align-items: center; gap: 9px; padding: 0 12px; background: var(--clinic-charcoal-control, var(--clinic-raised)); color: var(--muted); border: 1px solid var(--line); border-radius: var(--clinic-control-radius, 12px); }
+.bk-reason-field:focus-within { outline: 2px solid var(--blue); outline-offset: 2px; }
+.app-stage .bk-reason-field input { flex: 1; min-width: 0; min-height: 48px; padding: 0; border: 0; background: transparent; color: var(--ink); font: inherit; }
+.app-stage .bk-reason-field input:focus { outline: 0; box-shadow: none; }
+.bk-reason-field input::placeholder { color: var(--muted); }
+.bk-reason-field svg { flex: none; }
 .bk-reasons { display: flex; flex-wrap: wrap; gap: 8px; }
-.bk-reason { min-height: 44px; padding: 0 14px; border: 0; border-radius: 999px; background: var(--surface); color: var(--ink); font: inherit; font-size: .9375rem; font-weight: 560; cursor: pointer; transition: transform 120ms ease, background-color 180ms ease; }
+.bk-reason { min-height: 44px; padding: 0 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--clinic-charcoal-control, var(--clinic-raised)); color: var(--ink); font: inherit; font-size: .875rem; font-weight: 560; cursor: pointer; transition: transform 120ms ease, background-color 180ms ease; }
 
 .bk :is(.bk-day, .bk-slot, .bk-reason).is-on { background: var(--blue); color: var(--clinic-action-ink); }
 .bk :is(.bk-day, .bk-slot, .bk-reason).is-on :is(span, small) { color: inherit; }
@@ -37,7 +46,7 @@
 .bk-facts { margin: 0; display: grid; gap: 8px; }
 .bk-facts > div { display: flex; justify-content: space-between; gap: 12px; font-size: .9375rem; }
 .bk-facts dt { color: var(--muted); }
-.bk-facts dd { margin: 0; font-weight: 620; text-align: right; font-variant-numeric: tabular-nums; }
+.bk-facts dd { margin: 0; min-width: 0; overflow-wrap: anywhere; font-weight: 620; text-align: right; font-variant-numeric: tabular-nums; }
 .bk-fee { padding-top: 10px; border-top: 1px solid color-mix(in srgb, var(--ink) 12%, transparent); }
 .bk-fee dd { font-size: 1.0625rem; }
 .bk-mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: .8125rem; word-break: break-all; }
@@ -77,3 +86,47 @@
 .doctor-bookings-head span { color: var(--muted); font-size: .86rem; }
 .doctor-bookings ul { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 8px; }
 .doctor-bookings li { display: inline-flex; gap: 8px; align-items: baseline; padding: 6px 12px; border-radius: 99px; background: color-mix(in srgb, var(--blue) 14%, transparent); font-size: .86rem; }
+
+.bk-date-tile {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  min-width: 58px;
+  min-height: 64px;
+  padding: 7px;
+  gap: 2px;
+  border-radius: var(--clinic-control-radius, 12px);
+  background: color-mix(in srgb, var(--visit-accent) 9%, var(--surface));
+  color: var(--visit-accent);
+  line-height: 1;
+}
+.bk-date-tile span { font-size: .6875rem; font-weight: 650; text-transform: uppercase; letter-spacing: .06em; }
+.bk-date-tile strong { font-size: 1.625rem; font-weight: 660; font-variant-numeric: tabular-nums; letter-spacing: -.04em; }
+
+.bk-visit-status { display: flex; align-items: center; gap: 6px; color: var(--visit-accent); }
+.bk-visit-status svg { flex: none; }
+.bk-next .bk-visit-status { margin-top: 4px; font-size: .8125rem; font-weight: 640; }
+.bk-history-title { margin: 0; font-size: var(--clinic-section); }
+.bk-done { display: grid; gap: 14px; padding: 16px; }
+.bk-done h3 { margin: 0; font-size: .9375rem; font-weight: 650; }
+.bk-receipt-visit { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 12px; }
+.bk-receipt-visit h4 { margin: 0 0 3px; font-size: 1.125rem; line-height: 1.25; letter-spacing: -.025em; font-variant-numeric: tabular-nums; }
+.bk-receipt-visit div > span { display: flex; align-items: baseline; gap: 5px; color: var(--muted); font-size: .875rem; }
+.bk-receipt-visit svg { flex: none; align-self: center; }
+.bk-done .bk-facts { padding-block: 11px 0; border-top: 1px solid var(--line); }
+.bk-done .bk-facts > div { font-size: .8125rem; }
+.bk-confirmation-share { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; text-align: center; text-decoration: none; }
+.bk-confirmation-share svg { flex: none; }
+
+.bk-alert { margin: 0; display: flex; gap: 8px; align-items: flex-start; padding: 12px 14px; border-radius: var(--clinic-control-radius, 12px); background: var(--soft-rose); color: var(--rose); font-size: .9375rem; line-height: 1.4; }
+.bk-alert svg { flex: none; margin-top: 2px; }
+.bk-alert.is-quiet { background: var(--clinic-raised); color: var(--ink); }
+.bk-empty { margin: 0; padding: 14px; border-radius: var(--clinic-control-radius, 12px); background: var(--surface); color: var(--muted); font-size: .9375rem; }
+.bk-note { margin: -6px 0 0; color: var(--muted); font-size: .8125rem; line-height: 1.45; text-align: center; }
+
+@media (prefers-reduced-motion: reduce) {
+  .bk-next { transition: none; }
+  .bk-next:active { transform: none; }
+  .bk :is(.bk-day, .bk-slot, .bk-reason) { transition: none; }
+  .bk :is(.bk-day, .bk-slot, .bk-reason):active:not(:disabled) { transform: none; }
+}
