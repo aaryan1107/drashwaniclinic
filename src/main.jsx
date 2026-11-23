@@ -2231,6 +2231,9 @@ function PatientHome({
   consultPayment,
   onPayConsult
 }) {
+  const hasRecentReadings = Boolean(
+    patientReadings.fasting || patientReadings.bp || patientReadings.weight || patientReadings.hba1c
+  );
   const hasEmergencyReadings = hasCriticalReadings({ readings: patientReadings });
   const hasEmergencyNotes = hasAnyKeyword(
     `${patientReadings.symptoms || ""} ${patientReadings.note || ""}`.toLowerCase(),
@@ -2268,16 +2271,26 @@ function PatientHome({
         </div>
       </section>
 
-      {(patientReadings.fasting || patientReadings.bp || patientReadings.weight || patientReadings.hba1c) && (
-        <div className="metric-grid" aria-label="Latest readings">
-          {patientReadings.fasting && <MetricTile label="Fasting" value={patientReadings.fasting} suffix="mg/dL" tone="rose" />}
-          {patientReadings.bp && <MetricTile label="BP" value={patientReadings.bp} suffix="mmHg" tone="blue" />}
-          {patientReadings.weight && <MetricTile label="Weight" value={patientReadings.weight} suffix="kg" tone="green" />}
-          {patientReadings.hba1c && <MetricTile label="HbA1c" value={patientReadings.hba1c} suffix="%" tone="lavender" />}
-        </div>
+      {nextVisit ? (
+        <NextVisitCard entry={nextVisit} onOpen={() => setActiveTab("book")} />
+      ) : hasRecentReadings ? (
+        <section className="patient-shortcuts" aria-labelledby="recent-readings-heading">
+          <h3 id="recent-readings-heading">Recent readings</h3>
+          <div className="metric-grid">
+            {patientReadings.fasting && <MetricTile label="Fasting" value={patientReadings.fasting} suffix="mg/dL" tone="rose" />}
+            {patientReadings.bp && <MetricTile label="BP" value={patientReadings.bp} suffix="mmHg" tone="blue" />}
+            {patientReadings.weight && <MetricTile label="Weight" value={patientReadings.weight} suffix="kg" tone="green" />}
+            {patientReadings.hba1c && <MetricTile label="HbA1c" value={patientReadings.hba1c} suffix="%" tone="lavender" />}
+          </div>
+        </section>
+      ) : (
+        <button type="button" className="patient-shortcut patient-shortcut-updates grid items-start text-left"
+          onClick={() => setActiveTab("updates")}>
+          <Activity size={18} aria-hidden="true" />
+          <span><strong>Log your first reading</strong><small>Add blood sugar, blood pressure, weight or HbA1c.</small></span>
+          <ChevronRight size={14} aria-hidden="true" />
+        </button>
       )}
-
-      {nextVisit && <NextVisitCard entry={nextVisit} onOpen={() => setActiveTab("book")} />}
 
     </>
   );
