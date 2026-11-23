@@ -4,6 +4,7 @@ import { DoctorPrescriptions, PatientPrescriptions, ReceptionPrescriptions } fro
 import { Browser } from "@capacitor/browser";
 import { Capacitor } from "@capacitor/core";
 import { Popover } from "@base-ui/react/popover";
+import DeleteAccountDialog from "./DeleteAccount.jsx";
 import React, { lazy, Suspense, useContext, useLayoutEffect, useMemo, useState, useEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
 const Visit = lazy(() => import("./Visit.jsx"));
@@ -1663,6 +1664,22 @@ function App() {
     openSavedIntake();
   };
 
+  // Self-service deletion: the server deletes the account and data, then the app signs out.
+  const deleteAccount = async (confirm) => {
+    const accessToken = await getSupabaseAccessToken();
+    if (!accessToken) throw new Error("Please sign in again to delete your account.");
+    const response = await fetch(`${RAZORPAY_API_BASE}/delete-account`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify({ confirm })
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !result.deleted) throw new Error(result.error || "We couldn’t delete your account. Please try again.");
+    await clearCareReminders().catch(() => {});
+    await signOut();
+    setAuthMessage("Your account has been deleted.");
+  };
+
   const signOut = async () => {
     const signedOutUserId = currentUser?.id;
     await supabase.auth.signOut();
@@ -1750,6 +1767,7 @@ function App() {
             theme={theme}
             setTheme={changeTheme}
             onSignOut={signOut}
+            onDeleteAccount={deleteAccount}
             availability={availability}
             activeClinic={activeClinic}
             appointment={appointment}
@@ -2057,8 +2075,9 @@ function privacyPage(path) {
   window.location.assign(`/${path}`);
 }
 
-function ProfileButton({ user, role, theme, setTheme, onSignOut }) {
+function ProfileButton({ user, role, theme, setTheme, onSignOut, onDeleteAccount }) {
   const profileRef = useRef(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const fallbackName = role === "doctor" ? "Dr. Ashwani Kansal" : "Patient";
   const displayName = user?.name || fallbackName;
   const initial = role === "doctor" ? "D" : getInitials(displayName).slice(0, 1);
@@ -2085,7 +2104,9 @@ function ProfileButton({ user, role, theme, setTheme, onSignOut }) {
               <Popover.Close onClick={() => void privacyPage("privacy.html")}>Privacy policy</Popover.Close>
               <Popover.Close onClick={() => void privacyPage("terms.html")}>Terms of use</Popover.Close>
               <Popover.Close onClick={() => void privacyPage("refunds.html")}>Refund policy</Popover.Close>
-              <Popover.Close onClick={() => void privacyPage("account-deletion.html")}>Request account deletion</Popover.Close>
+              {role === "patient" && onDeleteAccount
+                ? <Popover.Close className="profile-danger" onClick={() => setDeleteOpen(true)}>Delete account</Popover.Close>
+                : <Popover.Close onClick={() => void privacyPage("account-deletion.html")}>Account deletion</Popover.Close>}
               <Popover.Close onClick={onSignOut}>
                 <LogOut size={17} />
                 Sign out
@@ -2094,11 +2115,15 @@ function ProfileButton({ user, role, theme, setTheme, onSignOut }) {
           </Popover.Positioner>
         </Popover.Portal>
       </Popover.Root>
+      {role === "patient" && onDeleteAccount && (
+        <DeleteAccountDialog open={deleteOpen} onOpenChange={setDeleteOpen} onDelete={onDeleteAccount} container={profileRef} />
+      )}
     </div>
   );
 }
 
 function PatientApp({
+  onDeleteAccount,
   activeTab,
   setActiveTab,
   currentUser,
@@ -2165,7 +2190,7 @@ function PatientApp({
           <span className="kicker">Dr Ashwani Family Clinic</span>
           <h2>{activeTab === "home" ? "Your care" : patientTabTitles[activeTab]}</h2>
         </div>
-        <ProfileButton user={currentUser} role="patient" theme={theme} setTheme={setTheme} onSignOut={onSignOut} />
+        <ProfileButton user={currentUser} role="patient" theme={theme} setTheme={setTheme} onSignOut={onSignOut} onDeleteAccount={onDeleteAccount} />
       </div>
 
       <div className="scroll-area">

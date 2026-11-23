@@ -15,7 +15,7 @@ Play account holder: Tanu Kansal (to match the Razorpay merchant account). Listi
 
 **Is all user data encrypted in transit?** Yes. All connections to the backend use HTTPS (TLS).
 
-**Do you provide a way for users to request deletion?** Yes. The app's profile menu has "Request account deletion", which opens the web request page, and the same page is the web link. **Confirm** that Play accepts an in-app link to a request page as the in-app option. A request made fully inside the app is the safer follow-up (spec "Open items" 7).
+**Do you provide a way for users to request deletion?** Yes. Patients delete their account inside the app (profile menu → Delete account → type DELETE), and it is immediate. The web link `account-deletion.html` gives the same steps for the web app, plus an email fallback for people who can no longer sign in. Data kept after deletion: payment records (name, amount, date, reference) for 7 tax years, as the Income-tax Rules require. Declare that in the form's "some data is retained" field.
 
 ### Data types
 
@@ -47,7 +47,7 @@ Declare no data shared. The help page says transfers to a service provider that 
 
 ### Security practices
 - Data encrypted in transit: Yes.
-- Deletion request available: Yes.
+- Deletion request available: Yes (in-app, immediate; web link for the same steps).
 - Independent security review: No. Do not claim one.
 
 ## Health apps declaration

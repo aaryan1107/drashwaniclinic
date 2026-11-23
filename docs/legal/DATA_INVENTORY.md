@@ -13,17 +13,17 @@ Access is enforced by row-level security. "Patient" means the signed-in patient 
 | Table | Contents | Source | Purpose | Who can read | Retention |
 |---|---|---|---|---|---|
 | `clinic_profiles` | Name, email, phone, avatar link, sign-in provider, role, medical profile (JSON) | `20260621124500_create_clinic_app_tables.sql`; written by `upsertClinicProfile` in `src/main.jsx` | Account | Patient, doctor | Until the account is deleted |
-| `clinic_login_audit` | User id, email, phone, provider, role, action, time | same migration; written in `src/main.jsx` | Security and audit | Doctor | Until the account is deleted (rows must be deleted by hand; see runbook) |
-| `patient_records` | Name, age, gender, mobile, WhatsApp, ABHA number, conditions, vitals, history, labs, symptoms, medicines, notes, follow-up | `20260622183000_harden_clinic_backend.sql` | Care | Patient (own), doctor | Clinical period (3 years after last visit) |
+| `clinic_login_audit` | User id, email, phone, provider, role, action, time | same migration; written in `src/main.jsx` | Security and audit | Doctor | Until the account is deleted (removed by `clinic_delete_patient_account`, matched by user id or email) |
+| `patient_records` | Name, age, gender, mobile, WhatsApp, ABHA number, conditions, vitals, history, labs, symptoms, medicines, notes, follow-up | `20260622183000_harden_clinic_backend.sql` | Care | Patient (own), doctor | Until the account is deleted |
 | `patient_readings` | Fasting and post-meal sugar, BP, weight, HbA1c, report name, symptoms, note | `20260621124500_create_clinic_app_tables.sql` | Care | Patient (own), doctor | Until the account is deleted |
-| `appointment_requests` | Patient name, phone, clinic, mode, date, time, reason, payment status and reference, status | `20260622183000_harden_clinic_backend.sql` and `20261118100000_consultation_workspace.sql` | Booking | Patient (own), doctor | Clinical period |
-| `consultation_payments` | Razorpay order and payment ids, amount, currency, method, status, patient name, email, contact, clinic. Holds online consultation payments (Rs 800, or Rs 600 for age 60 and over) and clinic visit payments (same fees by age, marked `clinic_visit`), and refund amount and date when Razorpay reports a refund | `20260611140000_create_consultation_payments.sql`; written by the payment functions | Fee collection | Patient (own), doctor | As tax and payment law requires |
-| `razorpay_webhook_events` | Razorpay event id, event type, order, payment and refund references, amount, currency, outcome, resulting status, time. No payer contact details or notes | `20261119120000_razorpay_webhook_events.sql`; written by the `razorpay-webhook` function | Payment audit and duplicate-event protection | Doctor | As tax and payment law requires |
-| `patient_care_plans` | Medicines, schedule, follow-up date and note | `20261117120000_patient_care_plans.sql` | Care and reminders | Patient (own), doctor | Clinical period |
-| `prescriptions` | Patient snapshot (name, age, gender), diagnosis, medicines, instructions, follow-up, doctor, status | `20261117130000_prescriptions.sql` | Care and record-keeping | Patient (own), doctor, front desk | Clinical period |
-| `visits` | Vitals, history, public and private notes, follow-up, date, status | `20261118100000_consultation_workspace.sql` | Care and record-keeping | The doctor who made it | Clinical period |
-| `visit_items` | Symptoms, diagnoses, findings, labs, medicines for a visit | same | Care and record-keeping | The doctor who made it | Clinical period |
-| `visit_audit` | Visit id, who acted, action (created, edited, sent), time | same | Audit | The doctor who acted | Clinical period |
+| `appointment_requests` | Patient name, phone, clinic, mode, date, time, reason, payment status and reference, status | `20260622183000_harden_clinic_backend.sql` and `20261118100000_consultation_workspace.sql` | Booking | Patient (own), doctor | Until the account is deleted |
+| `consultation_payments` | Razorpay order and payment ids, amount, currency, method, status, patient name, email, contact, clinic. Holds online consultation payments (Rs 800, or Rs 600 for age 60 and over) and clinic visit payments (same fees by age, marked `clinic_visit`), and refund amount and date when Razorpay reports a refund | `20260611140000_create_consultation_payments.sql`; written by the payment functions | Fee collection | Patient (own), doctor | 7 tax years (Income-tax Rule 46(6), Form No. 25). On account deletion only name, amount, date, purpose and Razorpay ids are kept |
+| `razorpay_webhook_events` | Razorpay event id, event type, order, payment and refund references, amount, currency, outcome, resulting status, time. No payer contact details or notes | `20261119120000_razorpay_webhook_events.sql`; written by the `razorpay-webhook` function | Payment audit and duplicate-event protection | Doctor | 7 tax years |
+| `patient_care_plans` | Medicines, schedule, follow-up date and note | `20261117120000_patient_care_plans.sql` | Care and reminders | Patient (own), doctor | Until the account is deleted |
+| `prescriptions` | Patient snapshot (name, age, gender), diagnosis, medicines, instructions, follow-up, doctor, status | `20261117130000_prescriptions.sql` | Care and record-keeping | Patient (own), doctor, front desk | Until the account is deleted |
+| `visits` | Vitals, history, public and private notes, follow-up, date, status | `20261118100000_consultation_workspace.sql` | Care and record-keeping | The doctor who made it | Until the account is deleted |
+| `visit_items` | Symptoms, diagnoses, findings, labs, medicines for a visit | same | Care and record-keeping | The doctor who made it | Until the account is deleted |
+| `visit_audit` | Visit id, who acted, action (created, edited, sent), time | same | Audit | The doctor who acted | Until the account is deleted |
 
 Private visit notes (`visits.notes_private`) are never returned to patients and are not part of the PDF. The administrator can technically reach them in the database, which the policy states.
 
@@ -77,3 +77,5 @@ Private visit notes (`visits.notes_private`) are never returned to patients and 
 ## 5. Things the administrator can do that patients should know about
 
 The administrator has database access through the Supabase dashboard. The policy discloses this and limits it to running, fixing and securing the service and answering privacy requests.
+
+Account deletion is self-service and immediate (`delete-account` Edge Function). Prescription PDFs in the `prescription-pdfs` bucket are deleted with the account. See `DELETION_RUNBOOK.md`.
